@@ -1,6 +1,14 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch21] - 2026-08-19
+### Added
+- **In-App Updater - UI Wiring (Pending Queue #15, selesai)**: `UpdateScreen.kt` (baru, self-contained) — `UpdateViewModel` + `UpdateCheckAction()` composable (tombol ikon + dialog cek/download progress/instal), dipasang di `NavGraph.kt` (TopEnd overlay Dashboard, tanpa edit `DashboardScreen.kt`). `strings.xml`: +13 string label dialog. Fitur "update langsung dari aplikasi" kini lengkap end-to-end (cek rilis GitHub -> download progress -> instal via FileProvider).
+
+## [v1.0.0-batch20] - 2026-08-19
+### Changed
+- **In-App Updater: swap ke OkHttp/Okio literal** (permintaan user, benefit: API streaming lebih ringkas & robust): `UpdateManager.kt` ditulis ulang pakai `OkHttpClient` + `Okio BufferedSink` (`source.read(sink.buffer, 8192)` + `sink.emit()` per chunk) menggantikan `HttpURLConnection` manual. `app/build.gradle.kts`: +1 dependency `com.squareup.okhttp3:okhttp:4.12.0`. Signature publik `UpdateManager` tidak berubah — aman utk UI wiring Batch 21.
+
 ## [v1.0.0-batch19] - 2026-08-19
 ### Added
 - **In-App Updater - Core Engine** (fitur "update langsung dari aplikasi", diminta user): `UpdateManager.kt` (baru) — cek rilis terbaru GitHub (`FDzaki-dev/PowerVaultHealthPro`), download APK streaming chunk-by-chunk ke disk (anti-freeze/anti-OOM, tanpa `readBytes()`), timeout connect 15s/read 20s, `followRedirects(true)`, trigger install via `FileProvider`. `file_paths.xml` (baru). `AndroidManifest.xml`: tambah `INTERNET`+`REQUEST_INSTALL_PACKAGES` permission + `<provider>` FileProvider.

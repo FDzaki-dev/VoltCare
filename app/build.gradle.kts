@@ -106,6 +106,11 @@ dependencies {
     // WorkManager (scheduled log retention / periodic checks - used by service layer)
     implementation("androidx.work:work-runtime-ktx:2.9.1")
 
+    // In-app updater (UpdateManager): streaming download chunk-by-chunk via Okio sink,
+    // timeout eksplisit, followRedirects — sesuai Release Downloader Spec (PROJECT_STATE).
+    // Okio dibawa transitif oleh OkHttp, tidak perlu dideklarasikan terpisah.
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
     // Charts (lightweight, no network dependency)
     implementation("androidx.compose.foundation:foundation")
 

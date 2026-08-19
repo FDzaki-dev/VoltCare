@@ -16,6 +16,74 @@
 
 ---
 
+## [Batch 21] Fitur - In-App Updater UI Wiring (Pending Queue #15) — 2026-08-19
+
+**Confidence Rating: 95%**
+**File sebelum -> sesudah:** 52 -> 54 file (1 baru: `UpdateScreen.kt`; 2 diedit: `strings.xml`, `NavGraph.kt` protected asset)
+
+### Alasan
+Lanjutan langsung Batch 19/20 — kini engine (`UpdateManager`) diwiring ke UI supaya user bisa cek/download/instal update dari dalam aplikasi tanpa Play Store.
+
+### Selesai
+- **`UpdateScreen.kt`** (baru, self-contained mengikuti pola `StressTestScreen.kt`): `UpdateViewModel` (`AndroidViewModel`, `StateFlow<UpdateUiState>` — Idle/Checking/UpToDate/Available/Downloading(percent)/ReadyToInstall/Failed) orkestrasi murni ke `UpdateManager.checkForUpdate()`/`downloadUpdate()` (signature Batch 20 dipakai apa adanya, 0 perubahan). `UpdateCheckAction()` composable: `IconButton` (ikon `SystemUpdate`) + `AlertDialog` per state — Checking (spinner, non-dismissable), UpToDate, Available (judul versi + release notes + tombol Unduh), Downloading (`LinearProgressIndicator` %, non-dismissable), ReadyToInstall (tombol Instal -> cek `canRequestInstallPackages()` dulu, kalau belum diizinkan buka `installPermissionSettingsIntent()`), Failed.
+- **`strings.xml`** (edit): 13 string baru utk seluruh label dialog updater (`update_*`), placeholder `%1$s` (versi) & `%1$d` (persen download) dipakai sesuai `stringResource(id, arg)`.
+- **`NavGraph.kt`** (edit parsial, protected): `UpdateCheckAction()` dipasang di `Box` overlay Dashboard, `Alignment.TopEnd` — **sengaja beda sudut** dari FAB Tes Baterai yang sudah ada di `BottomEnd` (Batch 12) supaya tidak tabrakan visual. `DashboardScreen.kt` TIDAK disentuh (pola sama seperti Batch 12 memasang FAB tanpa edit screen aslinya).
+
+### Sengaja TIDAK diubah
+- `DashboardScreen.kt` — lihat alasan di atas.
+- `UpdateManager.kt`, `app/build.gradle.kts` — dipakai persis seperti Batch 20, tidak ada perubahan API.
+- `FILE_MANIFEST.txt` — **belum** diupdate (akan jadi file ke-3... sebenarnya masih dalam cap 3, TAPI diputuskan tetap dikeluarkan dari batch ini supaya diff review lebih fokus ke fitur UI, bukan housekeeping; dijadwalkan Batch 22 bareng `FEATURE_PARITY_GOALS.md` (Batch 18) yang juga masih ter-queue).
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`NavGraph.kt` — brace balance diverifikasi (25/25 curly, 44/44 paren), struktur `Scaffold`/`NavHost`/route existing (Dashboard/History/Drain/Rules/stress_test) tidak terhapus, hanya disisipi 1 import + 1 `Box` overlay baru.
+
+### Catatan
+Tidak ada compile Gradle/emulator sungguhan di lingkungan pembuatan ZIP ini — verifikasi terbatas pada brace balance + audit manual API Compose Material3 1.2.1 (`LinearProgressIndicator(progress: Float, ...)` dipakai versi stabil non-experimental, BUKAN varian lambda `progress: () -> Float` yang baru ada di versi lebih baru — konsisten dgn fix regresi Batch 15 soal API belum tersedia di 1.2.1). Rekomendasi: build sungguhan sekali di Termux/CI utk konfirmasi resolusi `R.string.update_*` & import composable sebelum rilis.
+
+### Pending Queue (Batch 21: item #15a-c selesai, housekeeping digeser ke Batch 22)
+1-7, 9. ✅ selesai (lihat Batch 8-17)
+8. (opsional) Rename repo GitHub ke `VoltCare` via `gh repo rename` (manual)
+10-13. (dari Batch 18, belum dikerjakan)
+14. (housekeeping) Update `FILE_MANIFEST.txt` — digeser ke Batch 22
+15. ✅ selesai batch ini (In-App Updater lengkap: engine Batch 19-20 + UI Batch 21)
+
+---
+
+## [Batch 20] Fix - Swap HttpURLConnection -> OkHttp/Okio Literal (permintaan user) — 2026-08-19
+
+**Confidence Rating: 97%**
+**File sebelum -> sesudah:** 52 -> 52 file (0 baru/hapus, 2 diedit: `UpdateManager.kt`, `app/build.gradle.kts` protected asset)
+
+### Alasan
+User tanya kenapa Batch 19 tidak pakai library literal sesuai contoh di rule ("Okio sink / ByteReadChannel"), lalu eksplisit minta dieksekusi ganti kalau "ada benefit besar". Benefit nyata: Okio `BufferedSink`/`BufferedSource` API lebih ringkas & aman utk streaming chunk vs `HttpURLConnection` manual, OkHttp connection pooling + Interceptor lebih robust utk retry/logging masa depan, dan ini approach yang sudah battle-tested/konvensional di ekosistem Android (dipakai luas), jadi worth 1 dependency tambahan.
+
+### Selesai
+- **`UpdateManager.kt`**: `checkForUpdate()` & `downloadUpdate()` ditulis ulang total pakai `OkHttpClient` (connectTimeout 15s, readTimeout 20s, `followRedirects(true)`, `followSslRedirects(true)`, instance `lazy` singleton). Download pakai `responseBody.source().read(sink.buffer, 8192)` + `sink.emit()` per iterasi — literal Okio sink streaming chunk-by-chunk ke `destFile.sink().buffer()`, TETAP tidak ada `readBytes()`/muat penuh body biner ke RAM. Fungsi publik (`UpdateInfo`, `DownloadResult`, `canRequestInstallPackages()`, `installApk()`, dst) — signature & perilaku IDENTIK, tidak ada breaking change utk batch UI (#15) berikutnya.
+- **`app/build.gradle.kts`** (edit parsial, protected): tambah 1 baris dependency `implementation("com.squareup.okhttp3:okhttp:4.12.0")` (Okio 3.x terbawa transitif, tidak dideklarasikan terpisah) — disisipkan di blok `dependencies` kedua, dekat `work-runtime-ktx`.
+
+### Sengaja TIDAK diubah
+- Signature publik `UpdateManager` (semua fungsi/data class nama & tipe sama) — supaya Batch 21 (UI wiring, sudah di-plan sejak Batch 19) tidak perlu penyesuaian.
+- `AndroidManifest.xml` — permission/provider dari Batch 19 sudah cukup, tidak ada penambahan.
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`app/build.gradle.kts` — brace balance diverifikasi (20/20 curly, 55/55 paren), 1 baris ditambah di blok `dependencies` existing, tidak ada blok baru/terhapus.
+
+### Catatan
+Tidak ada akses jaringan/Gradle sungguhan di lingkungan pembuatan ZIP ini — verifikasi terbatas pada brace balance + audit manual API Okio (`BufferedSink.buffer`, `Source.read(Buffer, Long)`, `sink.emit()` adalah API resmi Okio 3.x, konsisten dgn versi yang dibawa OkHttp 4.12.0). Rekomendasi: build sungguhan sekali di Termux/CI utk konfirmasi resolusi dependency OkHttp berhasil sebelum lanjut Batch 21.
+
+### Pending Queue (Batch 20: tidak ada item baru, Batch 21 tetap sama seperti direncanakan)
+1-7, 9. ✅ selesai (lihat Batch 8-17)
+8. (opsional) Rename repo GitHub ke `VoltCare` via `gh repo rename` (manual)
+10-13. (dari Batch 18, belum dikerjakan)
+14. (housekeeping) Update `FILE_MANIFEST.txt` — digabung ke #15c
+15. **In-App Updater UI (Batch 21, KRUSIAL — lanjutan langsung):**
+    - 15a. Tombol "Cek Update" + `UpdateViewModel.kt` (state: idle/checking/available/downloading progress%/ready-install/failed) manggil `UpdateManager.checkForUpdate()`+`downloadUpdate()` (signature TIDAK berubah dari Batch 19, aman dipakai apa adanya).
+    - 15b. Dialog/Card hasil: versi baru + `releaseNotes`, tombol Download -> progress % real-time -> tombol Install (`installApk()`, cek `canRequestInstallPackages()` dulu, kalau belum arahkan ke `installPermissionSettingsIntent()`).
+    - 15c. `strings.xml` + `FILE_MANIFEST.txt` (item #14).
+    - Estimasi 3 file; kalau `NavGraph.kt`/`DashboardScreen.kt` ternyata perlu disentuh juga -> dipecah ke Batch 22.
+
+---
+
 ## [Batch 19] Fitur - In-App Updater Core Engine (cek + download GitHub Release) — 2026-08-19
 
 **Confidence Rating: 96%**

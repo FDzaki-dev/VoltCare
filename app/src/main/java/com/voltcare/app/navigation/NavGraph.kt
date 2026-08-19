@@ -31,6 +31,7 @@ import com.voltcare.app.ui.screens.drain.DrainScreen
 import com.voltcare.app.ui.screens.history.HistoryScreen
 import com.voltcare.app.ui.screens.rules.RulesScreen
 import com.voltcare.app.ui.screens.stress.StressTestScreen
+import com.voltcare.app.ui.screens.update.UpdateCheckAction
 
 /** Route non-tab (tidak muncul di bottom nav), dibuka via FAB di Dashboard. */
 private const val ROUTE_STRESS_TEST = "stress_test"
@@ -85,6 +86,9 @@ fun VoltCareNavGraph() {
             composable(VcTab.Dashboard.route) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     DashboardScreen()
+                    Box(modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)) {
+                        UpdateCheckAction()
+                    }
                     FloatingActionButton(
                         onClick = { navController.navigate(ROUTE_STRESS_TEST) },
                         modifier = Modifier

@@ -6,4 +6,19 @@
     <string name="tab_rules">Aturan</string>
     <string name="notif_channel_monitor">Monitor Baterai</string>
     <string name="notif_channel_alert">Peringatan Baterai</string>
+
+    <!-- In-app updater (Batch 21) -->
+    <string name="update_check_action">Cek Update</string>
+    <string name="update_checking_title">Mengecek pembaruan...</string>
+    <string name="update_up_to_date_title">Sudah Versi Terbaru</string>
+    <string name="update_up_to_date_body">VoltCare Anda sudah menggunakan versi paling baru.</string>
+    <string name="update_available_title">Update Tersedia: v%1$s</string>
+    <string name="update_no_notes">Tidak ada catatan rilis.</string>
+    <string name="update_download">Unduh</string>
+    <string name="update_downloading_title">Mengunduh... %1$d%%</string>
+    <string name="update_ready_title">Siap Dipasang</string>
+    <string name="update_ready_body">APK selesai diunduh. Lanjutkan instalasi lewat installer sistem?</string>
+    <string name="update_install">Instal</string>
+    <string name="update_failed_title">Gagal Update</string>
+    <string name="update_close">Tutup</string>
 </resources>

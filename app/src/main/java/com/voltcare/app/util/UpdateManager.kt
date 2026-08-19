@@ -9,25 +9,27 @@ import android.util.Log
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okio.buffer
+import okio.sink
 import org.json.JSONObject
-import java.io.BufferedInputStream
 import java.io.File
-import java.io.FileOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
+import java.util.concurrent.TimeUnit
 
 /**
  * In-app updater bawaan VoltCare — cek rilis terbaru di GitHub Releases lalu
  * download APK signed langsung dari dalam aplikasi (tanpa Play Store).
  *
  * Kepatuhan Release Downloader Spec (PROJECT_STATE):
- * - Streaming chunk-by-chunk (buffer 8KB) langsung ke [FileOutputStream], TIDAK PERNAH
- *   memuat body APK utuh ke RAM (tidak ada readBytes()/ByteArray besar).
- * - Timeout eksplisit: connect 15s, read 20s.
+ * - Streaming chunk-by-chunk (buffer 8KB) via Okio [okio.BufferedSink] langsung ke disk,
+ *   TIDAK PERNAH memuat body APK utuh ke RAM (tidak ada readBytes()/ByteArray besar/
+ *   response.body.string() untuk biner).
+ * - OkHttpClient timeout eksplisit: connect 15s, read 20s.
  * - followRedirects(true) — browser_download_url GitHub Release redirect (302) ke CDN.
  * - Header Accept: application/octet-stream saat unduh biner; Authorization: Bearer <token>
- *   HANYA disertakan jika [githubToken] diisi (repo publik VoltCare tidak butuh token untuk
- *   baca release/download asset — lihat catatan di PROJECT_STATE batch ini).
+ *   HANYA disertakan jika [GITHUB_TOKEN] diisi (repo publik VoltCare tidak butuh token untuk
+ *   baca release/download asset — lihat catatan PROJECT_STATE Batch 19/20).
  * - Fail-safe: seluruh proses dibungkus try-catch, file parsial dihapus jika gagal/interrupted.
  */
 object UpdateManager {
@@ -41,12 +43,19 @@ object UpdateManager {
     private const val API_LATEST_RELEASE =
         "https://api.github.com/repos/$GITHUB_OWNER/$GITHUB_REPO/releases/latest"
 
-    private const val CONNECT_TIMEOUT_MS = 15_000
-    private const val READ_TIMEOUT_MS = 20_000
-    private const val BUFFER_SIZE = 8 * 1024
+    private const val BUFFER_SIZE = 8L * 1024 // 8KB per chunk, sesuai spec
 
     /** Isi jika suatu saat repo di-private-kan / butuh rate-limit lebih tinggi. Default null. */
     private const val GITHUB_TOKEN: String? = null
+
+    private val client: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .build()
+    }
 
     data class UpdateInfo(
         val latestVersionName: String,
@@ -66,111 +75,104 @@ object UpdateManager {
      * atau tidak ada asset .apk di rilis (fail-safe, tidak pernah throw ke caller).
      */
     suspend fun checkForUpdate(context: Context): UpdateInfo? = withContext(Dispatchers.IO) {
-        var connection: HttpURLConnection? = null
         try {
-            val url = URL(API_LATEST_RELEASE)
-            connection = (url.openConnection() as HttpURLConnection).apply {
-                requestMethod = "GET"
-                connectTimeout = CONNECT_TIMEOUT_MS
-                readTimeout = READ_TIMEOUT_MS
-                instanceFollowRedirects = true
-                setRequestProperty("Accept", "application/vnd.github+json")
-                GITHUB_TOKEN?.let { setRequestProperty("Authorization", "Bearer $it") }
-            }
+            val requestBuilder = Request.Builder()
+                .url(API_LATEST_RELEASE)
+                .header("Accept", "application/vnd.github+json")
+            GITHUB_TOKEN?.let { requestBuilder.header("Authorization", "Bearer $it") }
 
-            if (connection.responseCode !in 200..299) {
-                Log.w(TAG, "Cek update gagal, HTTP ${connection.responseCode}")
-                return@withContext null
-            }
+            client.newCall(requestBuilder.build()).execute().use { response ->
+                if (!response.isSuccessful) {
+                    Log.w(TAG, "Cek update gagal, HTTP ${response.code}")
+                    return@withContext null
+                }
 
-            // Body JSON metadata rilis berukuran kecil (bukan biner APK) — aman dibaca penuh.
-            val body = connection.inputStream.bufferedReader().use { it.readText() }
-            val json = JSONObject(body)
+                // Body JSON metadata rilis berukuran kecil (bukan biner APK) — aman dibaca penuh.
+                val body = response.body?.string().orEmpty()
+                val json = JSONObject(body)
 
-            val tagName = json.optString("tag_name", "")
-            val latestVersion = tagName.removePrefix("v").removePrefix("V")
-            val releaseNotes = json.optString("body", "").take(2000)
+                val tagName = json.optString("tag_name", "")
+                val latestVersion = tagName.removePrefix("v").removePrefix("V")
+                val releaseNotes = json.optString("body", "").take(2000)
 
-            val assets = json.optJSONArray("assets")
-            var apkUrl: String? = null
-            var apkSize = 0L
-            if (assets != null) {
-                for (i in 0 until assets.length()) {
-                    val asset = assets.getJSONObject(i)
-                    val name = asset.optString("name", "")
-                    if (name.endsWith(".apk", ignoreCase = true)) {
-                        apkUrl = asset.optString("browser_download_url", null)
-                        apkSize = asset.optLong("size", 0L)
-                        break
+                val assets = json.optJSONArray("assets")
+                var apkUrl: String? = null
+                var apkSize = 0L
+                if (assets != null) {
+                    for (i in 0 until assets.length()) {
+                        val asset = assets.getJSONObject(i)
+                        val name = asset.optString("name", "")
+                        if (name.endsWith(".apk", ignoreCase = true)) {
+                            apkUrl = asset.optString("browser_download_url", null)
+                            apkSize = asset.optLong("size", 0L)
+                            break
+                        }
                     }
                 }
-            }
 
-            if (apkUrl.isNullOrBlank() || latestVersion.isBlank()) {
-                Log.w(TAG, "Rilis terbaru tidak punya asset .apk atau tag_name kosong")
-                return@withContext null
-            }
+                if (apkUrl.isNullOrBlank() || latestVersion.isBlank()) {
+                    Log.w(TAG, "Rilis terbaru tidak punya asset .apk atau tag_name kosong")
+                    return@withContext null
+                }
 
-            val currentVersion = getCurrentVersionName(context)
-            if (!isNewerVersion(latestVersion, currentVersion)) {
-                return@withContext null
-            }
+                val currentVersion = getCurrentVersionName(context)
+                if (!isNewerVersion(latestVersion, currentVersion)) {
+                    return@withContext null
+                }
 
-            UpdateInfo(
-                latestVersionName = latestVersion,
-                currentVersionName = currentVersion,
-                downloadUrl = apkUrl,
-                fileSizeBytes = apkSize,
-                releaseNotes = releaseNotes
-            )
+                UpdateInfo(
+                    latestVersionName = latestVersion,
+                    currentVersionName = currentVersion,
+                    downloadUrl = apkUrl,
+                    fileSizeBytes = apkSize,
+                    releaseNotes = releaseNotes
+                )
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Gagal cek update", e)
             null
-        } finally {
-            connection?.disconnect()
         }
     }
 
     /**
-     * Download APK streaming chunk-by-chunk ke [Context.getExternalFilesDir] (tidak butuh
-     * permission storage legacy). [onProgress] dipanggil dengan persen 0-100 di thread IO
-     * (caller wajib switch ke Main jika update UI langsung).
+     * Download APK streaming chunk-by-chunk (Okio sink) ke [Context.getExternalFilesDir]
+     * (tidak butuh permission storage legacy). [onProgress] dipanggil dengan persen 0-100
+     * di thread IO (caller wajib switch ke Main jika update UI langsung).
      */
     suspend fun downloadUpdate(
         context: Context,
         info: UpdateInfo,
         onProgress: (Int) -> Unit
     ): DownloadResult = withContext(Dispatchers.IO) {
-        var connection: HttpURLConnection? = null
         val destDir = File(context.getExternalFilesDir(null), "updates").apply { mkdirs() }
         val destFile = File(destDir, "VoltCare_${info.latestVersionName}.apk")
 
         try {
-            val url = URL(info.downloadUrl)
-            connection = (url.openConnection() as HttpURLConnection).apply {
-                requestMethod = "GET"
-                connectTimeout = CONNECT_TIMEOUT_MS
-                readTimeout = READ_TIMEOUT_MS
-                instanceFollowRedirects = true
-                setRequestProperty("Accept", "application/octet-stream")
-                GITHUB_TOKEN?.let { setRequestProperty("Authorization", "Bearer $it") }
-            }
+            val requestBuilder = Request.Builder()
+                .url(info.downloadUrl)
+                .header("Accept", "application/octet-stream")
+            GITHUB_TOKEN?.let { requestBuilder.header("Authorization", "Bearer $it") }
 
-            if (connection.responseCode !in 200..299) {
-                return@withContext DownloadResult.Failed("HTTP ${connection.responseCode}")
-            }
+            client.newCall(requestBuilder.build()).execute().use { response ->
+                if (!response.isSuccessful) {
+                    return@withContext DownloadResult.Failed("HTTP ${response.code}")
+                }
 
-            val totalBytes = connection.contentLengthLong.takeIf { it > 0 } ?: info.fileSizeBytes
-            var downloadedBytes = 0L
-            var lastReportedPercent = -1
+                val responseBody = response.body
+                    ?: return@withContext DownloadResult.Failed("Body kosong")
 
-            BufferedInputStream(connection.inputStream).use { input ->
-                FileOutputStream(destFile).use { output ->
-                    val buffer = ByteArray(BUFFER_SIZE)
+                val totalBytes = responseBody.contentLength().takeIf { it > 0 } ?: info.fileSizeBytes
+                var downloadedBytes = 0L
+                var lastReportedPercent = -1
+
+                val source = responseBody.source()
+                destFile.sink().buffer().use { sink ->
                     while (true) {
-                        val read = input.read(buffer)
-                        if (read == -1) break
-                        output.write(buffer, 0, read)
+                        // Baca max BUFFER_SIZE (8KB) per iterasi ke buffer internal sink,
+                        // lalu emit() ke disk — TIDAK PERNAH menampung seluruh body di RAM.
+                        val read = source.read(sink.buffer, BUFFER_SIZE)
+                        if (read == -1L) break
+                        sink.emit()
                         downloadedBytes += read
                         if (totalBytes > 0) {
                             val percent = ((downloadedBytes * 100) / totalBytes).toInt().coerceIn(0, 100)
@@ -180,17 +182,15 @@ object UpdateManager {
                             }
                         }
                     }
-                    output.flush()
+                    sink.flush()
                 }
-            }
 
-            DownloadResult.Success(destFile)
+                DownloadResult.Success(destFile)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Gagal download update", e)
             if (destFile.exists()) destFile.delete() // buang file parsial, jangan sisakan sampah
             DownloadResult.Failed(e.message ?: "Unknown error")
-        } finally {
-            connection?.disconnect()
         }
     }
 
