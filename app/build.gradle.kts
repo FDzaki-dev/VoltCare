@@ -114,6 +114,13 @@ dependencies {
     // Charts (lightweight, no network dependency)
     implementation("androidx.compose.foundation:foundation")
 
+    // Shizuku (Batch 23): akses privilege shell (shell UID via ADB pairing / root activator) TANPA
+    // root permanen & TANPA request root langsung dari app ini. User install app Shizuku terpisah
+    // (Play Store/GitHub) + aktifkan sendiri. Tanpa Shizuku aktif, semua fitur existing tetap 100%
+    // jalan seperti biasa (graceful fallback) - lihat ShizukuManager.kt untuk detail fail-safe.
+    implementation("dev.rikka.shizuku:api:13.1.5")
+    implementation("dev.rikka.shizuku:provider:13.1.5")
+
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")

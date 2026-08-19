@@ -66,5 +66,16 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Shizuku (Batch 23): wajib dideklarasikan agar app Shizuku bisa mem-binding & memberi
+             izin shell ke VoltCare. Tidak membuka akses apa pun sebelum user aktifkan Shizuku
+             sendiri + approve dialog izin (ShizukuManager.requestPermission()). -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
     </application>
 </manifest>

@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch23] - 2026-08-19
+### Added
+- **Shizuku Core Integration (engine)**: `ShizukuManager.kt` (baru) - wrapper fail-safe (`hasPermission`, `requestPermission`, `execShellCommand` via `Shizuku.newProcess()` reflection, dll). `app/build.gradle.kts`: +2 dependency `dev.rikka.shizuku:api`/`:provider` 13.1.5. `AndroidManifest.xml`: +`<provider>` `ShizukuProvider`. Tanpa Shizuku aktif, semua fitur existing tetap 100% jalan seperti biasa (graceful fallback), belum diwiring ke UI/fitur manapun.
+### Queued
+- UI trigger izin, rewire Force Stop (Drain Analyzer) ke `am force-stop`, statistik drain per-app riil via `dumpsys batterystats`, auto-grant Usage Access — lihat Pending Queue #17-20 di `PROJECT_STATE.md`.
+
 ## [v1.0.0-batch22] - 2026-08-19
 ### Fixed
 - **Build gagal** (regresi Batch 20, ditemukan via `log_fail` asli yang diupload user): `UpdateManager.kt:49` — Kotlin melarang `const val` bertipe nullable (`String?`). `private const val GITHUB_TOKEN: String? = null` -> `private val GITHUB_TOKEN: String? = null`. Fungsional identik, hanya bukan compile-time constant lagi.

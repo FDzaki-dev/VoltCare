@@ -16,6 +16,49 @@
 
 ---
 
+## [Batch 23] Fitur - Shizuku Core Integration (Engine, belum diwiring UI) — 2026-08-19
+
+**Confidence Rating: 90%**
+**File sebelum -> sesudah:** 54 -> 55 file (1 baru: `ShizukuManager.kt`; 2 diedit parsial: `app/build.gradle.kts`, `AndroidManifest.xml`, keduanya protected)
+
+### Alasan
+User minta integrasi Shizuku 100% supaya fitur yang "agak mustahil" dengan izin Android biasa (Force Stop sungguhan, statistik drain per-app riil, auto-grant Usage Access, auto-hibernate terjadwal) jadi mungkin. Scope ini besar -> sesuai Strict Micro-Batching Rule dipecah bertahap, pola sama seperti In-App Updater (Batch 19-21): **Batch 23 (ini) = core engine/wrapper**, sisanya di-queue.
+
+### Selesai
+- **`app/build.gradle.kts`** (edit parsial, protected): +2 dependency `dev.rikka.shizuku:api:13.1.5` & `dev.rikka.shizuku:provider:13.1.5` (Maven Central, `settings.gradle.kts` sudah punya repo ini sejak Batch 1 — tidak perlu tambah repo baru).
+- **`AndroidManifest.xml`** (edit parsial, protected): daftar `<provider android:name="rikka.shizuku.ShizukuProvider" .../>` (authority `${applicationId}.shizuku`, `exported=true`, permission `INTERACT_ACROSS_USERS_FULL`) — wajib agar app Shizuku bisa binding & memberi izin ke VoltCare. Tidak ada `<uses-permission>` tambahan (Shizuku pakai izin runtime lewat dialognya sendiri, bukan manifest permission).
+- **`util/ShizukuManager.kt`** (baru): `isBinderAlive()`, `hasPermission()`, `currentState()` (sealed `State`: NotInstalled/NotRunning/PermissionDenied/Ready), `requestPermission()`, `addBinderListeners()`, `addPermissionResultListener()`, `execShellCommand(cmd): ShellResult` — eksekusi command shell privilege Shizuku via `Shizuku.newProcess()` (reflection, hidden-tapi-didukung resmi di Shizuku API 11.x-13.x, pola umum dipakai app pihak ketiga berbasis Shizuku). Seluruh fungsi fail-safe try-catch total, tidak pernah throw ke caller — konsisten pola `CrashLogger.kt`/`UpdateManager.kt`.
+
+### Keputusan Desain Penting
+- **Graceful fallback wajib**: tanpa Shizuku aktif/diizinkan, `hasPermission()`/`execShellCommand()` selalu return "tidak tersedia" secara aman, TIDAK mengubah perilaku fitur existing (`UsageStatsHelper.killBackgroundApp` tetap dipakai apa adanya sbg fallback default). Shizuku murni opsional booster, bukan requirement baru untuk app tetap jalan.
+- **Bukan root langsung**: VoltCare tidak pernah minta akses root sendiri. Privilege datang dari binder Shizuku yang usernya aktifkan & approve sendiri lewat app Shizuku terpisah (ADB pairing wireless Android 11+, atau root activator jika device di-root) — di luar kendali/kode VoltCare sepenuhnya.
+- **`Shizuku.newProcess()` via reflection** dipilih (bukan `Shizuku.bindUserService`/AIDL) supaya core engine batch ini tetap 1 file & self-contained; AIDL UserService (lebih "proper" untuk command kompleks/berulang) di-queue sbg opsi upgrade jika reflection terbukti tidak stabil di device nyata.
+
+### Sengaja TIDAK diubah
+- `VoltCareApplication.kt` (protected) — `addBinderListeners()` belum dipanggil dari mana pun (baru wrapper standalone), pendaftaran listener siklus hidup app di-queue ke batch UI wiring supaya batch ini tetap 3 file.
+- `MainActivity.kt`, `NavGraph.kt`, screen manapun — belum ada tombol/UI trigger permission Shizuku sama sekali, murni engine dulu (pola identik Batch 19 utk UpdateManager).
+- `UsageStatsHelper.kt` (Drain Analyzer) — belum diubah untuk memakai Shizuku; `killBackgroundApp()` tetap 100% jalur lama. Rewire ke `am force-stop` via `ShizukuManager.execShellCommand()` di-queue Batch 24.
+- `FILE_MANIFEST.txt` — belum diupdate (akan jadi file ke-4), di-queue bareng housekeeping berikutnya.
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`app/build.gradle.kts` — brace balance diverifikasi (20/20 curly, 61/61 paren), 2 baris ditambah di blok `dependencies` existing kedua. `AndroidManifest.xml` — XML diverifikasi valid (`xml.etree.ElementTree.parse` sukses), 1 `<provider>` baru disisipkan sebelum penutup `</application>`, seluruh isi lain utuh.
+
+### Catatan
+Tidak ada akses jaringan/Gradle/device fisik sungguhan di lingkungan pembuatan ZIP ini (network disabled) — `ShizukuManager.kt` diverifikasi via audit manual API Shizuku (nama method publik `pingBinder`/`checkSelfPermission`/`requestPermission`/`isPreV11`/listener sesuai dokumentasi resmi versi 11.x-13.x) + brace balance (29/29 curly, 75/75 paren), BUKAN compile Gradle sungguhan. Method `newProcess()` diakses via reflection karena tidak ada di public API surface resmi `rikka.shizuku:api` — signature `(String[], String[], String)` berdasarkan pola yang dipakai luas oleh app pihak ketiga berbasis Shizuku, tapi **belum terverifikasi jalan di device nyata di batch ini**. Confidence 90% (bukan 95%+) karena 2 hal belum terkonfirmasi: (1) resolusi dependency `dev.rikka.shizuku:*:13.1.5` sukses saat build sungguhan, (2) `newProcess()` reflection benar-benar berfungsi di runtime saat Shizuku aktif. Rekomendasi kuat: build + test manual di Termux/device dengan Shizuku aktif sebelum lanjut Batch 24 (rewire fitur nyata), supaya kalau reflection gagal, upgrade ke `bindUserService`/AIDL bisa diputuskan lebih awal.
+
+### Pending Queue (Batch 23: 1 fitur besar dipecah, 4 sub-task Shizuku baru ditambahkan sbg #17-20)
+1-7, 9. ✅ selesai (lihat Batch 8-17)
+8. (opsional) Rename repo GitHub ke `VoltCare` via `gh repo rename` (manual)
+10-13. (dari Batch 18, belum dikerjakan)
+14. (housekeeping) Update `FILE_MANIFEST.txt` — digeser lagi, gabung ke #17
+15-16. ✅ selesai (lihat Batch 19-22)
+17. **Shizuku UI Wiring** (KRUSIAL, lanjutan langsung): tombol/indikator status Shizuku (State: NotInstalled/NotRunning/PermissionDenied/Ready) di Dashboard atau Settings baru, panggil `requestPermission()`, daftarkan listener di `VoltCareApplication.kt`. Estimasi 3 file.
+18. **Force Stop via Shizuku** (Drain Analyzer upgrade): `UsageStatsHelper.killBackgroundApp()` — kalau `ShizukuManager.hasPermission()` true, pakai `am force-stop <pkg>` (jauh lebih kuat dari `killBackgroundProcesses`); kalau false, tetap fallback ke jalur lama. Estimasi 1-2 file.
+19. **Statistik drain per-app riil via Shizuku** (upgrade Drain Analyzer dari proxy waktu pemakaian ke data mAh nyata): `dumpsys batterystats` diparsing via `execShellCommand()`. Estimasi 1-2 file, kompleksitas parsing tinggi -> mungkin perlu dipecah lagi.
+20. **Auto-grant PACKAGE_USAGE_STATS via Shizuku** (`appops set <pkg> GET_USAGE_STATS allow`) — hilangkan langkah manual buka Settings di Drain Analyzer saat Shizuku aktif. Estimasi 1 file.
+
+---
+
 ## [Batch 22] Fix - Regresi Compile `const val String?` (dari log_fail user) + Housekeeping Manifest — 2026-08-19
 
 **Confidence Rating: 98%**
