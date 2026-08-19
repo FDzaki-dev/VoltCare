@@ -30,6 +30,41 @@ Ini bukan teori, ini kejadian nyata yang sudah pernah bikin build v1.9.0 gagal:
 
 ## 3. Termux / git
 
+### ⚠️ CEK PALING AWAL kalau "commit sukses tapi Actions gak jalan": `fatal: 'origin' does not appear to be a git repository`
+
+**Gejala:** `git log -1 --oneline` lokal nunjuk commit yang BENAR (fix/update
+kelihatan sukses), tapi GitHub Actions **tidak ada run baru** untuk commit
+itu -- atau command manual (`git ls-remote origin ...`, `git push origin
+main`) balikin `fatal: 'origin' does not appear to be a git repository`.
+
+**Penyebab:** folder `~/projects/VoltCare/.git` kebentuk dari `git init`
+FRESH di device/sesi Termux ini (bukan dari `gh repo create --remote=origin`
+/ clone) -- remote `origin` gak pernah ke-set. Paling sering kejadian pas
+device/sesi ini baru pertama kali jalanin skrip **Update Harian**, TANPA
+pernah jalanin **Kotak A (Initial Setup)** di device itu duluan. Efeknya:
+`git push origin main` di skrip Update Harian GAGAL DIAM-DIAM (fatal error
+gampang kescroll/tertutup output unzip yang panjang), padahal commit lokal
+sendiri tetap sukses dibuat.
+
+**Fix wajib -- cek DULU sebelum curiga ke hal lain:**
+```
+git remote -v
+```
+Kalau outputnya KOSONG, WAJIB tambah remote dulu:
+```
+git remote add origin https://github.com/FDzaki-dev/VoltCare.git
+```
+Baru lanjut skrip Update Harian seperti biasa (fetch/reset/unzip/commit/
+`push -u origin main`).
+
+**Catatan buat Claude (sesi lain):** kalau user lapor "commit ada tapi
+build/Actions gak ke-trigger" atau "push kayaknya gagal" di project ini,
+LANGSUNG minta output `git remote -v` di giliran pertama -- jangan muter
+dulu ke `git log`/`git status` (itu cuma nunjukin state lokal, TIDAK bisa
+konfirmasi remote). Ini penyebab paling sering utk kasus tsb.
+
+---
+
 Kalau `git push` gagal atau ada konflik struktur folder, minta Claude kasih
 perintah diagnostik+perbaikan dalam satu paste (sudah jadi standar respons).
 

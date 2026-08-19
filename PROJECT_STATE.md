@@ -17,6 +17,22 @@
 
 ---
 
+## [Batch 35] Docs - Troubleshooting: remote origin hilang di device/sesi baru — 2026-08-20
+
+**Confidence Rating: 98%**
+**File sebelum -> sesudah:** 59 -> 59 file (1 file diedit: `TROUBLESHOOTING.md` — bukan protected asset, dokumentasi only, tidak ada perubahan kode)
+
+### Konteks
+Kejadian nyata setelah push Batch 34: commit lokal sukses (`git log -1` benar), tapi GitHub Actions gak ada run baru. Ternyata `git push origin main` gagal diam-diam karena remote `origin` gak ke-set di device/sesi Termux ini (`.git` kebentuk fresh dari `git init`, bukan dari Kotak A/clone). User minta ini didokumentasikan biar sesi lain ke depannya langsung tau, gak perlu diagnosa panjang lagi.
+
+### Selesai
+- **`TROUBLESHOOTING.md`** section "3. Termux / git": tambah entri spesifik gejala + root cause + fix wajib (`git remote -v` cek dulu, kalau kosong `git remote add origin https://github.com/FDzaki-dev/VoltCare.git`), plus catatan eksplisit ke Claude sesi lain: kalau user lapor "commit ada tapi Actions gak ke-trigger", cek `git remote -v` DULUAN sebelum `git log`/`git status`.
+
+### Pending Queue
+1-7, 9-20, 22. Tidak berubah. 21 ✅ (Batch 33).
+
+---
+
 ## [Batch 34] Fix - Regresi Batch 31: Shizuku & Update overlap kartu Health/Suhu — 2026-08-20
 
 **Confidence Rating: 96%**
