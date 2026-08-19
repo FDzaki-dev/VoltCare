@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.powervault.health.pro"
+    namespace = "com.voltcare.app"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.powervault.health.pro"
+        applicationId = "com.voltcare.app"
         minSdk = 29
         targetSdk = 34
         versionCode = 1

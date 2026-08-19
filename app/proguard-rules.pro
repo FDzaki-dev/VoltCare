@@ -1,5 +1,5 @@
-# PowerVault Health Pro - ProGuard rules
--keep class com.powervault.health.pro.data.db.entity.** { *; }
+# VoltCare - ProGuard rules
+-keep class com.voltcare.app.data.db.entity.** { *; }
 -keepattributes *Annotation*
 -keep class androidx.room.** { *; }
 -dontwarn kotlinx.coroutines.**

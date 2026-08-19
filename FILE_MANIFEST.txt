@@ -1,4 +1,4 @@
-PowerVault Health Pro - File Manifest (Batch 1)
+VoltCare - File Manifest (Batch 5)
 Generated: 2026-08-19
 
 ROOT
@@ -27,8 +27,8 @@ app/
   src/main/res/drawable/{ic_launcher_background,ic_launcher_foreground}.xml
   src/main/res/mipmap-anydpi-v26/{ic_launcher,ic_launcher_round}.xml
 
-app/src/main/java/com/powervault/health/pro/
-  PowerVaultApplication.kt
+app/src/main/java/com/voltcare/app/
+  VoltCareApplication.kt
   MainActivity.kt
   navigation/NavGraph.kt
   ui/theme/{Color,Type,Theme}.kt

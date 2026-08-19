@@ -1,6 +1,7 @@
 # VoltCare
 
-(dulu "PowerVault Health Pro" — package/arsitektur tidak berubah, hanya nama tampilan app.)
+(dulu "PowerVault Health Pro". Sejak Batch 5, rename diterapkan total: applicationId/namespace
+`com.voltcare.app`, semua nama kelas/paket, nama DB, folder crash log, dan seluruh dokumen.)
 
 Aplikasi monitoring & kesehatan baterai Android, 100% lokal/offline.
 Kotlin + Jetpack Compose + Room + Foreground Service.

@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "PowerVault Health Pro"
+rootProject.name = "VoltCare"
 include(":app")

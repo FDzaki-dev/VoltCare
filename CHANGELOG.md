@@ -1,6 +1,17 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch5] - 2026-08-19
+### Changed (Atomic Change - total rebrand)
+- `applicationId`/`namespace`: `com.powervault.health.pro` -> `com.voltcare.app`.
+- Semua file `.kt` dipindah ke package baru; kelas/fungsi `PowerVault*` -> `VoltCare*`, token `Pv*` -> `Vc*`.
+- Nama DB Room `powervault_db` -> `voltcare_db` (aman, belum pernah ada install sukses).
+- Folder crash log `Documents/PowerVaultHealthPro/` -> `Documents/VoltCare/`.
+- `Theme.PowerVault` -> `Theme.VoltCare`, `rootProject.name` -> `VoltCare`, nama GitHub Release -> `VoltCare v...`.
+- README & FILE_MANIFEST disesuaikan.
+### Note
+- Nama repo GitHub tidak diubah otomatis (lihat PROJECT_STATE.md Batch 5 untuk cara manual).
+
 ## [v1.0.0-batch4] - 2026-08-19
 ### Fixed
 - **Critical**: APK release ter-publish unsigned (`app-release-unsigned.apk`) sehingga tidak bisa diinstal ("paket tampaknya tidak valid"). Penyebab: `file()` di `app/build.gradle.kts` resolve relatif ke `app/`, bukan root repo, jadi keystore tidak pernah ketemu saat cek signing.
@@ -13,7 +24,7 @@
 
 ## [v1.0.0-batch2] - 2026-08-19
 ### Changed
-- Nama app: `PowerVault Health Pro` -> `VoltCare` (strings.xml app_name + README).
+- Nama app: `VoltCare` -> `VoltCare` (strings.xml app_name + README).
 - Tidak ada perubahan applicationId/package/arsitektur.
 
 ## [v1.0.0-batch1] - 2026-08-19
