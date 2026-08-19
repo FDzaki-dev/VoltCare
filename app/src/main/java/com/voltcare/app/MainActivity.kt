@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.voltcare.app.navigation.VoltCareNavGraph
@@ -21,6 +22,10 @@ class MainActivity : ComponentActivity() {
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Paksa perilaku edge-to-edge yang konsisten lintas versi OS (min SDK 29 - target SDK 34).
+        // WAJIB dipanggil SEBELUM super.onCreate()/setContent() - lihat dokumentasi insets targetSdk34 Langkah A.
+        enableEdgeToEdge()
+
         super.onCreate(savedInstanceState)
 
         ensureNotificationPermissionThenStartService()

@@ -5,14 +5,71 @@
 
 ## 📌 KONVENSI TETAP (baca duluan, berlaku untuk semua batch berikutnya)
 
-**Nama App untuk artifact (ZIP & APK release): `VoltCare`** — BUKAN `PowerVaultHealthPro`.
+**Nama App untuk artifact (ZIP & APK release): `VoltCare`.**
 
-- Alasan: nama file artifact di card UI chat kepotong kalau kepanjangan (`PowerVaultHealthPro_v1_Batch6...` -> terpotong jadi `PowerVaultHealthPro ...`, versi/batch jadi gak keliatan). `VoltCare` jauh lebih pendek -> versi/batch selalu utuh kelihatan di card.
-- **ZIP output**: `VoltCare_v<Versi>_Batch<N>.zip` (root ZIP tetap isi project `PowerVaultHealthPro`, cuma nama file-nya yang beda).
-- **APK release asset** (di GitHub Actions, `release.yml`): `VoltCare_v<Versi>_<RunNumber>.apk` (sudah otomatis, diambil dari `rootProject.name` di `settings.gradle.kts` — lihat Batch 6).
-- **Nama repo GitHub tetap `FDzaki-dev/PowerVaultHealthPro`** (sengaja TIDAK diubah, lihat Batch 5) → folder lokal Termux tetap `~/projects/PowerVaultHealthPro`, remote `origin` tetap sama.
-- **Skrip Termux**: ganti pola pencarian ZIP jadi `~/storage/downloads/VoltCare*.zip` (bukan lagi `PowerVaultHealthPro*.zip`), tapi path `cd ~/projects/PowerVaultHealthPro` TIDAK berubah.
-- Ringkas: **VoltCare = nama produk/artifact**, **PowerVaultHealthPro = nama repo/folder**. Dua hal beda, jangan disamakan lagi.
+- **Nama repo GitHub SEKARANG `FDzaki-dev/VoltCare`** (di-rename manual oleh user di luar sesi ini — dikonfirmasi Batch 28 dari URL `github.com/FDzaki-dev/VoltCare/actions` + error `remote: Repository not found` saat push ke nama lama `PowerVaultHealthPro`). **Pending Queue #8 (opsional, rename repo) dianggap SELESAI.**
+- ⚠️ **Riwayat**: Batch 5-27 sengaja MEMPERTAHANKAN nama repo lama `PowerVaultHealthPro` (poin ini SEKARANG SUDAH TIDAK BERLAKU, dicoret oleh Batch 28 — jangan bingung kalau baca entri batch lama di bawah yang masih menyebut `PowerVaultHealthPro` sbg nama repo).
+- **ZIP output**: `VoltCare_v<Versi>_Batch<N>.zip` (root ZIP isi project, nama folder lokal Termux **tetap** `~/projects/PowerVaultHealthPro` — HANYA remote `origin` yang berubah URL, folder lokal sengaja TIDAK di-rename supaya tidak perlu re-clone/pindah folder history git yang sudah ada).
+- **APK release asset** (`release.yml`): `VoltCare_v<Versi>_<RunNumber>.apk` (otomatis dari `rootProject.name`, tidak terpengaruh rename repo).
+- **Skrip Termux**: pola pencarian ZIP `~/storage/downloads/VoltCare*.zip`, path `cd ~/projects/PowerVaultHealthPro` (folder lokal, TIDAK berubah), tapi `git remote -v` HARUS menunjuk `https://github.com/FDzaki-dev/VoltCare.git` (lihat fix Batch 28 kalau remote masih nyasar ke URL lama).
+- Ringkas: **VoltCare = nama produk/artifact/repo GitHub** (sekarang selaras). **PowerVaultHealthPro = HANYA nama folder lokal Termux** (legacy, sengaja dipertahankan).
+
+---
+
+## [Batch 28] Fix - Remote Git Nyasar ke Repo Lama (404 Repository not found) — 2026-08-19
+
+**Confidence Rating: 97%**
+**File sebelum -> sesudah:** 59 -> 59 file (0 file kode berubah — murni dokumentasi: `PROJECT_STATE.md`, `CHANGELOG.md`)
+
+### Root Cause
+User rename repo GitHub `PowerVaultHealthPro` -> `VoltCare` secara manual (di luar sesi chat ini, kemungkinan via web UI GitHub, BUKAN `gh repo rename`) — rename via web UI/API biasanya bikin GitHub auto-redirect URL lama ke baru utk `git push`/`clone`, TAPI error yang didapat user (`remote: Repository not found. fatal: repository '.../PowerVaultHealthPro.git/' not found`) menunjukkan TIDAK ada redirect aktif. Kemungkinan penyebab: repo lama sempat dihapus & repo `VoltCare` baru dibuat dari nol (bukan rename murni), atau redirect GitHub belum ke-refresh di sisi client. Konsekuensi sama: remote `origin` di folder lokal Termux (`~/projects/PowerVaultHealthPro/.git/config`) masih menunjuk URL mati.
+
+### Selesai
+- **`PROJECT_STATE.md`**: Konvensi Tetap diupdate — nama repo resmi sekarang `FDzaki-dev/VoltCare`, Pending Queue #8 ditandai selesai, catatan riwayat ditambahkan supaya batch-batch lama (masih sebut `PowerVaultHealthPro` sbg nama repo) tidak disalahartikan sbg state aktif (sesuai Chronological Document Rule).
+- **`CHANGELOG.md`**: entri Batch 28 ditambah di baris teratas.
+- **Fix non-file (Termux, lihat skrip di bawah)**: `git remote set-url origin https://github.com/FDzaki-dev/VoltCare.git` di folder lokal existing, lalu `git push -u origin main` ulang — TIDAK perlu `git init`/clone ulang, history commit lokal aman.
+
+### Sengaja TIDAK diubah
+- Folder lokal Termux TETAP `~/projects/PowerVaultHealthPro` — rename folder lokal tidak wajib secara teknis (nama folder tidak dibaca `git`/GitHub Actions manapun), hanya kosmetik. Kalau user mau tetap konsisten, rename manual (`mv ~/projects/PowerVaultHealthPro ~/projects/VoltCare`) opsional, TIDAK di-otomasi batch ini supaya tidak merusak path relatif skrip Termux yang sudah dipakai berulang.
+- `.github/workflows/release.yml` — tidak ada referensi hardcode nama repo lama di dalamnya (pakai `${{ github.repository }}` otomatis dari GitHub context), jadi rename repo TIDAK berdampak ke CI/CD sama sekali, tidak perlu fix.
+- Kode aplikasi (0 file `.kt`/`.xml` disentuh) — murni masalah infra git, bukan bug aplikasi.
+
+### Catatan
+Ini BUKAN regresi dari Batch 27 — insets fix Batch 27 tetap berlaku, belum di-push ke remote sama sekali karena block oleh error remote ini duluan. Setelah fix remote di skrip Termux (di bawah), push akan otomatis membawa SEMUA commit lokal yang masih pending (termasuk Batch 27), bukan cuma Batch 28.
+
+### Pending Queue
+1-7, 9-20. Tidak berubah, lihat Batch 26-27. 8. ✅ selesai (repo sudah `VoltCare`, dikonfirmasi Batch 28).
+
+---
+
+## [Batch 27] Fix - Edge-to-Edge Insets Konsisten Lintas OS (dari dokumentasi_insets_targetsdk34.md) — 2026-08-19
+
+**Confidence Rating: 92%**
+**File sebelum -> sesudah:** 59 -> 59 file (0 baru/hapus, 1 diedit parsial: `MainActivity.kt` protected)
+
+### Alasan
+User upload `dokumentasi_insets_targetsdk34.md` (panduan generik berbasis XML/View `ComponentActivity`+`ViewCompat.setOnApplyWindowInsetsListener`) minta debug proyek pakai panduan itu. VoltCare 100% Jetpack Compose (`setContent`, tidak ada `activity_main.xml`/`findViewById`) — panduan TIDAK bisa ditempel mentah.
+
+### Selesai
+- **`MainActivity.kt`** (edit parsial, protected): tambah `enableEdgeToEdge()` (dari `androidx.activity:activity-compose:1.9.1`, sudah jadi dependency sejak awal) dipanggil SEBELUM `super.onCreate()` — persis Langkah A dokumen, versi Compose dari `AppCompatActivity.enableEdgeToEdge()`.
+
+### Sengaja TIDAK diubah (adaptasi krusial dari dokumen)
+- **TIDAK** menambah `ViewCompat.setOnApplyWindowInsetsListener(...)` manual (Langkah B dokumen) — di app Compose, `AndroidComposeView` sudah pasang listener insets miliknya sendiri; listener manual tambahan berisiko override/bentrok (last-listener-wins) sehingga insets malah TIDAK sampai ke Composable → justru akan MEMICU deformasi layout yang coba dicegah dokumen ini. Konsumsi insets diserahkan ke `Scaffold` + `NavigationBar` Material3 di `NavGraph.kt` (sudah edge-to-edge aware bawaan sejak Material3 1.x, satu titik konsumsi konsisten dgn "Aturan Emas" dokumen bag.3).
+- `NavGraph.kt`, `themes.xml` — TIDAK disentuh. `Scaffold(bottomBar = { NavigationBar {...} })` (baris 56-80) sudah otomatis kasih padding sistem-bar yang benar ke `NavHost` (via `innerPadding`) begitu edge-to-edge aktif; menambah insets handling kedua di sini berisiko double-padding (persis yang diwanti-wanti dokumen bag.4 checklist "Hindari Redundansi").
+- Tema `Theme.VoltCare` (parent `android:Theme.Material.NoActionBar`, non-transparan) TIDAK diubah ke status bar transparan manual — `enableEdgeToEdge()` sudah handle `SystemBarStyle` secara terprogram, edit XML manual (dokumen bag.3 Langkah A) redundant & berisiko konflik.
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`MainActivity.kt` — brace balance diverifikasi 11/11 curly, 22/22 paren. Hanya 1 import + 1 pemanggilan fungsi disisipkan sebelum `super.onCreate()`, sisanya utuh (permission flow & `setContent` tidak berubah).
+
+### Catatan
+Tidak ada compile Gradle/device fisik sungguhan (network disabled) — verifikasi terbatas brace/paren balance + audit manual API (`enableEdgeToEdge()` tersedia sejak `androidx.activity:activity` 1.8.0, project pakai 1.9.1 via `activity-compose` — aman). Asumsi belum diverifikasi compile nyata: default `contentWindowInsets` Material3 `Scaffold` 1.2.1 sudah cukup untuk cover status+navigation bar tanpa config tambahan (pola umum M3, bukan API baru) — kalau device test masih nunjuk celah, kandidat berikutnya: set eksplisit `Scaffold(contentWindowInsets = WindowInsets.safeDrawing, ...)` di `NavGraph.kt`. Rekomendasi: build + test manual di 2 device (salah satu < Android 14) sebelum lanjut Pending #18.
+
+### Pending Queue (Batch 27: fix insets selesai, Pending #18-20 tidak berubah)
+1-7, 9. ✅ selesai (lihat Batch 8-17)
+8. (opsional) Rename repo GitHub ke `VoltCare` via `gh repo rename` (manual)
+10-13. (dari Batch 18, belum dikerjakan)
+14. ✅ selesai (Batch 22) — `ShizukuStatusAction.kt` masih perlu ditambah ke manifest (digeser, lihat Batch 26 catatan)
+18-20. Lihat Batch 26 (belum dikerjakan)
 
 ---
 

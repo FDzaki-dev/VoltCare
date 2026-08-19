@@ -1,6 +1,14 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch28] - 2026-08-19
+### Fixed
+- Remote `origin` nyasar ke URL repo lama (`PowerVaultHealthPro`) yang sudah tidak ada / sudah di-rename user jadi `FDzaki-dev/VoltCare` → `remote: Repository not found` saat push. Perbaikan: `git remote set-url origin` ke URL baru (fix Termux, bukan perubahan kode). Update konvensi nama repo di `PROJECT_STATE.md`, Pending Queue #8 ditandai selesai.
+
+## [v1.0.0-batch27] - 2026-08-19
+### Fixed
+- Edge-to-edge insets tidak konsisten lintas versi OS (< Android 14): `MainActivity.kt` +`enableEdgeToEdge()` sebelum `super.onCreate()`. Adaptasi dari `dokumentasi_insets_targetsdk34.md` (dokumen berbasis View/XML) ke Compose — sengaja TIDAK pasang `ViewCompat.setOnApplyWindowInsetsListener` manual (bisa bentrok listener internal `AndroidComposeView`), konsumsi insets diserahkan ke `Scaffold`+`NavigationBar` Material3 yang sudah edge-to-edge aware.
+
 ## [v1.0.0-batch26] - 2026-08-19
 ### Added
 - **Shizuku UI Wiring** (lanjutan Batch 23): `ShizukuStatusAction.kt` (baru) - ikon status Shizuku (NotInstalled/NotRunning/PermissionDenied/Ready) + dialog + tombol "Minta Izin" di overlay Dashboard (`TopStart`). `strings.xml`: +11 string `shizuku_*`. `NavGraph.kt`: pasang `ShizukuStatusAction()`.
