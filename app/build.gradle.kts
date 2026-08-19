@@ -15,6 +15,14 @@ android {
         versionCode = 2
         versionName = "1.0.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Batch 36: dibaca UpdateManager.kt buat bedain build CI mana yang lebih baru walau
+        // versionName BELUM di-bump (kasus umum: banyak batch fix/patch numpuk antar bump
+        // versi manual, lihat laporan bug "Sudah Versi Terbaru" padahal ada build hijau baru).
+        // GITHUB_RUN_NUMBER otomatis tersedia di semua step Actions & PERSIS sama dgn angka
+        // yang dipakai release.yml buat tag_name (v{version}-{run_number}), jadi selalu
+        // konsisten tanpa perlu ubah release.yml. Default "0" utk build lokal/non-CI.
+        buildConfigField("String", "CI_RUN_NUMBER", "\"${System.getenv("GITHUB_RUN_NUMBER") ?: "0"}\"")
     }
 
     signingConfigs {
@@ -58,6 +66,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"

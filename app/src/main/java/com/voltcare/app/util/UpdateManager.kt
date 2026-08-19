@@ -13,6 +13,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okio.buffer
 import okio.sink
+import com.voltcare.app.BuildConfig
 import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -111,6 +112,12 @@ object UpdateManager {
                 // tag_name format workflow: "v{version}-{run_number}" (mis. "v1.0.1-23").
                 // Ambil bagian versi murni sebelum "-" agar tidak merusak parsing numerik.
                 val latestVersion = tagName.removePrefix("v").removePrefix("V").substringBefore("-")
+                // Batch 36: run_number dipakai sbg fallback pembanding KALAU versionName sama
+                // persis dgn yang terpasang (kasus umum: fix/patch dirilis tanpa bump versi
+                // manual) -- sebelumnya kasus ini SELALU dianggap "Sudah Versi Terbaru" walau
+                // ada build baru yang sukses ter-publish. Lihat laporan bug user + BuildConfig
+                // .CI_RUN_NUMBER (app/build.gradle.kts).
+                val latestRunNumber = tagName.substringAfter("-", "0").toIntOrNull() ?: 0
                 val releaseNotes = json.optString("body", "").take(2000)
 
                 val assets = json.optJSONArray("assets")
@@ -135,7 +142,10 @@ object UpdateManager {
                 }
 
                 val currentVersion = getCurrentVersionName(context)
-                if (!isNewerVersion(latestVersion, currentVersion)) {
+                val currentRunNumber = BuildConfig.CI_RUN_NUMBER.toIntOrNull() ?: 0
+                val hasNewerRelease = isNewerVersion(latestVersion, currentVersion) ||
+                    (isSameVersion(latestVersion, currentVersion) && latestRunNumber > currentRunNumber)
+                if (!hasNewerRelease) {
                     return@withContext UpdateCheckResult.UpToDate
                 }
 
@@ -260,4 +270,8 @@ object UpdateManager {
         }
         return false
     }
+
+    /** Versi identik secara numerik (dipakai Batch 36 sbg trigger fallback run_number). */
+    private fun isSameVersion(a: String, b: String): Boolean =
+        !isNewerVersion(a, b) && !isNewerVersion(b, a)
 }

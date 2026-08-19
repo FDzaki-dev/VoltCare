@@ -17,6 +17,30 @@
 
 ---
 
+## [Batch 36] Fix - "Sudah Versi Terbaru" palsu walau ada build hijau baru — 2026-08-20
+
+**Confidence Rating: 94%**
+**File sebelum -> sesudah:** 59 -> 59 file (2 file diedit: `app/build.gradle.kts` — **protected asset**, edit parsial; `UpdateManager.kt` — bukan protected)
+
+### Konteks
+User laporan (screenshot): in-app update checker bilang "Sudah Versi Terbaru" padahal ada build hijau baru di Actions (Batch 34/35 sudah publish Release baru).
+
+### Root Cause
+`isNewerVersion()` di `UpdateManager.kt` CUMA bandingin `versionName` (mis. "1.0.1" vs "1.0.1"). `versionName` di `app/build.gradle.kts` cuma di-bump manual di batch tertentu (Batch 32), SEDANGKAN release.yml publish Release BARU di **setiap** push ke main — jadi Batch 33/34/35 semua tetap tag `v1.0.1-<run_number berbeda>`. Checker "benar" secara literal (versionName memang sama), tapi TIDAK berguna buat workflow dev yang sering rilis fix tanpa bump versi tiap kali — ini persis kekhawatiran yang sudah dicatat di Batch 32 tapi belum ada fix teknisnya.
+
+### Selesai
+- **`app/build.gradle.kts`**: `buildFeatures.buildConfig = true` + `buildConfigField("String","CI_RUN_NUMBER", ...)` baca `System.getenv("GITHUB_RUN_NUMBER")` (env bawaan Actions, PERSIS sama dgn angka run_number yang dipakai release.yml buat tag) — default `"0"` utk build lokal/non-CI. Brace 23/23, paren 65/65.
+- **`UpdateManager.kt`**: parse `latestRunNumber` dari `tag_name` (bagian setelah "-"), bandingkan ke `BuildConfig.CI_RUN_NUMBER` KALAU `versionName` sama persis (`isSameVersion()` helper baru) → sekarang `Available` ke-trigger walau versionName gak berubah, asalkan ada build/run_number lebih baru yang sukses publish. Brace 48/48, paren 171/171.
+- Fix ini TIDAK butuh ubah `release.yml` sama sekali — `GITHUB_RUN_NUMBER` sudah otomatis konsisten dgn `github.run_number` yang dipakai tag (dicek langsung di file, sama-sama dari runner Actions yang sama).
+
+### Scope yang SENGAJA tidak disentuh (Pending Queue, biar 1 task/batch)
+- `UpdateScreen.kt` dialog "Update tersedia" masih nampilin `latestVersionName` doang (mis. "1.0.1") — kalau kejadian match run_number-only, teksnya keliatan "sama" dgn versi terpasang walau sebenarnya beda build. Idealnya ditambah label `(build N)`. **Bukan bug fungsional** (tombol download tetap benar ngambil APK terbaru), cuma soal kejelasan teks.
+
+### Pending Queue
+1-7, 9-20, 22. Tidak berubah. 21 ✅ (Batch 33). 23 (baru): label build-number di dialog Update tersedia (`UpdateScreen.kt`).
+
+---
+
 ## [Batch 35] Docs - Troubleshooting: remote origin hilang di device/sesi baru — 2026-08-20
 
 **Confidence Rating: 98%**
