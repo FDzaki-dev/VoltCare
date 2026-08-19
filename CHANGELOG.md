@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch29] - 2026-08-19
+### Changed
+- Rename folder lokal Termux `~/projects/PowerVaultHealthPro` → `~/projects/VoltCare` (permintaan eksplisit user). Semua skrip Termux ke depan pakai path baru. Tidak ada perubahan kode/source — murni operasi filesystem + update dokumentasi konvensi.
+
 ## [v1.0.0-batch28] - 2026-08-19
 ### Fixed
 - Remote `origin` nyasar ke URL repo lama (`PowerVaultHealthPro`) yang sudah tidak ada / sudah di-rename user jadi `FDzaki-dev/VoltCare` → `remote: Repository not found` saat push. Perbaikan: `git remote set-url origin` ke URL baru (fix Termux, bukan perubahan kode). Update konvensi nama repo di `PROJECT_STATE.md`, Pending Queue #8 ditandai selesai.

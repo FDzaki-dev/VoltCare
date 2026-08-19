@@ -7,12 +7,36 @@
 
 **Nama App untuk artifact (ZIP & APK release): `VoltCare`.**
 
-- **Nama repo GitHub SEKARANG `FDzaki-dev/VoltCare`** (di-rename manual oleh user di luar sesi ini — dikonfirmasi Batch 28 dari URL `github.com/FDzaki-dev/VoltCare/actions` + error `remote: Repository not found` saat push ke nama lama `PowerVaultHealthPro`). **Pending Queue #8 (opsional, rename repo) dianggap SELESAI.**
-- ⚠️ **Riwayat**: Batch 5-27 sengaja MEMPERTAHANKAN nama repo lama `PowerVaultHealthPro` (poin ini SEKARANG SUDAH TIDAK BERLAKU, dicoret oleh Batch 28 — jangan bingung kalau baca entri batch lama di bawah yang masih menyebut `PowerVaultHealthPro` sbg nama repo).
-- **ZIP output**: `VoltCare_v<Versi>_Batch<N>.zip` (root ZIP isi project, nama folder lokal Termux **tetap** `~/projects/PowerVaultHealthPro` — HANYA remote `origin` yang berubah URL, folder lokal sengaja TIDAK di-rename supaya tidak perlu re-clone/pindah folder history git yang sudah ada).
-- **APK release asset** (`release.yml`): `VoltCare_v<Versi>_<RunNumber>.apk` (otomatis dari `rootProject.name`, tidak terpengaruh rename repo).
-- **Skrip Termux**: pola pencarian ZIP `~/storage/downloads/VoltCare*.zip`, path `cd ~/projects/PowerVaultHealthPro` (folder lokal, TIDAK berubah), tapi `git remote -v` HARUS menunjuk `https://github.com/FDzaki-dev/VoltCare.git` (lihat fix Batch 28 kalau remote masih nyasar ke URL lama).
-- Ringkas: **VoltCare = nama produk/artifact/repo GitHub** (sekarang selaras). **PowerVaultHealthPro = HANYA nama folder lokal Termux** (legacy, sengaja dipertahankan).
+- **Nama repo GitHub `FDzaki-dev/VoltCare`** (di-rename manual oleh user, dikonfirmasi Batch 28).
+- **Folder lokal Termux SEKARANG JUGA `~/projects/VoltCare`** (di-rename manual oleh user via `mv`, Batch 29 — lihat skrip fix). Sebelumnya (Batch 5-28) sengaja dipertahankan `~/projects/PowerVaultHealthPro`, TAPI user minta rename eksplisit di Batch 29, jadi konvensi ini SEKARANG BERUBAH.
+- ⚠️ **Riwayat**: SEMUA entri batch di bawah (Batch 1-28) yang menyebut path `~/projects/PowerVaultHealthPro` atau nama folder `PowerVaultHealthPro` sbg lokasi kerja adalah CATATAN HISTORIS SAAT ITU — SUDAH TIDAK BERLAKU per Batch 29. Path aktif sekarang: `~/projects/VoltCare`.
+- **ZIP output**: `VoltCare_v<Versi>_Batch<N>.zip` (root ZIP isi project, tetap flat di root — nama project internal/package Kotlin `com.voltcare.app` TIDAK berubah, murni rename folder & repo, bukan rename package).
+- **APK release asset** (`release.yml`): `VoltCare_v<Versi>_<RunNumber>.apk` (otomatis dari `rootProject.name`, tidak terpengaruh).
+- **Skrip Termux (mulai Batch 29 dan seterusnya)**: `LATEST_ZIP=$(ls -t ~/storage/downloads/VoltCare*.zip | head -1)` + `cd ~/projects/VoltCare` (BUKAN lagi `PowerVaultHealthPro`). `git remote -v` menunjuk `https://github.com/FDzaki-dev/VoltCare.git`.
+- Ringkas: **VoltCare = nama produk/artifact/repo GitHub/folder lokal Termux** — SEMUA SUDAH SELARAS mulai Batch 29. Tidak ada lagi perbedaan nama produk vs repo vs folder.
+
+---
+
+## [Batch 29] Housekeeping - Rename Folder Lokal Termux (PowerVaultHealthPro -> VoltCare) — 2026-08-19
+
+**Confidence Rating: 96%**
+**File sebelum -> sesudah:** 59 -> 59 file (0 file kode berubah — murni dokumentasi: `PROJECT_STATE.md`, `CHANGELOG.md`)
+
+### Selesai
+- **`PROJECT_STATE.md`**: Konvensi Tetap diupdate — folder lokal Termux resmi `~/projects/VoltCare`, semua skrip Termux ke depan pakai path baru.
+- **`CHANGELOG.md`**: entri Batch 29 ditambah di baris teratas.
+- **Fix non-file (Termux, lihat skrip di bawah)**: `mv ~/projects/PowerVaultHealthPro ~/projects/VoltCare` (rename folder, history `.git` ikut pindah otomatis karena `mv` folder utuh, TIDAK perlu clone ulang / TIDAK kehilangan commit lokal).
+
+### Diperiksa, TIDAK ada dampak
+- `scripts/preflight_check.sh` — pakai path relatif (`cd "$(dirname "$0")/.."`), tidak hardcode nama folder, aman tanpa perubahan.
+- `.github/workflows/*.yml` — pakai `${{ github.repository }}`/context otomatis, tidak hardcode path lokal Termux siapa pun.
+- Package Kotlin `com.voltcare.app`, `rootProject.name`, `applicationId` — semua SUDAH `voltcare` sejak batch sebelumnya, tidak tersentuh rename folder ini (rename folder lokal = operasi filesystem murni, bukan operasi source code).
+
+### Catatan
+Rename folder WAJIB dilakukan SEBELUM extract ZIP batch ini (lihat urutan skrip Termux) — kalau skrip Update Harian biasa dijalankan duluan dgn path lama, akan gagal karena folder `PowerVaultHealthPro` sudah tidak ada lagi setelah `mv`.
+
+### Pending Queue
+1-7, 9-20. Tidak berubah, lihat Batch 26-27. 8. ✅ selesai (Batch 28). Rename folder lokal (permintaan baru user) ✅ selesai (Batch 29).
 
 ---
 
