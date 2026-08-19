@@ -91,6 +91,17 @@ dependencies {
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
+}
+
+// room.schemaLocation (Pending Queue #7): AppDatabase punya exportSchema=true sejak Batch 1
+// tapi tanpa arg ini KSP hanya warning tanpa pernah menulis file JSON skema. Diset ke
+// app/schemas/ (dalam module app, bukan root) - dicommit ke Git sbg riwayat migrasi formal,
+// BUKAN build output sehingga aman, tidak masuk cakupan .gitignore (/build) yang sudah ada.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+dependencies {
 
     // WorkManager (scheduled log retention / periodic checks - used by service layer)
     implementation("androidx.work:work-runtime-ktx:2.9.1")

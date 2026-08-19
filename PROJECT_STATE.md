@@ -16,6 +16,32 @@
 
 ---
 
+## [Batch 17] Fix - Set room.schemaLocation (Pending Queue #7) — 2026-08-19
+
+**Confidence Rating: 97%**
+**File sebelum -> sesudah:** 49 -> 49 file (0 baru/hapus, 1 file diedit: `app/build.gradle.kts`, protected asset)
+
+### Selesai
+- **`app/build.gradle.kts`**: tambah blok `ksp { arg("room.schemaLocation", "$projectDir/schemas") }` (top-level, setelah blok `dependencies` pertama). `AppDatabase.kt` sudah `exportSchema = true` sejak Batch 1 (protected, tidak disentuh) tapi tanpa arg ini KSP cuma warning tanpa pernah menulis JSON skema — sekarang KSP menulis riwayat skema ke `app/schemas/com.voltcare.app.data.db.AppDatabase/1.json` tiap build, dasar formal untuk `Migration` eksplisit kalau `version` naik ke 2+ nanti (wajib per komentar Protected Asset di `AppDatabase.kt`, tidak boleh `fallbackToDestructiveMigration` di produksi).
+- Dipecah jadi 2 blok `dependencies { }` terpisah (bukan disisipkan di tengah blok pertama) supaya diff minimal & Room-related lines tidak tercampur dengan WorkManager/Compose/test deps — sintaks Gradle Kotlin DSL valid (`dependencies` boleh dipanggil berkali-kali dalam 1 script, digabung otomatis oleh Gradle).
+
+### Sengaja TIDAK diubah
+- `AppDatabase.kt` (DB Schema, protected) — `exportSchema = true` & `version = 1` dipakai apa adanya, tidak ada perubahan skema/tabel.
+- `.gitignore` — `app/schemas/` **tidak** ditambahkan ke ignore list (disengaja): file JSON skema di folder ini adalah riwayat migrasi formal yang harus di-commit, bukan build output sementara seperti `/build`.
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`app/build.gradle.kts` — brace balance diverifikasi (20/20), 2 blok `dependencies` + 1 blok `ksp` baru diverifikasi sintaks Kotlin DSL valid (Gradle mengizinkan pemanggilan `dependencies{}` berkali-kali).
+
+### Catatan
+Tidak ada akses jaringan/Gradle sungguhan di lingkungan pembuatan ZIP ini — verifikasi terbatas pada audit brace balance & sintaks manual, bukan re-run compile sungguhan. Folder `app/schemas/` baru akan muncul di working tree setelah build pertama (CI atau lokal Termux) berhasil jalan; rekomendasikan commit folder tsb ke Git setelah run pertama sukses supaya riwayat skema tidak hilang.
+
+### Pending Queue (Batch 17: item #7 selesai, 1 opsional tersisa)
+1-6, 9. ✅ selesai (lihat Batch 8-16)
+7. ~~Set `room.schemaLocation` agar warning KSP hilang~~ ✅ selesai batch ini
+8. (opsional) Rename repo GitHub ke `VoltCare` via `gh repo rename` (manual)
+
+---
+
 ## [Batch 16] Fitur - Artifact log_fail Otomatis saat Compile Gagal (Pending Queue #9) — 2026-08-19
 
 **Confidence Rating: 96%**
