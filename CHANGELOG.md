@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch7] - 2026-08-19
+### Docs
+- Patenkan konvensi penamaan artifact di `PROJECT_STATE.md` (blok pinned di paling atas): nama artifact ZIP/APK = `VoltCare`, nama repo/folder tetap `PowerVaultHealthPro`. Tidak ada perubahan kode.
+
 ## [v1.0.0-batch6] - 2026-08-19
 ### Changed
 - Asset APK di GitHub Release di-rename otomatis: `app-release.apk` -> `<NamaApp>_v<Versi>_<RunNumber>.apk` (mis. `VoltCare_v1.0.0_5.apk`). `<NamaApp>` diambil dari `rootProject.name`.

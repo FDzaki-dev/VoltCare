@@ -3,6 +3,43 @@
 
 ---
 
+## 📌 KONVENSI TETAP (baca duluan, berlaku untuk semua batch berikutnya)
+
+**Nama App untuk artifact (ZIP & APK release): `VoltCare`** — BUKAN `PowerVaultHealthPro`.
+
+- Alasan: nama file artifact di card UI chat kepotong kalau kepanjangan (`PowerVaultHealthPro_v1_Batch6...` -> terpotong jadi `PowerVaultHealthPro ...`, versi/batch jadi gak keliatan). `VoltCare` jauh lebih pendek -> versi/batch selalu utuh kelihatan di card.
+- **ZIP output**: `VoltCare_v<Versi>_Batch<N>.zip` (root ZIP tetap isi project `PowerVaultHealthPro`, cuma nama file-nya yang beda).
+- **APK release asset** (di GitHub Actions, `release.yml`): `VoltCare_v<Versi>_<RunNumber>.apk` (sudah otomatis, diambil dari `rootProject.name` di `settings.gradle.kts` — lihat Batch 6).
+- **Nama repo GitHub tetap `FDzaki-dev/PowerVaultHealthPro`** (sengaja TIDAK diubah, lihat Batch 5) → folder lokal Termux tetap `~/projects/PowerVaultHealthPro`, remote `origin` tetap sama.
+- **Skrip Termux**: ganti pola pencarian ZIP jadi `~/storage/downloads/VoltCare*.zip` (bukan lagi `PowerVaultHealthPro*.zip`), tapi path `cd ~/projects/PowerVaultHealthPro` TIDAK berubah.
+- Ringkas: **VoltCare = nama produk/artifact**, **PowerVaultHealthPro = nama repo/folder**. Dua hal beda, jangan disamakan lagi.
+
+---
+
+## [Batch 7] Dokumentasi - Konvensi Penamaan Artifact — 2026-08-19
+
+**Confidence Rating: 99%**
+**File sebelum -> sesudah:** 44 -> 44 file (0 kode diubah, hanya dokumentasi: `PROJECT_STATE.md`, `CHANGELOG.md`)
+
+### Alasan
+User klarifikasi: niat asli minta rename total (Batch 5) itu supaya nama artifact gak kepanjangan sampai kepotong di card UI, bukan murni soal branding. Supaya sesi chat lain (yang gak baca history percakapan ini) langsung paham konvensinya, aturan penamaan artifact dipatenkan di blok "KONVENSI TETAP" di atas — dibaca duluan sebelum baca log batch manapun.
+
+### Selesai
+- Tambah blok pinned "KONVENSI TETAP" di paling atas file ini (di atas log Batch, supaya kebaca duluan).
+- Tidak ada perubahan kode/arsitektur — murni dokumentasi.
+
+### Pending Queue (belum berubah dari Batch 1)
+1. Kalibrasi engine
+2. Cycle Counter presisi
+3. Drain Analyzer (UsageStatsManager + force-stop)
+4. Riwayat 30 Hari (grafik + CSV export)
+5. Tes Baterai (Stress Test)
+6. Aturan Cerdas - UI Editor
+7. (opsional) Set `room.schemaLocation` agar warning KSP hilang
+8. (opsional) Rename repo GitHub ke `VoltCare` via `gh repo rename` (manual)
+
+---
+
 ## [Batch 6] Smart Naming - APK Release Asset — 2026-08-19
 
 **Confidence Rating: 98%**
