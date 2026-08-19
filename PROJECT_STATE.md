@@ -16,6 +16,36 @@
 
 ---
 
+## [Batch 11] Fitur - Riwayat 30 Hari (Pending Queue #4) — 2026-08-19
+
+**Confidence Rating: 96%**
+**File sebelum -> sesudah:** 45 -> 47 file (2 baru: `CsvExporter.kt`, `HistoryViewModel.kt`; 1 ditulis ulang: `HistoryScreen.kt`)
+
+### Selesai
+- **`util/CsvExporter.kt`** (baru): export `battery_log` ke CSV via MediaStore (API 29+, pola sama seperti `CrashLogger.kt`), tersimpan ke `Documents/VoltCare/exports/history_<timestamp>.csv`. Kolom: `timestamp_iso,percent,temperature_c,voltage,current_ma,is_charging,health_percent`. `ExportResult` sealed class (`Success`/`Failure`) untuk feedback UI, fail-safe try-catch.
+- **`ui/screens/history/HistoryViewModel.kt`** (baru): kombinasi `BatteryLogDao.since(30 hari lalu)` + `CycleDao.all()` (filter `endTimestamp` dalam 30 hari, tanpa ubah query DAO existing - protected asset). Hitung agregat: avg/min/max Health%, avg/max Suhu, jumlah Cycle periode. `exportCsv()` trigger `CsvExporter`, hasil ditampilkan lewat `exportMessage` (Snackbar sekali-tampil).
+- **`ui/screens/history/HistoryScreen.kt`** (ditulis ulang dari scaffold placeholder): kartu ringkasan (Health/Suhu/Cycle), 2 grafik garis (Health% & Suhu) via `Canvas` Compose native — **tanpa dependency chart eksternal** (selaras rule minimal footprint, tidak nambah baris di `build.gradle.kts`), tombol "Export CSV" + Snackbar status.
+
+### Sengaja TIDAK diubah
+- `BatteryLogDao.kt`/`CycleDao.kt` (protected, DB Schema/DAO) — query `since()` sudah cukup sejak Batch 1, agregasi 30 hari dilakukan di ViewModel (Kotlin), bukan query SQL baru.
+- `NavGraph.kt` — `HistoryScreen()` tetap dipanggil tanpa parameter tambahan (default `viewModel()` di signature-nya sendiri), tidak perlu ubah rute.
+- `AndroidManifest.xml` — export CSV pakai MediaStore API 29+ murni, tidak butuh permission tambahan (pola sama seperti crash logger yang sudah ada sejak Batch 1).
+
+### Protected Assets tersentuh
+Tidak ada.
+
+### Pending Queue (Batch 11: item #4 selesai, 2 tersisa)
+1. ~~Kalibrasi engine~~ ✅ Batch 8
+2. ~~Cycle Counter presisi~~ ✅ Batch 9
+3. ~~Drain Analyzer~~ ✅ Batch 10
+4. ~~Riwayat 30 Hari~~ ✅ selesai batch ini
+5. Tes Baterai (Stress Test)
+6. Aturan Cerdas - UI Editor
+7. (opsional) Set `room.schemaLocation` agar warning KSP hilang
+8. (opsional) Rename repo GitHub ke `VoltCare` via `gh repo rename` (manual)
+
+---
+
 ## [Batch 10] Fitur - Drain Analyzer (Pending Queue #3) — 2026-08-19
 
 **Confidence Rating: 90%**

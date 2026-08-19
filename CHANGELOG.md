@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch11] - 2026-08-19
+### Added
+- **Riwayat 30 Hari** (Pending Queue #4): `CsvExporter.kt` (export battery_log ke CSV via MediaStore), `HistoryViewModel.kt` (agregasi Health/Suhu/Cycle 30 hari). `HistoryScreen.kt` ditulis ulang: kartu ringkasan + 2 grafik garis (Compose Canvas native, tanpa dependency baru) + tombol Export CSV.
+
 ## [v1.0.0-batch10] - 2026-08-19
 ### Added
 - **Drain Analyzer** (Pending Queue #3): `UsageStatsHelper.kt` (baca top app via `UsageStatsManager`, cek/buka izin Usage Access, force-stop best-effort via `killBackgroundProcesses`). `DrainScreen.kt` ditulis ulang dari scaffold jadi fungsional (permission-gate + daftar app + tombol Force Stop).

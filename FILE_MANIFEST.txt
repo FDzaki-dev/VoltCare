@@ -33,7 +33,7 @@ app/src/main/java/com/voltcare/app/
   navigation/NavGraph.kt
   ui/theme/{Color,Type,Theme}.kt
   ui/screens/dashboard/{DashboardScreen,DashboardViewModel}.kt
-  ui/screens/history/HistoryScreen.kt
+  ui/screens/history/{HistoryScreen,HistoryViewModel}.kt
   ui/screens/drain/DrainScreen.kt
   ui/screens/rules/RulesScreen.kt
   data/db/AppDatabase.kt
@@ -41,4 +41,4 @@ app/src/main/java/com/voltcare/app/
   data/db/dao/{BatteryLogDao,CycleDao,RuleDao}.kt
   service/BatteryMonitorService.kt
   receiver/BootReceiver.kt
-  util/{BatteryUtils,CrashLogger,UsageStatsHelper}.kt
+  util/{BatteryUtils,CrashLogger,UsageStatsHelper,CsvExporter}.kt
