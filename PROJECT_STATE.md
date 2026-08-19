@@ -16,6 +16,36 @@
 
 ---
 
+## [Batch 12] Fitur - Tes Baterai / Stress Test (Pending Queue #5) — 2026-08-19
+
+**Confidence Rating: 95%**
+**File sebelum -> sesudah:** 47 -> 48 file (1 baru: `StressTestScreen.kt`; 2 diedit parsial: `NavGraph.kt`, `AndroidManifest.xml`)
+
+### Selesai
+- **`ui/screens/stress/StressTestScreen.kt`** (baru, self-contained — pola sama `DrainScreen.kt`, tanpa file ViewModel terpisah supaya tetap dalam batas 3 file/batch): sesi tetap 10 menit, state `IDLE -> RUNNING -> FINISHED`. Baca kondisi baterai via `BatteryUtils.readSnapshot()` (sumber sama dengan Dashboard/service, tidak bikin `BroadcastReceiver` baru) di-poll tiap 1 detik lewat `LaunchedEffect`. Tombol mulai di-disable jika charger terpasang (`isCharging`) supaya tes mengukur drop asli. Hasil akhir: total drop%, laju drain %/menit, warning kalau charger sempat nyambung di tengah tes.
+- **Wake lock TERKONTROL**: `PowerManager.PARTIAL_WAKE_LOCK` di-acquire dengan **timeout eksplisit** (11 menit = buffer 1 menit di atas durasi tes 10 menit) sebagai safety-net, dan **selalu dilepas** via `DisposableEffect(onDispose { ... })` — baik saat tes selesai normal, dihentikan manual, maupun user navigasi keluar paksa. Tidak pernah acquire tanpa timeout.
+- **`AndroidManifest.xml`** (edit parsial, protected asset): tambah `<uses-permission android:name="android.permission.WAKE_LOCK" />` — wajib untuk `PowerManager.newWakeLock()`, izin normal (auto-grant).
+- **`NavGraph.kt`** (edit parsial, protected asset): tambah route non-tab `stress_test` + `FloatingActionButton` (ikon Timer) di-overlay pada composable tab Dashboard (`Box` membungkus `DashboardScreen()` + FAB) sebagai entry point. **Sengaja tidak nambah tab ke-5 di bottom nav** (spec awal Batch 1 tetap 4 tab) dan **sengaja tidak edit `DashboardScreen.kt`** — FAB & navigasi murni diletakkan di level `NavGraph.kt` supaya batch ini tuntas dalam 3 file (1 baru + 2 edit parsial), bukan 4.
+
+### Sengaja TIDAK diubah
+- `DashboardScreen.kt` — tidak disentuh sama sekali (lihat alasan di atas), tetap `DashboardScreen(viewModel: DashboardViewModel = viewModel())` tanpa parameter navigasi.
+- `BatteryLogEntity`/`BatteryLogDao` (protected, DB Schema/DAO) — hasil stress test **tidak** disimpan ke Room (di luar scope; hasil hanya tampil di layar sesi berjalan). Kalau user mau riwayat stress test persisten, perlu task terpisah (tabel baru = ubah DB schema = protected asset, butuh keputusan/izin eksplisit user dulu).
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+AndroidManifest.xml (1 baris `<uses-permission>` ditambah) • NavGraph.kt (tambah 1 route + FAB, seluruh isi lain diverifikasi utuh, tidak ada penghapusan).
+
+### Pending Queue (Batch 12: item #5 selesai, 1 wajib + 2 opsional tersisa)
+1. ~~Kalibrasi engine~~ ✅ Batch 8
+2. ~~Cycle Counter presisi~~ ✅ Batch 9
+3. ~~Drain Analyzer~~ ✅ Batch 10
+4. ~~Riwayat 30 Hari~~ ✅ Batch 11
+5. ~~Tes Baterai (Stress Test)~~ ✅ selesai batch ini
+6. Aturan Cerdas - UI Editor
+7. (opsional) Set `room.schemaLocation` agar warning KSP hilang
+8. (opsional) Rename repo GitHub ke `VoltCare` via `gh repo rename` (manual)
+
+---
+
 ## [Batch 11] Fitur - Riwayat 30 Hari (Pending Queue #4) — 2026-08-19
 
 **Confidence Rating: 96%**

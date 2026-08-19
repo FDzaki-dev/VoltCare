@@ -1,11 +1,15 @@
 package com.voltcare.app.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.Rule
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.TrendingDown
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -13,7 +17,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -24,6 +30,10 @@ import com.voltcare.app.ui.screens.dashboard.DashboardScreen
 import com.voltcare.app.ui.screens.drain.DrainScreen
 import com.voltcare.app.ui.screens.history.HistoryScreen
 import com.voltcare.app.ui.screens.rules.RulesScreen
+import com.voltcare.app.ui.screens.stress.StressTestScreen
+
+/** Route non-tab (tidak muncul di bottom nav), dibuka via FAB di Dashboard. */
+private const val ROUTE_STRESS_TEST = "stress_test"
 
 /** 4 tab utama sesuai spec: Dashboard > Riwayat > Penguras > Aturan. */
 sealed class VcTab(val route: String, val label: String) {
@@ -72,10 +82,25 @@ fun VoltCareNavGraph() {
             startDestination = VcTab.Dashboard.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(VcTab.Dashboard.route) { DashboardScreen() }
+            composable(VcTab.Dashboard.route) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    DashboardScreen()
+                    FloatingActionButton(
+                        onClick = { navController.navigate(ROUTE_STRESS_TEST) },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(16.dp)
+                    ) {
+                        Icon(Icons.Filled.Timer, contentDescription = "Tes Baterai")
+                    }
+                }
+            }
             composable(VcTab.History.route) { HistoryScreen() }
             composable(VcTab.Drain.route) { DrainScreen() }
             composable(VcTab.Rules.route) { RulesScreen() }
+            composable(ROUTE_STRESS_TEST) {
+                StressTestScreen(onBack = { navController.popBackStack() })
+            }
         }
     }
 }

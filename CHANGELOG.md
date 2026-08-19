@@ -1,6 +1,13 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch12] - 2026-08-19
+### Added
+- **Tes Baterai / Stress Test** (Pending Queue #5): `StressTestScreen.kt` (baru, self-contained) — sesi tetap 10 menit, poll `BatteryUtils.readSnapshot()` tiap 1 detik, hasil drop% & laju drain %/menit. Wake lock `PARTIAL` terkontrol (timeout eksplisit 11 menit, selalu dilepas via `DisposableEffect`).
+### Changed
+- `AndroidManifest.xml`: tambah `WAKE_LOCK` (izin normal, untuk wake lock terkontrol di atas).
+- `NavGraph.kt`: tambah route `stress_test` + FAB entry point di tab Dashboard (tanpa tab ke-5, tanpa edit `DashboardScreen.kt`).
+
 ## [v1.0.0-batch11] - 2026-08-19
 ### Added
 - **Riwayat 30 Hari** (Pending Queue #4): `CsvExporter.kt` (export battery_log ke CSV via MediaStore), `HistoryViewModel.kt` (agregasi Health/Suhu/Cycle 30 hari). `HistoryScreen.kt` ditulis ulang: kartu ringkasan + 2 grafik garis (Compose Canvas native, tanpa dependency baru) + tombol Export CSV.
