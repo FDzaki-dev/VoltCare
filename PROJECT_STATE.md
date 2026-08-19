@@ -16,6 +16,37 @@
 
 ---
 
+## [Batch 16] Fitur - Artifact log_fail Otomatis saat Compile Gagal (Pending Queue #9) — 2026-08-19
+
+**Confidence Rating: 96%**
+**File sebelum -> sesudah:** 49 -> 49 file (0 baru/hapus, 1 file diedit: `.github/workflows/release.yml`, protected asset)
+
+### Selesai
+- **`Extract version name`** (step baru, dipindah dari dalam `Locate APK` ke lebih awal, sebelum step build): ekstraksi `versionName` dari `app/build.gradle.kts` sekarang tidak bergantung hasil compile — tetap tersedia (`steps.version.outputs.version`) walau build gagal, dipakai untuk nama artifact log.
+- **`Build signed release APK`**: ditambah `id: build` + `continue-on-error: true`, output digabung `2>&1 | tee gradle-build.log` (log lengkap terekam ke file, bukan cuma tampil di UI job run). Shell default GitHub Actions Linux runner sudah `bash -eo pipefail`, jadi exit code kegagalan `gradle` tetap terbaca lewat `tee` (tidak ketutup exit code 0 milik `tee`).
+- **`Upload failure log artifact`** (step baru): jika `steps.build.outcome == 'failure'`, upload `gradle-build.log` via `actions/upload-artifact@v4` dengan nama `log_fail_<version>_<run-number>` — sbg **GitHub Actions artifact biasa (bukan Release)**, sesuai permintaan eksplisit user, retensi 14 hari.
+- **`Abort on build failure`** (step baru): jika build gagal, tulis `::error::` lalu `exit 1` — job berhenti di sini, step-step berikutnya (`Locate APK`, `Verify APK is signed`, `Rename APK asset`, `Publish GitHub Release`) otomatis di-skip oleh GitHub Actions (tidak ada `if: always()` pada mereka). `Clean up keystore` tetap jalan (sudah `if: always()` sejak awal, tidak diubah) — keystore tetap bersih walau job gagal.
+- **`Locate APK`**: disederhanakan, ekstraksi versi dipindah keluar (lihat poin 1), sekarang murni cari path APK signed.
+- **`Rename APK asset`** & **`Publish GitHub Release`**: referensi versi diganti dari `steps.apk.outputs.version` (dihapus) ke `steps.version.outputs.version` (step baru) — perilaku/output akhir **identik**, hanya sumber data dipindah lebih awal di pipeline.
+
+### Sengaja TIDAK diubah
+- Stale Run Guard, Signed-APK Guard, Smart Naming APK, GitHub Release Rule — seluruh logika existing dipertahankan 100%, murni disisipi 1 jalur baru (capture log saat gagal) tanpa mengubah perilaku jalur sukses.
+- `app/build.gradle.kts`, `settings.gradle.kts` — tidak disentuh, hanya dibaca (grep) seperti sebelumnya.
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`.github/workflows/release.yml` — diverifikasi valid via `yaml.safe_load` (parse sukses), struktur step lain (Stale Run Guard, Signed-APK Guard, Clean up keystore `if: always()`) diverifikasi utuh tidak terhapus.
+
+### Catatan
+Tidak ada akses jaringan/GitHub Actions sungguhan di lingkungan pembuatan ZIP ini — verifikasi terbatas pada validasi sintaks YAML + audit manual alur step (urutan `id`/`if`/referensi output). Rekomendasi: pantau 1x run berikutnya (baik sukses maupun sengaja dibuat gagal) untuk konfirmasi artifact `log_fail_*` muncul di tab Actions saat gagal, dan Release tetap normal saat sukses.
+
+### Pending Queue (Batch 16: item #9 selesai, 2 opsional tersisa)
+1-6. ✅ selesai (lihat Batch 8-14)
+7. (opsional) Set `room.schemaLocation` agar warning KSP hilang
+8. (opsional) Rename repo GitHub ke `VoltCare` via `gh repo rename` (manual)
+9. ~~Artifact `log_fail_<version>_<run-number>` di `release.yml`~~ ✅ selesai batch ini
+
+---
+
 ## [Batch 15] Hotfix - Build Gagal (RulesScreen.kt, regresi Batch 14) — 2026-08-19
 
 **Confidence Rating: 97%**

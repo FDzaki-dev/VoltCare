@@ -41,6 +41,14 @@ jobs:
         with:
           gradle-version: "8.7"
 
+      # Diekstrak lebih awal (sebelum build) agar tetap tersedia untuk penamaan
+      # artifact log_fail_<version>_<run-number> walau compile gagal di step berikutnya.
+      - name: Extract version name
+        id: version
+        run: |
+          VERSION_NAME=$(grep -m1 'versionName = ' app/build.gradle.kts | sed -E 's/.*"(.*)".*/\1/')
+          echo "version=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+
       - name: Decode release keystore
         run: |
           mkdir -p keystore
@@ -49,21 +57,41 @@ jobs:
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
 
+      # continue-on-error + log direkam ke file (bukan cuma stdout job) supaya step
+      # berikutnya bisa cek status build sekaligus upload log lengkapnya sbg artifact
+      # sebelum job diberhentikan (Pending Queue #9, diminta user di Batch 15).
       - name: Build signed release APK
+        id: build
+        continue-on-error: true
         env:
           ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/keystore/release.keystore
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: gradle :app:assembleRelease --no-daemon
+        run: gradle :app:assembleRelease --no-daemon 2>&1 | tee gradle-build.log
+
+      # --- Compile Failure Log Capture (Pending Queue #9) ---
+      # Upload sbg GitHub Actions artifact (BUKAN Release, sesuai permintaan user)
+      # supaya debug hotfix berikutnya tidak perlu user download log manual dari UI Actions.
+      - name: Upload failure log artifact
+        if: steps.build.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: log_fail_${{ steps.version.outputs.version }}_${{ github.run_number }}
+          path: gradle-build.log
+          retention-days: 14
+
+      - name: Abort on build failure
+        if: steps.build.outcome == 'failure'
+        run: |
+          echo "::error::Build gagal. Log lengkap diunggah sbg Actions artifact log_fail_${{ steps.version.outputs.version }}_${{ github.run_number }}. Abort sebelum tahap Release."
+          exit 1
 
       - name: Locate APK
         id: apk
         run: |
           APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" ! -name "*unsigned*" | head -1)
           echo "path=$APK_PATH" >> "$GITHUB_OUTPUT"
-          VERSION_NAME=$(grep -m1 'versionName = ' app/build.gradle.kts | sed -E 's/.*"(.*)".*/\1/')
-          echo "version=$VERSION_NAME" >> "$GITHUB_OUTPUT"
 
       # --- Signed-APK Guard (Release Blocking Rule) ---
       # Jangan pernah publish APK unsigned sebagai GitHub Release. Jika tidak ada APK
@@ -86,7 +114,7 @@ jobs:
           APP_NAME=$(grep -m1 'rootProject.name' settings.gradle.kts | sed -E 's/.*"(.*)".*/\1/' | tr ' ' '_')
           SRC="${{ steps.apk.outputs.path }}"
           DIR=$(dirname "$SRC")
-          NEW_NAME="${APP_NAME}_v${{ steps.apk.outputs.version }}_${{ github.run_number }}.apk"
+          NEW_NAME="${APP_NAME}_v${{ steps.version.outputs.version }}_${{ github.run_number }}.apk"
           mv "$SRC" "$DIR/$NEW_NAME"
           echo "path=$DIR/$NEW_NAME" >> "$GITHUB_OUTPUT"
           echo "Asset di-rename jadi: $NEW_NAME"
@@ -101,8 +129,8 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.apk.outputs.version }}-${{ github.run_number }}
-          name: VoltCare v${{ steps.apk.outputs.version }} (build ${{ github.run_number }})
+          tag_name: v${{ steps.version.outputs.version }}-${{ github.run_number }}
+          name: VoltCare v${{ steps.version.outputs.version }} (build ${{ github.run_number }})
           files: ${{ steps.rename.outputs.path }}
           generate_release_notes: true
         env:

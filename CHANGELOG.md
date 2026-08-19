@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch16] - 2026-08-19
+### Added
+- **Artifact `log_fail_<version>_<run-number>` otomatis** (Pending Queue #9, diminta user di Batch 15): `release.yml` — step `Build signed release APK` kini `continue-on-error` + rekam log ke `gradle-build.log` (`tee`), kalau gagal langsung upload sbg GitHub Actions artifact `log_fail_<version>_<run-number>` (retensi 14 hari) lalu abort job sebelum tahap Release. Ekstraksi versi dipindah ke step tersendiri lebih awal (`Extract version name`) supaya tetap tersedia walau build gagal.
+
 ## [v1.0.0-batch15] - 2026-08-19
 ### Fixed
 - **Build gagal** (regresi Batch 14): `RulesScreen.kt` pakai `ExposedDropdownMenu` yang belum ada di material3 1.2.1 (baru di 1.3.0+) + 3 API experimental tanpa opt-in. Diganti `DropdownMenu` biasa + `@OptIn(ExperimentalMaterial3Api::class)`. Sumber: log GitHub Actions job `build-release` yang diupload user.
