@@ -16,6 +16,36 @@
 
 ---
 
+## [Batch 8] Fitur - Kalibrasi Engine (Pending Queue #1) — 2026-08-19
+
+**Confidence Rating: 95%**
+**File sebelum -> sesudah:** 44 -> 44 file (0 baru/hapus, 3 file diedit: `BatteryUtils.kt`, `BatteryMonitorService.kt`, `DashboardViewModel.kt`)
+
+### Selesai
+- **`BatteryUtils.CalibrationStore`** (baru, di dalam `BatteryUtils.kt`): state machine kalibrasi berbasis `SharedPreferences` (tahan service di-kill/reboot). Alur: tunggu baterai ≤5% saat charging (titik mulai) → pantau sesi hingga ≥99% sambil integrasi `currentMa × waktu` jadi estimasi mAh terkirim → jika charger dicabut sebelum penuh atau persen turun >1% saat charging (drop), sesi dibatalkan & **streak direset ke 0** (syarat "berturut-turut"). Setelah 3 siklus sukses beruntun, Health% dihitung dari `mahDelivered / DEFAULT_DESIGN_CAPACITY_MAH × 100` dan disimpan permanen, menggantikan heuristik tetap 87%.
+- **`BatteryMonitorService`**: tiap sampling (60 dtk) memanggil `processCalibrationSample()`; siklus penuh yang selesai otomatis di-insert ke `CycleEntity(isFullCalibrationCycle = true)` via `CycleDao` (skema sudah siap sejak Batch 1, tidak ada perubahan schema). Notifikasi baru "Kalibrasi selesai" saat streak ke-3 tercapai. `estimateHealthPercent()` kini baca `CalibrationStore.calibratedHealthPercent()`, fallback 87% jika belum pernah kalibrasi.
+- **`DashboardViewModel`**: `startCalibration()` sekarang benar-benar mengaktifkan `CalibrationStore` (bukan cuma flag UI lokal). Status `calibrationInProgress` disinkronkan dari SharedPreferences tiap sample baru masuk → tombol "Mulai Kalibrasi" otomatis kembali normal saat 3 siklus selesai atau sesi gagal (drop/cabut charger), tanpa perlu ubah `DashboardScreen.kt` (API publik tidak berubah).
+- Cycle kalibrasi ikut menambah counter "Cycle" yang sudah tampil di Dashboard (efek samping positif, tidak perlu UI baru).
+
+### Sengaja TIDAK diubah (di luar scope batch ini)
+- `DashboardScreen.kt` — tidak disentuh, kontrak UI (`uiState`, `calibrationInProgress`) dipertahankan agar tetap dalam batas 3 file/batch.
+- Cycle Counter presisi untuk siklus non-kalibrasi (Pending Queue #2) — heuristik `trackCycle()` lama dibiarkan apa adanya, di luar scope task ini.
+
+### Protected Assets tersentuh
+Tidak ada. `CycleEntity`/`CycleDao` (DB Schema/DAO, protected) dipakai apa adanya tanpa modifikasi — field `isFullCalibrationCycle` & query `recentCalibrationCycles` sudah tersedia sejak Batch 1.
+
+### Pending Queue (Batch 8: item #1 selesai, 5 tersisa)
+1. ~~Kalibrasi engine~~ ✅ selesai batch ini
+2. Cycle Counter presisi (non-kalibrasi)
+3. Drain Analyzer (UsageStatsManager + force-stop)
+4. Riwayat 30 Hari (grafik + CSV export)
+5. Tes Baterai (Stress Test)
+6. Aturan Cerdas - UI Editor
+7. (opsional) Set `room.schemaLocation` agar warning KSP hilang
+8. (opsional) Rename repo GitHub ke `VoltCare` via `gh repo rename` (manual)
+
+---
+
 ## [Batch 7] Dokumentasi - Konvensi Penamaan Artifact — 2026-08-19
 
 **Confidence Rating: 99%**

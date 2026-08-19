@@ -30,7 +30,9 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
-    private val _calibrationInProgress = MutableStateFlow(false)
+    private val _calibrationInProgress = MutableStateFlow(
+        BatteryUtils.CalibrationStore.isActive(application)
+    )
     val calibrationInProgress: StateFlow<Boolean> = _calibrationInProgress.asStateFlow()
 
     init {
@@ -57,15 +59,22 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                         isCharging = log.isCharging,
                         chargerSpeedLabel = BatteryUtils.classifyChargerSpeed(log.currentMa)
                     )
+                    // Sumber kebenaran status kalibrasi ada di BatteryMonitorService (via
+                    // CalibrationStore/SharedPreferences); sinkronkan tiap sample baru masuk
+                    // supaya tombol otomatis balik ke "Mulai Kalibrasi" saat 3 siklus selesai
+                    // atau sesi dibatalkan (drop/charger dicabut).
+                    _calibrationInProgress.value = BatteryUtils.CalibrationStore.isActive(getApplication())
                 }
         }
     }
 
     /**
-     * Memulai sesi Kalibrasi. Alur penuh (3x siklus 0-100% berturut-turut dengan validasi non-drop)
-     * ada di Pending Queue - saat ini hanya menandai status UI agar tombol tidak dobel-tap.
+     * Memulai sesi Kalibrasi: alur wajib 3x siklus charge 0-100% berturut-turut dengan
+     * validasi non-drop, dieksekusi & dipantau oleh BatteryMonitorService di background
+     * (lihat BatteryUtils.CalibrationStore) - tahan proses ViewModel/Activity mati.
      */
     fun startCalibration() {
+        BatteryUtils.CalibrationStore.activate(getApplication())
         _calibrationInProgress.value = true
     }
 }

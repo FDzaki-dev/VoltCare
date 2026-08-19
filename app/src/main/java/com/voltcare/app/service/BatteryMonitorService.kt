@@ -15,7 +15,9 @@ import com.voltcare.app.VoltCareApplication
 import com.voltcare.app.R
 import com.voltcare.app.data.db.AppDatabase
 import com.voltcare.app.data.db.entity.BatteryLogEntity
+import com.voltcare.app.data.db.entity.CycleEntity
 import com.voltcare.app.data.db.entity.RuleEntity
+import com.voltcare.app.util.BatterySnapshot
 import com.voltcare.app.util.BatteryUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -82,14 +84,15 @@ class BatteryMonitorService : Service() {
     private suspend fun sampleAndPersist() {
         val snapshot = BatteryUtils.readSnapshot(applicationContext)
         if (snapshot.percent < 0) return
+        val now = System.currentTimeMillis()
 
-        // Heuristik health%: didekati dari mAh masuk (rough) sampai kalibrasi 3x diselesaikan
-        // menghasilkan nilai lebih akurat (disimpan terpisah di batch Kalibrasi - Pending Queue).
-        val healthPercent = estimateHealthPercent(snapshot.currentMa)
+        // Health%: pakai hasil Kalibrasi (3x siklus 0-100% berturut-turut, lihat
+        // BatteryUtils.CalibrationStore) begitu tersedia; sebelum itu masih heuristik placeholder.
+        val healthPercent = estimateHealthPercent()
 
         db.batteryLogDao().insert(
             BatteryLogEntity(
-                timestamp = System.currentTimeMillis(),
+                timestamp = now,
                 percent = snapshot.percent,
                 temperatureC = snapshot.temperatureC,
                 voltage = snapshot.voltage,
@@ -100,16 +103,54 @@ class BatteryMonitorService : Service() {
         )
 
         trackCycle(snapshot.percent, snapshot.isCharging)
+        processCalibrationSample(snapshot, now)
         evaluateRules(snapshot.temperatureC, snapshot.percent, snapshot.isCharging)
         updateNotification(snapshot.percent, snapshot.temperatureC, snapshot.isCharging)
 
         // FIFO retention data mentah: simpan maksimal 30 hari (selaras fitur Riwayat 30 Hari).
-        db.batteryLogDao().pruneOlderThan(System.currentTimeMillis() - RETENTION_MS)
+        db.batteryLogDao().pruneOlderThan(now - RETENTION_MS)
     }
 
-    private fun estimateHealthPercent(currentMa: Int): Int {
-        // Placeholder heuristik awal; digantikan hasil kalibrasi 3x 0-100% saat tersedia.
-        return 87
+    private fun estimateHealthPercent(): Int {
+        return BatteryUtils.CalibrationStore.calibratedHealthPercent(applicationContext) ?: 87
+    }
+
+    /** Proses 1 sample untuk state machine Kalibrasi; insert CycleEntity saat 1 siklus penuh selesai. */
+    private suspend fun processCalibrationSample(snapshot: BatterySnapshot, timestampMs: Long) {
+        val result = BatteryUtils.CalibrationStore.processSample(
+            context = applicationContext,
+            percent = snapshot.percent,
+            isCharging = snapshot.isCharging,
+            currentMa = snapshot.currentMa,
+            timestampMs = timestampMs,
+            sampleIntervalMs = SAMPLE_INTERVAL_MS
+        ) ?: return
+
+        db.cycleDao().insert(
+            CycleEntity(
+                startTimestamp = result.startTimestamp,
+                endTimestamp = result.endTimestamp,
+                startPercent = result.startPercent,
+                mahDelivered = result.mahDelivered,
+                isFullCalibrationCycle = true
+            )
+        )
+
+        if (result.calibrationComplete) {
+            notifyCalibrationDone(result.resultHealthPercent ?: 87)
+        }
+    }
+
+    private fun notifyCalibrationDone(healthPercent: Int) {
+        val manager = getSystemService(NotificationManager::class.java) ?: return
+        val notification = NotificationCompat.Builder(this, VoltCareApplication.CHANNEL_ALERT)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("Kalibrasi selesai")
+            .setContentText("3 siklus penuh tercapai. Health baterai terkalibrasi: $healthPercent%")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .build()
+        manager.notify(CALIBRATION_DONE_NOTIF_ID, notification)
     }
 
     private fun trackCycle(percent: Int, isCharging: Boolean) {
@@ -174,6 +215,7 @@ class BatteryMonitorService : Service() {
     companion object {
         private const val NOTIF_ID = 1001
         private const val ALERT_NOTIF_BASE_ID = 2000
+        private const val CALIBRATION_DONE_NOTIF_ID = 2500
         private const val SAMPLE_INTERVAL_MS = 60_000L
         private const val RETENTION_MS = 30L * 24 * 60 * 60 * 1000
     }

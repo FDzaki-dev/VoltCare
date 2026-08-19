@@ -1,6 +1,14 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch8] - 2026-08-19
+### Added
+- **Kalibrasi Engine** (Pending Queue #1): state machine 3x siklus charge 0-100% berturut-turut dengan validasi anti-drop (`BatteryUtils.CalibrationStore`, persisted SharedPreferences). Health% otomatis dihitung dari mAh terkirim setelah 3 siklus sukses, menggantikan heuristik tetap 87%.
+- Notifikasi "Kalibrasi selesai" saat streak ke-3 tercapai.
+### Changed
+- `BatteryMonitorService`: sampling loop kini juga proses kalibrasi & insert `CycleEntity` untuk siklus penuh.
+- `DashboardViewModel.startCalibration()`: aktivasi nyata (bukan flag UI kosong), status disinkronkan tiap sample.
+
 ## [v1.0.0-batch7] - 2026-08-19
 ### Docs
 - Patenkan konvensi penamaan artifact di `PROJECT_STATE.md` (blok pinned di paling atas): nama artifact ZIP/APK = `VoltCare`, nama repo/folder tetap `PowerVaultHealthPro`. Tidak ada perubahan kode.

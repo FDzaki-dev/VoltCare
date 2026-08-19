@@ -3,6 +3,7 @@ package com.voltcare.app.util
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.os.BatteryManager
 
 /** Snapshot kondisi baterai pada satu titik waktu. */
@@ -80,5 +81,142 @@ object BatteryUtils {
         healthPercent >= 70 -> "Cukup"
         healthPercent >= 50 -> "Menurun"
         else -> "Buruk"
+    }
+
+    /**
+     * Kalibrasi Health%: alur wajib 3x siklus charge 0%->100% berturut-turut tanpa "drop"
+     * (persen turun saat charging = sesi tidak stabil/terputus, siklus dibatalkan & streak
+     * direset ke 0 karena syaratnya berturut-turut). State disimpan di SharedPreferences agar
+     * tahan proses BatteryMonitorService di-kill / device reboot di tengah sesi.
+     * Dipanggil dari BatteryMonitorService tiap sampling; UI (DashboardViewModel) hanya baca
+     * status via isActive()/calibratedHealthPercent().
+     */
+    object CalibrationStore {
+        private const val PREFS = "voltcare_calibration"
+        private const val KEY_ACTIVE = "active"
+        private const val KEY_STAGE = "stage" // 0 = menunggu titik mulai (~0%), 1 = memantau sesi charging
+        private const val KEY_START_PERCENT = "start_percent"
+        private const val KEY_START_TS = "start_ts"
+        private const val KEY_LAST_PERCENT = "last_percent"
+        private const val KEY_MAH_ACCUM = "mah_accum"
+        private const val KEY_STREAK = "streak"
+        private const val KEY_CALIBRATED_HEALTH = "calibrated_health"
+
+        private const val MAX_START_PERCENT = 5
+        private const val DROP_TOLERANCE_PERCENT = 1
+        private const val TARGET_STREAK = 3
+
+        data class PendingCycleResult(
+            val startTimestamp: Long,
+            val endTimestamp: Long,
+            val startPercent: Int,
+            val mahDelivered: Float,
+            val calibrationComplete: Boolean,
+            val resultHealthPercent: Int?
+        )
+
+        private fun prefs(context: Context): SharedPreferences =
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+        fun isActive(context: Context): Boolean = prefs(context).getBoolean(KEY_ACTIVE, false)
+
+        fun calibratedHealthPercent(context: Context): Int? {
+            val v = prefs(context).getInt(KEY_CALIBRATED_HEALTH, -1)
+            return if (v in 0..100) v else null
+        }
+
+        /** User menekan "Mulai Kalibrasi": aktifkan alur & reset progres sesi berjalan (streak lama tetap). */
+        fun activate(context: Context) {
+            prefs(context).edit()
+                .putBoolean(KEY_ACTIVE, true)
+                .putInt(KEY_STAGE, 0)
+                .putFloat(KEY_MAH_ACCUM, 0f)
+                .apply()
+        }
+
+        /**
+         * Proses 1 sample baterai. Return non-null hanya pada tick yang menyelesaikan 1 siklus
+         * penuh (percent >= 99 setelah sesi charging valid tanpa drop) -> caller WAJIB insert
+         * ke CycleEntity(isFullCalibrationCycle = true).
+         */
+        fun processSample(
+            context: Context,
+            percent: Int,
+            isCharging: Boolean,
+            currentMa: Int,
+            timestampMs: Long,
+            sampleIntervalMs: Long
+        ): PendingCycleResult? {
+            val p = prefs(context)
+            if (!p.getBoolean(KEY_ACTIVE, false)) return null
+
+            val stage = p.getInt(KEY_STAGE, 0)
+            val lastPercent = p.getInt(KEY_LAST_PERCENT, -1)
+            p.edit().putInt(KEY_LAST_PERCENT, percent).apply()
+
+            if (stage == 0) {
+                // Menunggu titik mulai: baterai harus nyaris habis & sedang charging.
+                if (isCharging && percent in 0..MAX_START_PERCENT) {
+                    p.edit()
+                        .putInt(KEY_STAGE, 1)
+                        .putInt(KEY_START_PERCENT, percent)
+                        .putLong(KEY_START_TS, timestampMs)
+                        .putFloat(KEY_MAH_ACCUM, 0f)
+                        .apply()
+                }
+                return null
+            }
+
+            // stage == 1: sedang memantau sesi charging menuju 100%.
+            if (!isCharging) {
+                resetProgress(p) // charger dicabut sebelum penuh -> siklus gagal, streak reset
+                return null
+            }
+            if (lastPercent in 0..100 && percent < lastPercent - DROP_TOLERANCE_PERCENT) {
+                resetProgress(p) // persen turun signifikan saat charging -> sesi tidak stabil
+                return null
+            }
+
+            val mahAccum = p.getFloat(KEY_MAH_ACCUM, 0f) +
+                (currentMa.toFloat() * (sampleIntervalMs / 3_600_000f))
+            p.edit().putFloat(KEY_MAH_ACCUM, mahAccum).apply()
+
+            if (percent >= 99) {
+                val newStreak = p.getInt(KEY_STREAK, 0) + 1
+                val startTs = p.getLong(KEY_START_TS, timestampMs)
+                val startPercent = p.getInt(KEY_START_PERCENT, 0)
+                p.edit().putInt(KEY_STREAK, newStreak).putInt(KEY_STAGE, 0).apply()
+
+                var finishedHealthPercent: Int? = null
+                if (newStreak >= TARGET_STREAK) {
+                    val health = ((mahAccum / DEFAULT_DESIGN_CAPACITY_MAH) * 100f)
+                        .toInt().coerceIn(0, 100)
+                    p.edit()
+                        .putInt(KEY_CALIBRATED_HEALTH, health)
+                        .putBoolean(KEY_ACTIVE, false)
+                        .putInt(KEY_STREAK, 0)
+                        .apply()
+                    finishedHealthPercent = health
+                }
+
+                return PendingCycleResult(
+                    startTimestamp = startTs,
+                    endTimestamp = timestampMs,
+                    startPercent = startPercent,
+                    mahDelivered = mahAccum,
+                    calibrationComplete = finishedHealthPercent != null,
+                    resultHealthPercent = finishedHealthPercent
+                )
+            }
+            return null
+        }
+
+        private fun resetProgress(p: SharedPreferences) {
+            p.edit()
+                .putInt(KEY_STAGE, 0)
+                .putInt(KEY_STREAK, 0)
+                .putFloat(KEY_MAH_ACCUM, 0f)
+                .apply()
+        }
     }
 }
