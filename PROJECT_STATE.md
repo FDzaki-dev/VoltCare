@@ -17,6 +17,27 @@
 
 ---
 
+## [Batch 34] Fix - Regresi Batch 31: Shizuku & Update overlap kartu Health/Suhu — 2026-08-20
+
+**Confidence Rating: 96%**
+**File sebelum -> sesudah:** 59 -> 59 file (2 file kode diedit: `DashboardScreen.kt`, `NavGraph.kt` — bukan protected asset)
+
+### Konteks
+User kirim screenshot: ikon Shizuku (shield oranye) numpuk di huruf "H" label "Health", ikon Update (panah-download) numpuk di pojok kartu "Suhu". Ini REGRESI dari fix Batch 31 (padding top 8dp->64dp) — geser overlap dari judul "Dashboard" ke baris kartu Health/Suhu, bukan benar-benar hilang.
+
+### Root Cause
+`ShizukuStatusAction()` & `UpdateCheckAction()` dipasang di `NavGraph.kt` sbg **overlay Box absolut** (`Modifier.align(TopStart/TopEnd).padding(top = 64.dp)`) DI ATAS `DashboardScreen()`, bukan bagian dari alur layout Column-nya. Angka `64.dp` hardcode ini cuma tebakan utk 1 kombinasi ukuran font/layar — begitu tinggi judul beda (font scale user, densitas layar lain), overlay ini turun/naik dan numpuk ke elemen berikutnya (kartu Health/Suhu). Pola overlay absolut ini pada dasarnya rapuh, akan terus berulang di kombinasi device lain walau angka padding diubah lagi.
+
+### Selesai
+- **`DashboardScreen.kt`**: tambah parameter `startAction`/`endAction: @Composable () -> Unit`. Judul "Dashboard" sekarang dalam `Row(SpaceBetween)` bareng slot aksi tsb — jadi BAGIAN ALUR LAYOUT (bukan overlay), otomatis dapat ruang sendiri berapapun tinggi judulnya. Brace 23/23, paren 56/56.
+- **`NavGraph.kt`**: hapus 2 blok `Box(align(TopStart/TopEnd).padding(top=64.dp))`, diganti pass langsung `DashboardScreen(startAction = { ShizukuStatusAction() }, endAction = { UpdateCheckAction() })`. FAB "Tes Baterai" (BottomEnd) tidak disentuh — di luar laporan bug ini. Brace 26/26, paren 44/44.
+- Kelas fix: struktural (pindah dari overlay ke layout flow), BUKAN sekadar tebak-angka-padding baru — jadi tidak akan ke-regresi lagi seperti Batch 31.
+
+### Pending Queue
+1-7, 9-20, 22. Tidak berubah. 21 ✅ selesai (Batch 33).
+
+---
+
 ## [Batch 33] Fix - Pending #21: Bedakan 'Sudah Terbaru' vs 'Gagal Cek' di Update Checker — 2026-08-19
 
 **Confidence Rating: 90%**

@@ -20,7 +20,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
-fun DashboardScreen(viewModel: DashboardViewModel = viewModel()) {
+fun DashboardScreen(
+    viewModel: DashboardViewModel = viewModel(),
+    startAction: @Composable () -> Unit = {},
+    endAction: @Composable () -> Unit = {}
+) {
     val state by viewModel.uiState.collectAsState()
     val calibrating by viewModel.calibrationInProgress.collectAsState()
 
@@ -33,10 +37,23 @@ fun DashboardScreen(viewModel: DashboardViewModel = viewModel()) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-            Text(
-                text = "Dashboard",
-                style = MaterialTheme.typography.headlineMedium
-            )
+            // Batch 32 fix: Shizuku & Update dulu di-overlay absolut (Box+padding top=64dp)
+            // di NavGraph.kt -> numpuk di atas kartu Health/Suhu di layar kecil/font besar.
+            // Sekarang jadi bagian alur Row (bukan overlay), jadi TIDAK BISA overlap lagi.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Dashboard",
+                    style = MaterialTheme.typography.headlineMedium
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    startAction()
+                    endAction()
+                }
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),

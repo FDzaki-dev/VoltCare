@@ -86,24 +86,14 @@ fun VoltCareNavGraph() {
         ) {
             composable(VcTab.Dashboard.route) {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    DashboardScreen()
-                    // Padding top dinaikkan dari 8dp -> 64dp: sebelumnya numpuk visual dgn
-                    // judul "Dashboard" (headlineMedium, ~32dp tinggi + 16dp padding Column).
-                    // Lihat PROJECT_STATE Batch 31 (screenshot bug: shield icon overlap huruf D).
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(start = 8.dp, top = 64.dp)
-                    ) {
-                        ShizukuStatusAction()
-                    }
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(end = 8.dp, top = 64.dp)
-                    ) {
-                        UpdateCheckAction()
-                    }
+                    // Batch 32 fix: Shizuku & Update SEKARANG diteruskan sbg slot Row di
+                    // DashboardScreen.kt (alur layout asli), BUKAN overlay Box absolut lagi.
+                    // Overlay lama (padding top=64dp hardcoded) numpuk di atas kartu
+                    // Health/Suhu di layar kecil / font besar -- lihat laporan bug user.
+                    DashboardScreen(
+                        startAction = { ShizukuStatusAction() },
+                        endAction = { UpdateCheckAction() }
+                    )
                     FloatingActionButton(
                         onClick = { navController.navigate(ROUTE_STRESS_TEST) },
                         modifier = Modifier
