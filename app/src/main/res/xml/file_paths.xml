@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dipakai UpdateManager.installApk() via FileProvider (Pending Queue: in-app updater). -->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- context.getExternalFilesDir(null)/updates/ -> lokasi APK hasil download UpdateManager -->
+    <external-files-path name="apk_updates" path="updates/" />
+</paths>

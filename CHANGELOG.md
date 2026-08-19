@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch19] - 2026-08-19
+### Added
+- **In-App Updater - Core Engine** (fitur "update langsung dari aplikasi", diminta user): `UpdateManager.kt` (baru) — cek rilis terbaru GitHub (`FDzaki-dev/PowerVaultHealthPro`), download APK streaming chunk-by-chunk ke disk (anti-freeze/anti-OOM, tanpa `readBytes()`), timeout connect 15s/read 20s, `followRedirects(true)`, trigger install via `FileProvider`. `file_paths.xml` (baru). `AndroidManifest.xml`: tambah `INTERNET`+`REQUEST_INSTALL_PACKAGES` permission + `<provider>` FileProvider.
+### Queued
+- UI trigger (tombol/progress/install flow) belum dikerjakan — engine masih standalone, akan diwiring di Batch 20 (lihat Pending Queue #15 di `PROJECT_STATE.md`).
+
 ## [v1.0.0-batch18] - 2026-08-19
 ### Added
 - **`FEATURE_PARITY_GOALS.md`** (dokumentasi baru): matrix gap-analysis vs AccuBattery/GSam Battery Monitor/Greenify (sumber: 2 screenshot Google AI Overview diupload user). Hasil audit source code: 3 fitur Done, 3 Partial, 2 belum ada. 4 item Pending Queue baru (#10-#13) ditambahkan ke `PROJECT_STATE.md`.

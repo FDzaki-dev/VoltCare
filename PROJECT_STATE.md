@@ -16,6 +16,48 @@
 
 ---
 
+## [Batch 19] Fitur - In-App Updater Core Engine (cek + download GitHub Release) — 2026-08-19
+
+**Confidence Rating: 96%**
+**File sebelum -> sesudah:** 50 -> 52 file (2 baru: `UpdateManager.kt`, `file_paths.xml`; 1 diedit: `AndroidManifest.xml`, protected asset)
+
+### Alasan
+User minta fitur "update langsung dari aplikasi" (in-app updater, bukan lewat Play Store) dieksekusi tuntas. Sesuai Strict Micro-Batching Rule (max 3 file/task), fitur dipecah 2 batch: **Batch 19 (ini) = core engine** (cek rilis + download APK ke disk, siap dipanggil), **Batch 20 (queued) = UI trigger** (tombol + progress bar + wiring ke NavGraph/Dashboard).
+
+### Selesai
+- **`UpdateManager.kt`** (baru, `util/`): `checkForUpdate()` — GET `api.github.com/repos/FDzaki-dev/PowerVaultHealthPro/releases/latest`, parse JSON pakai `org.json` (built-in Android, tanpa dependency baru), cari asset `.apk`, bandingkan versi numerik vs `versionName` terpasang. `downloadUpdate()` — **streaming chunk-by-chunk (buffer 8KB) via `HttpURLConnection` + `BufferedInputStream`/`FileOutputStream` langsung ke disk** (`getExternalFilesDir()/updates/`), **TIDAK ADA `readBytes()`/muat penuh ke RAM**, timeout eksplisit connect 15s/read 20s, `instanceFollowRedirects = true` (redirect 302 GitHub CDN/S3), file parsial otomatis dihapus jika gagal. `installApk()` — trigger installer sistem via `FileProvider`. Semua fungsi fail-safe (try-catch, tidak pernah throw ke caller).
+- **`file_paths.xml`** (baru, `res/xml/`): definisi `external-files-path` untuk folder `updates/`, dipakai `FileProvider`.
+- **`AndroidManifest.xml`** (edit parsial, protected): tambah `INTERNET` + `REQUEST_INSTALL_PACKAGES` permission, daftar `<provider>` `androidx.core.content.FileProvider` authority `${applicationId}.fileprovider` (exported=false, grantUriPermissions=true).
+
+### Keputusan Desain Penting
+- **Tanpa dependency Gradle baru** (tidak pakai OkHttp/Okio): `HttpURLConnection` bawaan Android sudah cukup untuk streaming manual + timeout + followRedirects + custom header — `app/build.gradle.kts` (protected asset) **sengaja TIDAK disentuh**, menghindari batch ke-4 file yang melanggar cap.
+- **Header `Authorization: Bearer <token>`**: konstanta `GITHUB_TOKEN` disediakan (default `null`) tapi TIDAK diisi — repo `FDzaki-dev/PowerVaultHealthPro` publik, API `releases/latest` & `browser_download_url` asset publik tidak butuh auth. Header hanya terpasang otomatis kalau token diisi manual (future-proof kalau repo di-private-kan). Ini deviasi terdokumentasi dari spec baku, bukan diabaikan diam-diam.
+- **Perbandingan versi**: numerik per-segmen (`1.2.10 > 1.2.9`), prefix `v`/`V` di `tag_name` dibuang otomatis.
+
+### Sengaja TIDAK diubah
+- `app/build.gradle.kts` — lihat Keputusan Desain di atas.
+- `NavGraph.kt`, `MainActivity.kt`, screen manapun — belum ada UI trigger, `UpdateManager` masih standalone/belum dipanggil dari mana pun (akan diwiring Batch 20). Ini disengaja agar batch ini tetap 3 file & fokus core engine yang bisa diverifikasi sendiri.
+- `FILE_MANIFEST.txt` — **belum** diupdate (akan jadi file ke-4, melebihi cap), di-queue ke Batch 20 sekaligus bareng file UI baru.
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`AndroidManifest.xml` — XML diverifikasi valid (`xml.etree.ElementTree.parse` sukses untuk manifest & `file_paths.xml`), struktur permission/activity/service/receiver existing tidak terhapus, hanya disisipi 2 permission + 1 provider baru.
+
+### Catatan
+Tidak ada akses jaringan sungguhan di lingkungan pembuatan ZIP ini (network disabled) — `UpdateManager.kt` diverifikasi via audit manual + brace balance check (`{`:46/`}`:46, `(`:126/`)`:126), bukan compile Gradle sungguhan. Endpoint GitHub API (`api.github.com/repos/FDzaki-dev/PowerVaultHealthPro/releases/latest`) perlu dicek nyata setelah minimal 1 rilis APK ter-publish via `release.yml` (Stale Run Guard + GitHub Release Rule sudah aktif sejak batch sebelumnya) — kalau belum ada rilis sama sekali, `checkForUpdate()` akan return `null` (fail-safe, bukan crash) karena endpoint `releases/latest` 404 saat repo belum punya rilis.
+
+### Pending Queue (Batch 19: 1 fitur baru ditambahkan sbg #15, dipecah 2 sub-task)
+1-7, 9. ✅ selesai (lihat Batch 8-17)
+8. (opsional) Rename repo GitHub ke `VoltCare` via `gh repo rename` (manual)
+10-13. (dari Batch 18, belum dikerjakan — lihat entri Batch 18 di bawah)
+14. (housekeeping) Update `FILE_MANIFEST.txt` — digabung ke #15b di bawah
+15. **In-App Updater UI (Batch 20, KRUSIAL — lanjutan langsung dari batch ini):**
+    - 15a. Tombol "Cek Update" (mis. di Dashboard top bar/menu) + `UpdateViewModel.kt` (state: idle/checking/available/downloading progress%/ready-install/failed) yang manggil `UpdateManager.checkForUpdate()`+`downloadUpdate()`.
+    - 15b. Dialog/Card hasil: tampilkan versi baru + `releaseNotes`, tombol Download -> progress bar % real-time -> tombol Install (panggil `UpdateManager.installApk()`, cek `canRequestInstallPackages()` dulu, kalau belum diizinkan arahkan ke `installPermissionSettingsIntent()`).
+    - 15c. `strings.xml` — tambah string terkait (judul dialog, tombol, dll), sekalian update `FILE_MANIFEST.txt` (item #14).
+    - Estimasi: 3 file (ViewModel baru + 1 screen/dialog diedit + strings.xml), TIDAK termasuk `NavGraph.kt`/`DashboardScreen.kt` kalau ternyata perlu -> jika total tembus >3, `NavGraph.kt` wiring dipecah lagi ke Batch 21.
+
+---
+
 ## [Batch 18] Dokumentasi - Feature Parity Goals vs Kompetitor (AccuBattery/GSam/Greenify) — 2026-08-19
 
 **Confidence Rating: 98%**
