@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.1-batch33] - 2026-08-19
+### Fixed
+- Pending #21: `checkForUpdate()` sekarang return sealed `UpdateCheckResult` (`UpToDate`/`Available`/`CheckFailed`) bukan `UpdateInfo?` — cek yang GAGAL (404/network) tidak lagi ditampilkan sebagai "Sudah Versi Terbaru" palsu, tapi masuk pesan error jelas. Kemungkinan besar penyebab awal: repo `VoltCare` belum punya Release sama sekali (cek Actions + secrets, lihat catatan Batch 33 di PROJECT_STATE.md).
+
 ## [v1.0.1] - 2026-08-19
 ### Changed
 - Bump versi `1.0.0` → `1.0.1` (`versionCode` 1→2) di `app/build.gradle.kts`. Merangkum fix Batch 27-31 (insets, update-checker 404, icon overlap dashboard) jadi 1 rilis baru — sebelumnya Info Aplikasi Android masih nunjuk 1.0.0 meski sudah banyak fix numpuk.

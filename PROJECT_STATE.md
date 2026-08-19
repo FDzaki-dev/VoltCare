@@ -17,6 +17,35 @@
 
 ---
 
+## [Batch 33] Fix - Pending #21: Bedakan 'Sudah Terbaru' vs 'Gagal Cek' di Update Checker — 2026-08-19
+
+**Confidence Rating: 90%**
+**File sebelum -> sesudah:** 59 -> 59 file (2 file kode diedit: `UpdateManager.kt`, `UpdateScreen.kt` — bukan protected asset)
+
+### Konteks
+User laporan (setelah Batch 30 & 32): update in-app MASIH nunjuk "Sudah Versi Terbaru" walau app sebenarnya usang. Ini persis Pending #21 yang dicatat Batch 30 tapi belum dikerjakan.
+
+### Root Cause
+`checkForUpdate()` return `UpdateInfo?` — `null` dipakai untuk 2 arti BEDA yang digabung jadi 1 pesan UI ("Sudah Versi Terbaru"):
+1. Beneran sudah versi terbaru (`isNewerVersion()` false).
+2. **Cek GAGAL TOTAL** (HTTP 404/network/parsing error) — termasuk kemungkinan besar penyebab laporan user: repo `VoltCare` (pasca-rename Batch 28/29) **belum punya GitHub Release SAMA SEKALI**. Kalau rename Batch 28 itu sebenarnya bikin repo baru dari nol (bukan rename asli — indikasi dari error "Repository not found" yg TIDAK redirect), maka **GitHub Secrets lama (keystore dll) juga ikut hilang**, workflow gagal di step "Verify APK is signed" → tidak pernah sampai step "Publish GitHub Release" → `/releases/latest` 404 selamanya.
+
+### Selesai
+- **`UpdateManager.kt`**: `checkForUpdate()` sekarang return `UpdateCheckResult` (sealed: `UpToDate` / `Available(info)` / `CheckFailed(reason)`) — bukan `UpdateInfo?` lagi. HTTP 404 dikasih pesan spesifik ("Belum ada Release... cek tab Actions"), error lain (network/JSON) tetap ke `CheckFailed` dgn pesan asli.
+- **`UpdateScreen.kt`**: `UpdateViewModel.checkForUpdate()` diupdate ikut sealed result baru. `CheckFailed` diarahkan ke `UpdateUiState.Failed` yang SUDAH ADA (dialog error, tidak perlu state/string baru).
+- Brace balance: `UpdateManager.kt` 48/48 curly 160/160 paren. `UpdateScreen.kt` 55/55 curly 102/102 paren.
+- Dicek: cuma 1 caller (`UpdateScreen.kt`) yang pakai `checkForUpdate()`/`UpdateInfo?` lama — tidak ada tempat lain yang perlu ikut diubah.
+
+### ⚠️ Aksi MANUAL yang user perlu cek (di luar kemampuan saya verifikasi tanpa network/GitHub akses)
+1. Buka `github.com/FDzaki-dev/VoltCare/actions` — kalau run terakhir status ❌ merah di step "Verify APK is signed"/"Decode release keystore", itu konfirmasi dugaan di atas.
+2. Kalau iya, jalankan ULANG command **Secrets** (dari skrip Initial Setup Kotak A/B, bagian atas) tapi target ke repo `VoltCare` (`gh` CLI otomatis pakai repo default folder `~/projects/VoltCare` yang sekarang), lalu push ulang commit apapun (misal batch ini) supaya workflow trigger lagi dan (kalau secrets sudah benar) berhasil publish Release pertama di repo baru.
+3. Setelah ada 1 Release sukses ter-publish, buka app → cek update lagi → sekarang HARUS entah dapat `Available` (kalau versi rilis > versi terpasang) atau pesan error yang JELAS (bukan lagi "sudah terbaru" palsu).
+
+### Pending Queue
+1-7, 9-20, 22. Tidak berubah. 21. ✅ selesai (Batch 33, ini).
+
+---
+
 ## [Batch 32] Chore - Bump Versi 1.0.0 -> 1.0.1 (Batch 27-31 belum pernah dapat versi baru) — 2026-08-19
 
 **Confidence Rating: 96%**

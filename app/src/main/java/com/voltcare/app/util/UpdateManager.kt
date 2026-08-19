@@ -65,16 +65,27 @@ object UpdateManager {
         val releaseNotes: String
     )
 
+    /** Hasil cek update — 3 kemungkinan yang HARUS dibedakan di UI (Pending Queue #21).
+     * Sebelumnya [checkForUpdate] return `UpdateInfo?`, di mana null dipakai untuk 2 arti
+     * berbeda ("beneran sudah versi terbaru" DAN "cek gagal/404/network error") — user jadi
+     * dikira "sudah terbaru" padahal ceknya sendiri gagal (mis. repo belum punya Release). */
+    sealed class UpdateCheckResult {
+        data object UpToDate : UpdateCheckResult()
+        data class Available(val info: UpdateInfo) : UpdateCheckResult()
+        data class CheckFailed(val reason: String) : UpdateCheckResult()
+    }
+
     sealed class DownloadResult {
         data class Success(val file: File) : DownloadResult()
         data class Failed(val message: String) : DownloadResult()
     }
 
     /**
-     * Cek rilis terbaru di GitHub. Return null jika: sudah versi terbaru, gagal jaringan,
-     * atau tidak ada asset .apk di rilis (fail-safe, tidak pernah throw ke caller).
+     * Cek rilis terbaru di GitHub. TIDAK PERNAH throw ke caller (fail-safe internal via
+     * try-catch), tapi SEKARANG hasil gagal-cek dibedakan eksplisit dari benar-benar-terbaru
+     * lewat [UpdateCheckResult.CheckFailed] (lihat Batch 33).
      */
-    suspend fun checkForUpdate(context: Context): UpdateInfo? = withContext(Dispatchers.IO) {
+    suspend fun checkForUpdate(context: Context): UpdateCheckResult = withContext(Dispatchers.IO) {
         try {
             val requestBuilder = Request.Builder()
                 .url(API_LATEST_RELEASE)
@@ -83,8 +94,13 @@ object UpdateManager {
 
             client.newCall(requestBuilder.build()).execute().use { response ->
                 if (!response.isSuccessful) {
-                    Log.w(TAG, "Cek update gagal, HTTP ${response.code}")
-                    return@withContext null
+                    val reason = if (response.code == 404) {
+                        "Belum ada Release yang dipublikasikan di repo $GITHUB_OWNER/$GITHUB_REPO (cek tab Actions apakah workflow build sukses)"
+                    } else {
+                        "Cek update gagal, HTTP ${response.code}"
+                    }
+                    Log.w(TAG, reason)
+                    return@withContext UpdateCheckResult.CheckFailed(reason)
                 }
 
                 // Body JSON metadata rilis berukuran kecil (bukan biner APK) — aman dibaca penuh.
@@ -113,26 +129,29 @@ object UpdateManager {
                 }
 
                 if (apkUrl.isNullOrBlank() || latestVersion.isBlank()) {
-                    Log.w(TAG, "Rilis terbaru tidak punya asset .apk atau tag_name kosong")
-                    return@withContext null
+                    val reason = "Rilis terbaru ($tagName) tidak punya asset .apk atau tag_name kosong"
+                    Log.w(TAG, reason)
+                    return@withContext UpdateCheckResult.CheckFailed(reason)
                 }
 
                 val currentVersion = getCurrentVersionName(context)
                 if (!isNewerVersion(latestVersion, currentVersion)) {
-                    return@withContext null
+                    return@withContext UpdateCheckResult.UpToDate
                 }
 
-                UpdateInfo(
-                    latestVersionName = latestVersion,
-                    currentVersionName = currentVersion,
-                    downloadUrl = apkUrl,
-                    fileSizeBytes = apkSize,
-                    releaseNotes = releaseNotes
+                UpdateCheckResult.Available(
+                    UpdateInfo(
+                        latestVersionName = latestVersion,
+                        currentVersionName = currentVersion,
+                        downloadUrl = apkUrl,
+                        fileSizeBytes = apkSize,
+                        releaseNotes = releaseNotes
+                    )
                 )
             }
         } catch (e: Exception) {
             Log.e(TAG, "Gagal cek update", e)
-            null
+            UpdateCheckResult.CheckFailed(e.message ?: "Gagal cek update (kemungkinan jaringan)")
         }
     }
 

@@ -51,8 +51,11 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
     fun checkForUpdate() {
         _uiState.value = UpdateUiState.Checking
         viewModelScope.launch {
-            val info = UpdateManager.checkForUpdate(getApplication())
-            _uiState.value = if (info != null) UpdateUiState.Available(info) else UpdateUiState.UpToDate
+            _uiState.value = when (val result = UpdateManager.checkForUpdate(getApplication())) {
+                is UpdateManager.UpdateCheckResult.Available -> UpdateUiState.Available(result.info)
+                is UpdateManager.UpdateCheckResult.UpToDate -> UpdateUiState.UpToDate
+                is UpdateManager.UpdateCheckResult.CheckFailed -> UpdateUiState.Failed(result.reason)
+            }
         }
     }
 
