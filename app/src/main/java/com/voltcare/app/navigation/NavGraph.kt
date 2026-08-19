@@ -87,10 +87,21 @@ fun VoltCareNavGraph() {
             composable(VcTab.Dashboard.route) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     DashboardScreen()
-                    Box(modifier = Modifier.align(Alignment.TopStart).padding(8.dp)) {
+                    // Padding top dinaikkan dari 8dp -> 64dp: sebelumnya numpuk visual dgn
+                    // judul "Dashboard" (headlineMedium, ~32dp tinggi + 16dp padding Column).
+                    // Lihat PROJECT_STATE Batch 31 (screenshot bug: shield icon overlap huruf D).
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(start = 8.dp, top = 64.dp)
+                    ) {
                         ShizukuStatusAction()
                     }
-                    Box(modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(end = 8.dp, top = 64.dp)
+                    ) {
                         UpdateCheckAction()
                     }
                     FloatingActionButton(

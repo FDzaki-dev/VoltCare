@@ -17,6 +17,31 @@
 
 ---
 
+## [Batch 31] Fix - Icon Shield Overlap Judul 'Dashboard' (Redundant Scaffold + Jarak Terlalu Dekat) — 2026-08-19
+
+**Confidence Rating: 88%**
+**File sebelum -> sesudah:** 59 -> 59 file (2 file kode diedit: `DashboardScreen.kt`, `NavGraph.kt` — protected asset, edit parsial)
+
+### Konteks
+User laporan screenshot: icon shield (`ShizukuStatusAction`) numpuk sama huruf "D" di judul "Dashboard", dan klaim ini nyambung ke task insets/deformasi layar di awal sesi (dokumen `dokumentasi_insets_targetsdk34.md`). **Klaim user BENAR SEBAGIAN** — nyambung ke topik yang sama (arsitektur Scaffold/insets), tapi mekanismenya beda dari dugaan awal:
+
+### Root Cause (2 hal, bukan cuma 1)
+1. **`DashboardScreen.kt` punya `Scaffold {}` SENDIRI** (baris 28, versi lama) — padahal screen ini sudah dibungkus `Scaffold` di `NavGraph.kt`. Ini persis pelanggaran "Aturan Emas: Hindari Redundansi" dari dokumen insets — SUDAH diwanti-wanti di CHANGELOG Batch 27, tapi audit Batch 27 cuma cek `NavGraph.kt`, **lolos cek `DashboardScreen.kt`**.
+2. **Overlap sebenarnya BUKAN soal insets ganda/kurang** (Material3 `Scaffold` setahu saya sudah consume window insets utk descendant-nya) — murni jarak antar 2 elemen kependekan: overlay icon `.padding(8.dp)` vs judul yg render di ~16dp dari baseline yang SAMA (offset seragam, ada/tidaknya edge-to-edge tidak mengubah jarak relatif keduanya). Jadi `enableEdgeToEdge()` Batch 27 **BUKAN penyebab langsung overlap ini**, tapi audit yang kurang lengkap saat Batch 27 (poin 1 di atas) memang bagian dari pekerjaan yang sama.
+
+### Selesai
+- **`DashboardScreen.kt`**: `Scaffold {}` dihapus, diganti `Column` polos. Titik konsumsi insets SEKARANG SATU-SATUNYA di `NavGraph.kt` (sesuai Aturan Emas).
+- **`NavGraph.kt`** (protected, edit parsial): padding top overlay `ShizukuStatusAction`/`UpdateCheckAction` dinaikkan `8.dp` -> `64.dp` (clear dari tinggi judul headlineMedium + 16dp Column padding).
+- Brace balance diverifikasi: `DashboardScreen.kt` 19/19 curly, 47/47 paren. `NavGraph.kt` 26/26 curly, 50/50 paren.
+
+### Catatan (confidence 88%, bukan 95%+)
+Nilai `64.dp` estimasi manual berdasar `headlineMedium` line-height + padding, BUKAN diukur dari compile/render asli (tidak ada Gradle/emulator di sandbox). Kalau setelah build & install masih ada sisa overlap/kegedean gap-nya, kandidat penyesuaian: naik/turunin angka `64.dp` di `NavGraph.kt` baris overlay Dashboard saja (1 file, tidak perlu ubah `DashboardScreen.kt` lagi).
+
+### Pending Queue
+1-7, 9-21. Tidak berubah. 22. ✅ selesai (Batch 31, ini). Rekomendasi jangka panjang (opsional, belum masuk pending formal): ganti pola overlay Box absolut ini dengan `TopAppBar`/`Row` header yang proper di dalam `DashboardScreen.kt` biar tidak rawan collision serupa di masa depan.
+
+---
+
 ## [Batch 30] Fix - Update Checker Selalu 'Sudah Versi Terbaru' Palsu (GITHUB_REPO Stale) — 2026-08-19
 
 **Confidence Rating: 95%**

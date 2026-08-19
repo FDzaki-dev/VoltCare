@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -25,14 +24,15 @@ fun DashboardScreen(viewModel: DashboardViewModel = viewModel()) {
     val state by viewModel.uiState.collectAsState()
     val calibrating by viewModel.calibrationInProgress.collectAsState()
 
-    Scaffold { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
+    // TIDAK pakai Scaffold di sini -- screen ini sudah dibungkus Scaffold di NavGraph.kt.
+    // Insets/systemBars sudah dikonsumsi SATU KALI di titik itu (Aturan Emas: hindari
+    // redundansi, lihat dokumentasi_insets_targetsdk34.md & PROJECT_STATE Batch 31).
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
             Text(
                 text = "Dashboard",
                 style = MaterialTheme.typography.headlineMedium
@@ -95,7 +95,6 @@ fun DashboardScreen(viewModel: DashboardViewModel = viewModel()) {
             ) {
                 Text(if (calibrating) "Kalibrasi berjalan..." else "Mulai Kalibrasi")
             }
-        }
     }
 }
 

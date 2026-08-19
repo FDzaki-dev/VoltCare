@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch31] - 2026-08-19
+### Fixed
+- Icon shield (`ShizukuStatusAction`) numpuk sama judul "Dashboard": hapus `Scaffold` redundan di `DashboardScreen.kt` (sudah dibungkus Scaffold di `NavGraph.kt`, lolos audit Batch 27) + naikkan padding top overlay icon `8dp`→`64dp` di `NavGraph.kt`.
+
 ## [v1.0.0-batch30] - 2026-08-19
 ### Fixed
 - **Bug kritis**: cek update selalu bilang "Sudah Versi Terbaru" meski sebenarnya gagal cek — `UpdateManager.kt` masih hardcode `GITHUB_REPO = "PowerVaultHealthPro"` (repo lama, 404 sejak rename Batch 28/29). Diganti ke `"VoltCare"`.
