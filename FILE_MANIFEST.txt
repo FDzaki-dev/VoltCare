@@ -1,0 +1,44 @@
+PowerVault Health Pro - File Manifest (Batch 1)
+Generated: 2026-08-19
+
+ROOT
+  settings.gradle.kts
+  build.gradle.kts
+  gradle.properties
+  .gitignore
+  .gitattributes
+  PROJECT_STATE.md
+  CHANGELOG.md
+  FILE_MANIFEST.txt
+  README.md
+
+.github/workflows/
+  release.yml
+
+keystore/
+  release.keystore            (gitignored - signing source of truth = GitHub Secrets)
+
+app/
+  build.gradle.kts
+  proguard-rules.pro
+  src/main/AndroidManifest.xml
+  src/main/res/values/{strings,colors,themes}.xml
+  src/main/res/xml/{backup_rules,data_extraction_rules}.xml
+  src/main/res/drawable/{ic_launcher_background,ic_launcher_foreground}.xml
+  src/main/res/mipmap-anydpi-v26/{ic_launcher,ic_launcher_round}.xml
+
+app/src/main/java/com/powervault/health/pro/
+  PowerVaultApplication.kt
+  MainActivity.kt
+  navigation/NavGraph.kt
+  ui/theme/{Color,Type,Theme}.kt
+  ui/screens/dashboard/{DashboardScreen,DashboardViewModel}.kt
+  ui/screens/history/HistoryScreen.kt
+  ui/screens/drain/DrainScreen.kt
+  ui/screens/rules/RulesScreen.kt
+  data/db/AppDatabase.kt
+  data/db/entity/{BatteryLogEntity,CycleEntity,RuleEntity}.kt
+  data/db/dao/{BatteryLogDao,CycleDao,RuleDao}.kt
+  service/BatteryMonitorService.kt
+  receiver/BootReceiver.kt
+  util/{BatteryUtils,CrashLogger}.kt
