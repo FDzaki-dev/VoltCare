@@ -1,4 +1,6 @@
-# PowerVault Health Pro
+# VoltCare
+
+(dulu "PowerVault Health Pro" — package/arsitektur tidak berubah, hanya nama tampilan app.)
 
 Aplikasi monitoring & kesehatan baterai Android, 100% lokal/offline.
 Kotlin + Jetpack Compose + Room + Foreground Service.

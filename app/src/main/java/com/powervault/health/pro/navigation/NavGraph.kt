@@ -1,5 +1,6 @@
 package com.powervault.health.pro.navigation
 
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.BatteryChargingFull

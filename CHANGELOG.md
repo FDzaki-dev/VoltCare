@@ -1,6 +1,15 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch3] - 2026-08-19
+### Fixed
+- Build gagal (`compileReleaseKotlin`): tambah import `androidx.compose.foundation.layout.padding` yang hilang di `NavGraph.kt` (ditemukan dari analisa log Actions upload user).
+
+## [v1.0.0-batch2] - 2026-08-19
+### Changed
+- Nama app: `PowerVault Health Pro` -> `VoltCare` (strings.xml app_name + README).
+- Tidak ada perubahan applicationId/package/arsitektur.
+
 ## [v1.0.0-batch1] - 2026-08-19
 ### Added
 - Initial project setup: Kotlin + Compose + Room + Foreground Service architecture.

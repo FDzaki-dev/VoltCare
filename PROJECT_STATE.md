@@ -3,6 +3,54 @@
 
 ---
 
+## [Batch 3] Fix Build - Missing Import NavGraph.kt — 2026-08-19
+
+**Confidence Rating: 97%**
+**File sebelum -> sesudah:** 45 -> 45 file
+**Sumber analisa:** log GitHub Actions run (`build-release` job) yang diupload user — gagal di step "Build signed release APK".
+
+### Root Cause
+`:app:compileReleaseKotlin FAILED` — `NavGraph.kt:72:33 Unresolved reference: padding`.
+`Modifier.padding(innerPadding)` dipakai tapi import `androidx.compose.foundation.layout.padding` tidak ada di file ini (sudah benar di 4 file screen lain, hanya NavGraph.kt yang miss).
+
+### Fix
+- Tambah `import androidx.compose.foundation.layout.padding` di `NavGraph.kt`.
+- Diverifikasi: tidak ada file lain dengan pola import hilang yang sama.
+
+### Catatan (non-blocking, belum di-fix)
+- Build log juga menunjukkan warning KSP: Room `exportSchema=true` tanpa `room.schemaLocation` diset → skema tidak diekspor ke JSON. Tidak menggagalkan build, dijadwalkan Pending Queue jika dibutuhkan riwayat migrasi formal.
+
+### Pending Queue (belum berubah dari Batch 1)
+1. Kalibrasi engine
+2. Cycle Counter presisi
+3. Drain Analyzer (UsageStatsManager + force-stop)
+4. Riwayat 30 Hari (grafik + CSV export)
+5. Tes Baterai (Stress Test)
+6. Aturan Cerdas - UI Editor
+7. (opsional) Set `room.schemaLocation` agar warning KSP hilang
+
+---
+
+## [Batch 2] Rename App - VoltCare — 2026-08-19
+
+**Confidence Rating: 98%**
+**File sebelum -> sesudah:** 45 -> 45 file (tidak ada file baru/hapus)
+
+### Selesai
+- Nama tampilan app diganti `PowerVault Health Pro` -> **VoltCare** (`strings.xml > app_name`).
+- README.md judul disesuaikan.
+- **Tidak ada perubahan arsitektur**: `applicationId`/`namespace` tetap `com.powervault.health.pro`, struktur package, DB schema, service, dan nama folder/repo Git (`PowerVaultHealthPro`) tetap sama persis sesuai permintaan user ("tanpa rombak arsitektur").
+
+### Pending Queue (belum berubah dari Batch 1)
+1. Kalibrasi engine
+2. Cycle Counter presisi
+3. Drain Analyzer (UsageStatsManager + force-stop)
+4. Riwayat 30 Hari (grafik + CSV export)
+5. Tes Baterai (Stress Test)
+6. Aturan Cerdas - UI Editor
+
+---
+
 ## [Batch 1] Initial Setup - Arsitektur & Skeleton — 2026-08-19
 
 **Confidence Rating: 92%** (di bawah 95% karena 4 dari 8 fitur inti masih scaffold/placeholder — lihat Pending Queue. Tidak ada Protected Asset yang hilang, sehingga ZIP tetap dirilis sebagai fondasi arsitektur, bukan build fitur-lengkap final.)
