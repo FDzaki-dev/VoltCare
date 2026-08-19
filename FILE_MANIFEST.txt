@@ -1,4 +1,4 @@
-VoltCare - File Manifest (Batch 12)
+VoltCare - File Manifest (Batch 14)
 Generated: 2026-08-19
 
 ROOT
@@ -35,7 +35,7 @@ app/src/main/java/com/voltcare/app/
   ui/screens/dashboard/{DashboardScreen,DashboardViewModel}.kt
   ui/screens/history/{HistoryScreen,HistoryViewModel}.kt
   ui/screens/drain/DrainScreen.kt
-  ui/screens/rules/RulesScreen.kt
+  ui/screens/rules/{RulesScreen,RulesViewModel}.kt
   ui/screens/stress/StressTestScreen.kt
   data/db/AppDatabase.kt
   data/db/entity/{BatteryLogEntity,CycleEntity,RuleEntity}.kt

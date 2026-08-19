@@ -16,6 +16,30 @@
 
 ---
 
+## [Batch 14] Fitur - Aturan Cerdas UI Editor (Pending Queue #6) — 2026-08-19
+
+**Confidence Rating: 95%**
+**File sebelum -> sesudah:** 48 -> 49 file (1 baru: `RulesViewModel.kt`; 1 ditulis ulang: `RulesScreen.kt`)
+
+### Selesai
+- **`ui/screens/rules/RulesViewModel.kt`** (baru): CRUD murni ke `RuleEntity` via `RuleDao` (protected, dipakai apa adanya — `insert`/`update`/`delete`/`all()` sudah tersedia sejak Batch 1). Enum `RuleCondition` (`TEMP_ABOVE`/`PERCENT_ABOVE`/`PERCENT_BELOW`) & `RuleAction` (`ALARM`/`NOTIFY`) di-map 1:1 ke string yang sudah dipakai `BatteryMonitorService.checkRule()` — tidak ada string baru yang perlu disinkronkan ke service.
+- **`ui/screens/rules/RulesScreen.kt`** (ditulis ulang dari placeholder): `LazyColumn` daftar aturan (label, ringkasan "IF ... THEN ...", `Switch` aktif/nonaktif, tombol Edit/Hapus), FAB "+" buka `AlertDialog` form (nama, dropdown kondisi, nilai ambang, switch "hanya saat charging", dropdown aksi) — validasi label tidak kosong & nilai numerik sebelum tombol Simpan aktif. Hapus lewat dialog konfirmasi terpisah (anti tap-salah).
+
+### Sengaja TIDAK diubah
+- `RuleEntity.kt`/`RuleDao.kt` (DB Schema/DAO, protected) — dipakai 100% apa adanya, tidak ada kolom/migration baru.
+- `BatteryMonitorService.kt` — engine evaluasi (`checkRule`/`fireAlert`) tidak disentuh; rule baru dari editor otomatis ikut dievaluasi sample berikutnya karena baca `enabledOnce()` dari DB yang sama.
+- `NavGraph.kt`/`AndroidManifest.xml` — tidak perlu route atau permission baru (`RulesScreen()` sudah dipanggil tanpa parameter sejak Batch 1, `viewModel()` default resolve ke `RulesViewModel` baru secara otomatis).
+
+### Protected Assets tersentuh
+Tidak ada.
+
+### Pending Queue (Batch 14: item #6 selesai, 2 opsional tersisa)
+1-6. ✅ selesai (lihat Batch 8-14)
+7. (opsional) Set `room.schemaLocation` agar warning KSP hilang
+8. (opsional) Rename repo GitHub ke `VoltCare` via `gh repo rename` (manual)
+
+---
+
 ## [Batch 13] Fix - Symbol Unicode Berisiko Mojibake/Tofu — 2026-08-19
 
 **Confidence Rating: 98%**

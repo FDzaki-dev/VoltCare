@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch14] - 2026-08-19
+### Added
+- **Aturan Cerdas UI Editor** (Pending Queue #6, item terakhir dari roadmap Batch 1): `RulesViewModel.kt` (baru, CRUD ke `RuleEntity`/`RuleDao` apa adanya). `RulesScreen.kt` ditulis ulang: daftar aturan + toggle aktif + form tambah/edit (`AlertDialog`: nama, dropdown kondisi, nilai ambang, switch charging, dropdown aksi) + hapus dengan konfirmasi.
+
 ## [v1.0.0-batch13] - 2026-08-19
 ### Fixed
 - **Symbol Unicode berisiko mojibake/tofu**: `DashboardScreen.kt`, `BatteryMonitorService.kt` (notifikasi persisten), `StressTestScreen.kt` — ellipsis/bullet/panah/em-dash/emoji-peringatan (`\u2026`,`\u2022`,`\u2190`,`\u2192`,`\u2014`,`\u26A0\uFE0F`) diganti ASCII polos (`...`,`-`,`<`,`->`,`-`,`[!]`). `\u00B0C` (derajat) dipertahankan (aman, Latin-1). Diverifikasi: 0 raw non-ASCII byte di seluruh source.
