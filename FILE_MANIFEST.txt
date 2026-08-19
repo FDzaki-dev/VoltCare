@@ -1,4 +1,4 @@
-VoltCare - File Manifest (Batch 14)
+VoltCare - File Manifest (Batch 22)
 Generated: 2026-08-19
 
 ROOT
@@ -11,6 +11,7 @@ ROOT
   CHANGELOG.md
   FILE_MANIFEST.txt
   README.md
+  FEATURE_PARITY_GOALS.md     (Batch 18 - matrix gap-analysis, dokumentasi)
 
 .github/workflows/
   release.yml
@@ -24,6 +25,7 @@ app/
   src/main/AndroidManifest.xml
   src/main/res/values/{strings,colors,themes}.xml
   src/main/res/xml/{backup_rules,data_extraction_rules}.xml
+  src/main/res/xml/file_paths.xml   (Batch 19 - FileProvider paths, in-app updater)
   src/main/res/drawable/{ic_launcher_background,ic_launcher_foreground}.xml
   src/main/res/mipmap-anydpi-v26/{ic_launcher,ic_launcher_round}.xml
 
@@ -43,3 +45,5 @@ app/src/main/java/com/voltcare/app/
   service/BatteryMonitorService.kt
   receiver/BootReceiver.kt
   util/{BatteryUtils,CrashLogger,UsageStatsHelper,CsvExporter}.kt
+  util/UpdateManager.kt              (Batch 19/20 - in-app updater engine, OkHttp/Okio)
+  ui/screens/update/UpdateScreen.kt  (Batch 21 - UpdateViewModel + UpdateCheckAction UI)

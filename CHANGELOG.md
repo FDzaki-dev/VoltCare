@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch22] - 2026-08-19
+### Fixed
+- **Build gagal** (regresi Batch 20, ditemukan via `log_fail` asli yang diupload user): `UpdateManager.kt:49` — Kotlin melarang `const val` bertipe nullable (`String?`). `private const val GITHUB_TOKEN: String? = null` -> `private val GITHUB_TOKEN: String? = null`. Fungsional identik, hanya bukan compile-time constant lagi.
+### Changed
+- `FILE_MANIFEST.txt` (Pending Queue #14): tambah 4 entri file baru Batch 18-21 (`FEATURE_PARITY_GOALS.md`, `file_paths.xml`, `UpdateManager.kt`, `UpdateScreen.kt`).
+
 ## [v1.0.0-batch21] - 2026-08-19
 ### Added
 - **In-App Updater - UI Wiring (Pending Queue #15, selesai)**: `UpdateScreen.kt` (baru, self-contained) — `UpdateViewModel` + `UpdateCheckAction()` composable (tombol ikon + dialog cek/download progress/instal), dipasang di `NavGraph.kt` (TopEnd overlay Dashboard, tanpa edit `DashboardScreen.kt`). `strings.xml`: +13 string label dialog. Fitur "update langsung dari aplikasi" kini lengkap end-to-end (cek rilis GitHub -> download progress -> instal via FileProvider).

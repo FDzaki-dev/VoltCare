@@ -16,6 +16,43 @@
 
 ---
 
+## [Batch 22] Fix - Regresi Compile `const val String?` (dari log_fail user) + Housekeeping Manifest — 2026-08-19
+
+**Confidence Rating: 98%**
+**File sebelum -> sesudah:** 54 -> 54 file (0 baru/hapus, 2 diedit: `UpdateManager.kt`, `FILE_MANIFEST.txt`)
+
+### Alasan
+User upload `logs_87411968857.zip` (log job GitHub Actions `build-release`) bareng perintah "lanjut Batch 22". Sesuai Debug Priority rule (Crash Logger Bawaan), log dianalisis LEBIH DULU sebelum housekeeping — ketemu regresi compile nyata dari Batch 20, jadi diprioritaskan sbg fix, housekeeping `FILE_MANIFEST.txt` (Pending Queue #14) digabung sekalian karena masih di bawah cap (2 file).
+
+### Selesai
+- **Root cause (dari `8_Build signed release APK.txt`):** `Task :app:compileReleaseKotlin FAILED` — `e: UpdateManager.kt:49:13 Const 'val' has type 'String?'. Only primitives and String are allowed`. Kotlin `const val` TIDAK boleh bertipe nullable (`String?`), walau underlying type String — batasan compiler, bukan soal isi (`null`). Bug lolos dari batch 19/20 karena verifikasi waktu itu hanya brace-balance check, bukan compile sungguhan (sudah dicatat di catatan kedua batch tsb sbg limitasi lingkungan tanpa network).
+- **`UpdateManager.kt`**: baris 49 `private const val GITHUB_TOKEN: String? = null` -> `private val GITHUB_TOKEN: String? = null` (buang `const`). Fungsional 100% identik (tetap `private`, tetap nullable, tetap dipakai via `GITHUB_TOKEN?.let { ... }` di 2 tempat) — HANYA berhenti jadi compile-time constant, jadi sedikit lebih lambat diakses (dari field statis final ke property biasa), dampak performa nol relevan utk 2 pemanggilan per request HTTP.
+- **`FILE_MANIFEST.txt`** (Pending Queue #14): tambah 4 entri file baru dari Batch 18-21 (`FEATURE_PARITY_GOALS.md`, `file_paths.xml`, `UpdateManager.kt`, `UpdateScreen.kt`), header versi diupdate ke "Batch 22".
+
+### Verifikasi Tambahan (di luar audit manual biasa)
+- Dicek: **HANYA 1 lokasi** `const val` bertipe nullable di seluruh `app/src/main/java/` (grep `const val.*?:.*\?` — 1 match, yaitu `GITHUB_TOKEN`). Tidak ada regresi serupa di file lain.
+- Log step lain (`3_Stale run guard`, `6_Extract version name`) dicek: SHA build == tip main (bukan stale re-run), ekstraksi versi jalan normal sebelum build gagal — konsisten dgn desain Batch 16 (log_fail tetap dapat versi walau compile gagal).
+
+### Sengaja TIDAK diubah
+- Tidak ada perubahan API/behavior lain di `UpdateManager.kt` selain hilangnya keyword `const` — semua fungsi Batch 19-21 dipakai apa adanya.
+- `.github/workflows/release.yml` — log menunjukkan pipeline (Stale Run Guard, log_fail artifact, keystore cleanup `if: always()`) semua bekerja SESUAI DESAIN saat build gagal; tidak ada bug di workflow itu sendiri, murni bug kode aplikasi.
+
+### Protected Assets tersentuh
+Tidak ada (perbaikan hanya di file kode non-protected `UpdateManager.kt` & dokumentasi `FILE_MANIFEST.txt`).
+
+### Catatan
+Ini kegagalan compile PERTAMA yang terverifikasi via log_fail asli sejak fitur tsb dibuat Batch 16 — bukti fitur bekerja seperti didesain. Rekomendasi kuat: setelah push batch ini, tunggu 1x run CI sukses (assemble+sign+release) sebagai konfirmasi nyata sebelum lanjut fitur baru lain, karena baru sekarang ada bukti compile real utk seluruh rangkaian in-app updater (Batch 19-22).
+
+### Pending Queue (Batch 22: item #14 selesai, regresi #16 baru muncul & langsung selesai)
+1-7, 9. ✅ selesai (lihat Batch 8-17)
+8. (opsional) Rename repo GitHub ke `VoltCare` via `gh repo rename` (manual)
+10-13. (dari Batch 18, belum dikerjakan)
+14. ~~Update FILE_MANIFEST.txt~~ ✅ selesai batch ini
+15. ✅ selesai (In-App Updater lengkap, Batch 19-21)
+16. ~~Fix regresi compile const val nullable~~ ✅ selesai batch ini (ditemukan & diperbaiki batch yang sama)
+
+---
+
 ## [Batch 21] Fitur - In-App Updater UI Wiring (Pending Queue #15) — 2026-08-19
 
 **Confidence Rating: 95%**

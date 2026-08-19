@@ -46,7 +46,7 @@ object UpdateManager {
     private const val BUFFER_SIZE = 8L * 1024 // 8KB per chunk, sesuai spec
 
     /** Isi jika suatu saat repo di-private-kan / butuh rate-limit lebih tinggi. Default null. */
-    private const val GITHUB_TOKEN: String? = null
+    private val GITHUB_TOKEN: String? = null
 
     private val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
