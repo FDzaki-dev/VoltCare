@@ -30,6 +30,7 @@ import com.voltcare.app.ui.screens.dashboard.DashboardScreen
 import com.voltcare.app.ui.screens.drain.DrainScreen
 import com.voltcare.app.ui.screens.history.HistoryScreen
 import com.voltcare.app.ui.screens.rules.RulesScreen
+import com.voltcare.app.ui.screens.shizuku.ShizukuStatusAction
 import com.voltcare.app.ui.screens.stress.StressTestScreen
 import com.voltcare.app.ui.screens.update.UpdateCheckAction
 
@@ -86,6 +87,9 @@ fun VoltCareNavGraph() {
             composable(VcTab.Dashboard.route) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     DashboardScreen()
+                    Box(modifier = Modifier.align(Alignment.TopStart).padding(8.dp)) {
+                        ShizukuStatusAction()
+                    }
                     Box(modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)) {
                         UpdateCheckAction()
                     }

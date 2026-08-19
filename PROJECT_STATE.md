@@ -16,6 +16,43 @@
 
 ---
 
+## [Batch 26] Fitur - Shizuku UI Wiring (Pending Queue #17) — 2026-08-19
+
+**Confidence Rating: 93%**
+**File sebelum -> sesudah:** 58 -> 59 file (1 baru: `ShizukuStatusAction.kt`; 2 diedit parsial: `strings.xml`, `NavGraph.kt` protected)
+
+### Alasan
+Lanjutan langsung Batch 23 (`ShizukuManager.kt`, core engine) — kini status Shizuku (NotInstalled/NotRunning/PermissionDenied/Ready) ditampilkan di UI & user bisa trigger `requestPermission()` sendiri. Pola meniru persis Batch 21 (In-App Updater UI Wiring): 1 Composable+ViewModel self-contained baru, dipasang via overlay `Box` di `NavGraph.kt` supaya `DashboardScreen.kt` tidak disentuh.
+
+### Selesai
+- **`ui/screens/shizuku/ShizukuStatusAction.kt`** (baru): `ShizukuStatusViewModel` (`AndroidViewModel`, `StateFlow<ShizukuManager.State>`) — `init` langsung `refresh()` + daftar `ShizukuManager.addBinderListeners()`/`addPermissionResultListener()` (self-contained, TIDAK di `VoltCareApplication.kt`, lihat Sengaja Tidak Diubah). `ShizukuStatusAction()` composable: `IconButton` ikon `AdminPanelSettings` (tint `VcGreen`=Ready, `VcAmber`=PermissionDenied, `VcTextSecondary`=lainnya) + `AlertDialog` per state, tombol "Minta Izin" muncul khusus state PermissionDenied/NotRunning -> panggil `viewModel.requestPermission()`.
+- **`strings.xml`** (edit): 11 string baru `shizuku_*` (title/body per 4 state + tombol aksi), mengikuti pola persis `update_*` (Batch 21).
+- **`NavGraph.kt`** (edit parsial, protected): `ShizukuStatusAction()` dipasang di `Box` overlay Dashboard, `Alignment.TopStart` — sengaja beda sudut dari `UpdateCheckAction` (`TopEnd`, Batch 21) & FAB Tes Baterai (`BottomEnd`, Batch 12) supaya tidak tabrakan visual. `DashboardScreen.kt` TIDAK disentuh.
+
+### Sengaja TIDAK diubah
+- **`VoltCareApplication.kt`** (protected) — TIDAK diedit batch ini. Listener binder/permission didaftarkan langsung di `ShizukuStatusViewModel.init` (self-contained, cakupan hidup selama Composable Dashboard aktif) supaya batch tetap pas 3 file sesuai Strict Micro-Batching Rule. Registrasi level-Application (utk lifecycle di luar layar Dashboard, mis. auto-hibernate terjadwal Pending #20) di-queue terpisah kalau nanti terbukti dibutuhkan.
+- `AndroidManifest.xml` — tidak ada perubahan; provider Shizuku sudah didaftarkan sejak Batch 23, tidak ada permission manifest tambahan yang dibutuhkan izin runtime Shizuku.
+- `UsageStatsHelper.kt` (Force Stop rewire, Pending #18) & parsing `dumpsys batterystats` (Pending #19) — belum disentuh, murni UI status + trigger izin dulu di batch ini.
+- `FILE_MANIFEST.txt` — belum diupdate (entri baru: `ShizukuStatusAction.kt`), di-queue bareng housekeeping berikutnya (gabung ke item lama #14-style).
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`NavGraph.kt` — brace balance diverifikasi (26/26 curly, 48/48 paren), 1 import + 1 blok `Box` overlay baru disisipkan sebelum blok `UpdateCheckAction` yang sudah ada, sisanya utuh.
+
+### Catatan
+Tidak ada akses jaringan/Gradle/device fisik sungguhan di lingkungan pembuatan ZIP ini (network disabled) — verifikasi terbatas pada brace/paren balance (`ShizukuStatusAction.kt` 30/30 curly, 51/51 paren) + XML valid (`strings.xml`) + review manual pola call `ShizukuManager` (Batch 23, tidak diubah sama sekali batch ini — hanya dipanggil). BUKAN compile Gradle sungguhan. Confidence 93% (bukan 95%+) karena: (1) `Icons.Filled.AdminPanelSettings` diasumsikan tersedia di `material-icons-extended` (dependency sudah ada sejak awal project, dipakai icon lain spt `Rule`/`SystemUpdate`, tapi nama ikon spesifik ini belum diverifikasi compile sungguhan), (2) `ShizukuManager.addPermissionResultListener`/`addBinderListeners` yang didaftarkan di `ViewModel.init` belum diverifikasi jalan di device nyata (perilaku listener Shizuku SDK asli, bukan reflection). Rekomendasi: build + test manual di Termux/device dengan & tanpa Shizuku aktif sebelum lanjut Pending #18 (Force Stop rewire).
+
+### Pending Queue (Batch 26: item #17 selesai — UI wiring status+permission; #18-20 masih menunggu implementasi nyata)
+1-7, 9. ✅ selesai (lihat Batch 8-17)
+8. (opsional) Rename repo GitHub ke `VoltCare` via `gh repo rename` (manual)
+10-13. (dari Batch 18, belum dikerjakan)
+14. (housekeeping) Update `FILE_MANIFEST.txt` — tambah `ShizukuStatusAction.kt`, gabung ke housekeeping berikutnya
+17. ~~Shizuku UI Wiring~~ ✅ selesai batch ini
+18. **Force Stop via Shizuku** (Drain Analyzer upgrade): `UsageStatsHelper.killBackgroundApp()` — kalau `ShizukuManager.hasPermission()` true, pakai `am force-stop <pkg>`; kalau false, tetap fallback jalur lama. Estimasi 1-2 file.
+19. **Statistik drain per-app riil via Shizuku**: `dumpsys batterystats` diparsing via `execShellCommand()`. Estimasi 1-2 file, kompleksitas parsing tinggi -> mungkin perlu dipecah lagi.
+20. **Auto-grant PACKAGE_USAGE_STATS via Shizuku** (`appops set <pkg> GET_USAGE_STATS allow`). Estimasi 1 file.
+
+---
+
 ## [Batch 25] Cleanup - Hapus Workflow & Source Orphan "PromptVault" — 2026-08-19
 
 **Confidence Rating: 98%**

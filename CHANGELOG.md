@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch26] - 2026-08-19
+### Added
+- **Shizuku UI Wiring** (lanjutan Batch 23): `ShizukuStatusAction.kt` (baru) - ikon status Shizuku (NotInstalled/NotRunning/PermissionDenied/Ready) + dialog + tombol "Minta Izin" di overlay Dashboard (`TopStart`). `strings.xml`: +11 string `shizuku_*`. `NavGraph.kt`: pasang `ShizukuStatusAction()`.
+### Queued
+- Force Stop nyata via Shizuku (Drain Analyzer), statistik drain per-app riil (`dumpsys batterystats`), auto-grant Usage Access — Pending Queue #18-20 di `PROJECT_STATE.md`.
+
 ## [v1.0.0-batch25] - 2026-08-19
 ### Removed
 - `.github/workflows/build.yml` ("Build PromptVault APK", workflow sisa app lain, non-protected).

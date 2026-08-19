@@ -21,4 +21,16 @@
     <string name="update_install">Instal</string>
     <string name="update_failed_title">Gagal Update</string>
     <string name="update_close">Tutup</string>
+
+    <string name="shizuku_status_action">Status Shizuku</string>
+    <string name="shizuku_not_installed_title">Shizuku Belum Terpasang</string>
+    <string name="shizuku_not_installed_body">Instal aplikasi Shizuku untuk mengaktifkan fitur lanjutan (Force Stop sungguhan, statistik drain akurat, dan lainnya).</string>
+    <string name="shizuku_not_running_title">Shizuku Belum Aktif</string>
+    <string name="shizuku_not_running_body">Buka aplikasi Shizuku dan aktifkan servicenya (pairing ADB nirkabel di Android 11+, atau lewat root activator jika perangkat di-root).</string>
+    <string name="shizuku_permission_denied_title">Izin Diperlukan</string>
+    <string name="shizuku_permission_denied_body">VoltCare perlu izin dari Shizuku untuk mengaktifkan fitur lanjutan. Fitur biasa tetap berjalan normal tanpa izin ini.</string>
+    <string name="shizuku_request_permission">Minta Izin</string>
+    <string name="shizuku_ready_title">Shizuku Aktif</string>
+    <string name="shizuku_ready_body">Fitur lanjutan (Force Stop sungguhan, statistik drain akurat) sudah siap dipakai.</string>
+    <string name="shizuku_close">Tutup</string>
 </resources>
