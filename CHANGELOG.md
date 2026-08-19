@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch6] - 2026-08-19
+### Changed
+- Asset APK di GitHub Release di-rename otomatis: `app-release.apk` -> `<NamaApp>_v<Versi>_<RunNumber>.apk` (mis. `VoltCare_v1.0.0_5.apk`). `<NamaApp>` diambil dari `rootProject.name`.
+
 ## [v1.0.0-batch5] - 2026-08-19
 ### Changed (Atomic Change - total rebrand)
 - `applicationId`/`namespace`: `com.powervault.health.pro` -> `com.voltcare.app`.

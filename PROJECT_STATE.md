@@ -3,6 +3,28 @@
 
 ---
 
+## [Batch 6] Smart Naming - APK Release Asset — 2026-08-19
+
+**Confidence Rating: 98%**
+**File sebelum -> sesudah:** 44 -> 44 file (1 file diedit: `.github/workflows/release.yml`)
+
+### Selesai
+- Asset APK di GitHub Release tidak lagi bernama generik `app-release.apk` — sekarang otomatis di-rename jadi `<NamaApp>_v<Versi>_<RunNumber>.apk`, mis. `VoltCare_v1.0.0_5.apk`. Konsisten dengan konvensi penamaan ZIP (`<NamaApp>_v<Versi/Batch>.zip`).
+- `<NamaApp>` diambil dinamis dari `rootProject.name` di `settings.gradle.kts` (bukan hardcode), jadi otomatis ikut kalau nama app berubah lagi di masa depan.
+- Step baru "Rename APK asset" disisipkan setelah "Verify APK is signed", sebelum "Clean up keystore" — hanya jalan setelah APK dipastikan signed (guard Batch 4 tetap berlaku).
+
+### Pending Queue (belum berubah dari Batch 1)
+1. Kalibrasi engine
+2. Cycle Counter presisi
+3. Drain Analyzer (UsageStatsManager + force-stop)
+4. Riwayat 30 Hari (grafik + CSV export)
+5. Tes Baterai (Stress Test)
+6. Aturan Cerdas - UI Editor
+7. (opsional) Set `room.schemaLocation` agar warning KSP hilang
+8. (opsional) Rename repo GitHub ke `VoltCare` via `gh repo rename` (manual)
+
+---
+
 ## [Batch 5] Total Rebrand - VoltCare (Atomic Change) — 2026-08-19
 
 **Confidence Rating: 96%**

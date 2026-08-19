@@ -77,6 +77,20 @@ jobs:
           fi
           echo "Signed APK ditemukan: ${{ steps.apk.outputs.path }}"
 
+      # --- Smart Naming (konsisten dgn konvensi ZIP: <NamaApp>_v<Versi>_<Batch>) ---
+      # Rename asset dari nama generik "app-release.apk" jadi self-descriptive supaya
+      # user tidak salah pilih/tertukar antar build saat lihat di sidebar Release.
+      - name: Rename APK asset
+        id: rename
+        run: |
+          APP_NAME=$(grep -m1 'rootProject.name' settings.gradle.kts | sed -E 's/.*"(.*)".*/\1/' | tr ' ' '_')
+          SRC="${{ steps.apk.outputs.path }}"
+          DIR=$(dirname "$SRC")
+          NEW_NAME="${APP_NAME}_v${{ steps.apk.outputs.version }}_${{ github.run_number }}.apk"
+          mv "$SRC" "$DIR/$NEW_NAME"
+          echo "path=$DIR/$NEW_NAME" >> "$GITHUB_OUTPUT"
+          echo "Asset di-rename jadi: $NEW_NAME"
+
       - name: Clean up keystore
         if: always()
         run: rm -f keystore/release.keystore
@@ -89,7 +103,7 @@ jobs:
         with:
           tag_name: v${{ steps.apk.outputs.version }}-${{ github.run_number }}
           name: VoltCare v${{ steps.apk.outputs.version }} (build ${{ github.run_number }})
-          files: ${{ steps.apk.outputs.path }}
+          files: ${{ steps.rename.outputs.path }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
