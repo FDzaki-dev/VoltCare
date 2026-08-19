@@ -17,6 +17,29 @@
 
 ---
 
+## [Batch 32] Chore - Bump Versi 1.0.0 -> 1.0.1 (Batch 27-31 belum pernah dapat versi baru) — 2026-08-19
+
+**Confidence Rating: 96%**
+**File sebelum -> sesudah:** 59 -> 59 file (1 file diedit: `app/build.gradle.kts` — **protected asset**, edit parsial 2 baris)
+
+### Alasan
+Halaman Info Aplikasi Android (screenshot user) nunjuk `VoltCare 1.0.0` — padahal sudah 5 batch fix (27-31) numpuk sejak versi itu tag. Root cause: `versionCode`/`versionName` gak pernah di-bump manual dari sejak project awal. Ini juga relevan ke fix Batch 30 (`UpdateManager.kt`) — update-checker cuma berguna kalau ada versi baru buat dibandingin; kalau `versionName` gak pernah naik, checker bakal "benar" bilang sudah terbaru walau banyak fix numpuk.
+
+### Selesai
+- **`app/build.gradle.kts`** (protected, edit parsial): `versionCode` 1->2, `versionName` "1.0.0"->"1.0.1". Brace balance 20/20.
+
+### Dicek, TIDAK perlu diubah manual di tempat lain
+- `.github/workflows/release.yml` baris 49: `VERSION_NAME=$(grep -m1 'versionName = ' app/build.gradle.kts ...)` — **otomatis baca dari `build.gradle.kts`**, jadi tag rilis (`v1.0.1-<run_number>`) & nama APK (`VoltCare_v1.0.1_<run_number>.apk`) bakal ikut update sendiri begitu workflow jalan lagi, TIDAK ada hardcode lain yang perlu disentuh.
+- `UpdateManager.kt` `getCurrentVersionName()` baca `packageManager.getPackageInfo(...).versionName` (runtime, otomatis ikut apapun yang di-build) — TIDAK perlu ubah kode, cukup bump `build.gradle.kts`.
+
+### Catatan
+Bump ini PATCH (1.0.0 -> 1.0.1) karena isi Batch 27-31 semuanya bugfix (insets, update-checker 404, icon overlap), bukan fitur baru — sesuai semver. Setelah build & push, workflow GitHub Actions otomatis publish GitHub Release baru dgn tag `v1.0.1-<run_number>` — baru setelah itu in-app update-checker (Batch 30) punya sesuatu yang beneran baru buat dideteksi kalau ada device lain yang masih pegang APK 1.0.0.
+
+### Pending Queue
+1-7, 9-22. Tidak berubah, lihat Batch 26-31.
+
+---
+
 ## [Batch 31] Fix - Icon Shield Overlap Judul 'Dashboard' (Redundant Scaffold + Jarak Terlalu Dekat) — 2026-08-19
 
 **Confidence Rating: 88%**

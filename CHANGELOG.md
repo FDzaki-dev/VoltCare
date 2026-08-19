@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.1] - 2026-08-19
+### Changed
+- Bump versi `1.0.0` → `1.0.1` (`versionCode` 1→2) di `app/build.gradle.kts`. Merangkum fix Batch 27-31 (insets, update-checker 404, icon overlap dashboard) jadi 1 rilis baru — sebelumnya Info Aplikasi Android masih nunjuk 1.0.0 meski sudah banyak fix numpuk.
+
 ## [v1.0.0-batch31] - 2026-08-19
 ### Fixed
 - Icon shield (`ShizukuStatusAction`) numpuk sama judul "Dashboard": hapus `Scaffold` redundan di `DashboardScreen.kt` (sudah dibungkus Scaffold di `NavGraph.kt`, lolos audit Batch 27) + naikkan padding top overlay icon `8dp`→`64dp` di `NavGraph.kt`.
