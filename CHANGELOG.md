@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch9] - 2026-08-19
+### Added
+- **Cycle Counter Presisi** (Pending Queue #2): `BatteryUtils.CycleTracker` — akumulasi mAh lintas sesi charging (standar industri), 1 cycle = setara 1x kapasitas desain. Insert ke `cycle_history` (`isFullCalibrationCycle=false`), berjalan independen dari kalibrasi (Batch 8).
+### Removed
+- Heuristik `trackCycle()` lama di `BatteryMonitorService` (akumulasi persen, tidak pernah menulis ke DB) — dead code, dihapus & digantikan `processCycleTracking()`.
+
 ## [v1.0.0-batch8] - 2026-08-19
 ### Added
 - **Kalibrasi Engine** (Pending Queue #1): state machine 3x siklus charge 0-100% berturut-turut dengan validasi anti-drop (`BatteryUtils.CalibrationStore`, persisted SharedPreferences). Health% otomatis dihitung dari mAh terkirim setelah 3 siklus sukses, menggantikan heuristik tetap 87%.

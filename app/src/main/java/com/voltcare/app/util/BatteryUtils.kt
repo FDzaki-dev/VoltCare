@@ -219,4 +219,57 @@ object BatteryUtils {
                 .apply()
         }
     }
+
+    /**
+     * Cycle Counter presisi (standar industri): 1 cycle = total mAh masuk yang terakumulasi
+     * setara 1x kapasitas desain, boleh lintas banyak sesi charging kecil (TIDAK harus 0-100%
+     * sekali jalan tanpa putus - itu syarat khusus CalibrationStore). Berjalan independen dari
+     * kalibrasi; keduanya sengaja dicatat terpisah ke cycle_history via flag
+     * isFullCalibrationCycle agar sumber datanya tetap bisa dibedakan.
+     */
+    object CycleTracker {
+        private const val PREFS = "voltcare_cycle_tracker"
+        private const val KEY_ACCUM_MAH = "accum_mah"
+        private const val KEY_START_TS = "start_ts"
+
+        data class CycleResult(
+            val startTimestamp: Long,
+            val endTimestamp: Long,
+            val mahDelivered: Float
+        )
+
+        private fun prefs(context: Context): SharedPreferences =
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+        /** Return non-null hanya pada tick yang menggenapkan 1 cycle (akumulasi >= kapasitas desain). */
+        fun processSample(
+            context: Context,
+            isCharging: Boolean,
+            currentMa: Int,
+            timestampMs: Long,
+            sampleIntervalMs: Long,
+            designCapacityMah: Int = DEFAULT_DESIGN_CAPACITY_MAH
+        ): CycleResult? {
+            if (!isCharging || currentMa <= 0) return null
+            val p = prefs(context)
+            val startTs = if (p.contains(KEY_START_TS)) p.getLong(KEY_START_TS, timestampMs) else timestampMs
+            val accumMah = p.getFloat(KEY_ACCUM_MAH, 0f) +
+                (currentMa.toFloat() * (sampleIntervalMs / 3_600_000f))
+
+            if (accumMah >= designCapacityMah) {
+                val remainder = accumMah - designCapacityMah
+                p.edit()
+                    .putFloat(KEY_ACCUM_MAH, remainder)
+                    .putLong(KEY_START_TS, timestampMs)
+                    .apply()
+                return CycleResult(startTs, timestampMs, designCapacityMah.toFloat())
+            }
+
+            p.edit()
+                .putFloat(KEY_ACCUM_MAH, accumMah)
+                .putLong(KEY_START_TS, startTs)
+                .apply()
+            return null
+        }
+    }
 }

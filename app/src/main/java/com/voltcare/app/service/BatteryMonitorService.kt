@@ -38,10 +38,6 @@ class BatteryMonitorService : Service() {
     private val scope = CoroutineScope(job)
     private lateinit var db: AppDatabase
 
-    // Heuristik cycle counter sederhana: akumulasi kenaikan persen saat charging.
-    private var accumulatedChargePercent = 0f
-    private var lastPercent: Int? = null
-
     private val batteryReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             // Sticky intent sudah ditangani lewat BatteryUtils.readSnapshot; receiver ini
@@ -102,7 +98,7 @@ class BatteryMonitorService : Service() {
             )
         )
 
-        trackCycle(snapshot.percent, snapshot.isCharging)
+        processCycleTracking(snapshot, now)
         processCalibrationSample(snapshot, now)
         evaluateRules(snapshot.temperatureC, snapshot.percent, snapshot.isCharging)
         updateNotification(snapshot.percent, snapshot.temperatureC, snapshot.isCharging)
@@ -153,14 +149,25 @@ class BatteryMonitorService : Service() {
         manager.notify(CALIBRATION_DONE_NOTIF_ID, notification)
     }
 
-    private fun trackCycle(percent: Int, isCharging: Boolean) {
-        val prev = lastPercent
-        if (prev != null && isCharging && percent > prev) {
-            accumulatedChargePercent += (percent - prev)
-        }
-        lastPercent = percent
-        // Deteksi siklus penuh disempurnakan di batch berikutnya (perlu start/end timestamp +
-        // mAh terintegrasi, dicatat sebagai CycleEntity via CycleDao).
+    /** Cycle Counter presisi: akumulasi mAh lintas sesi charging (lihat BatteryUtils.CycleTracker). */
+    private suspend fun processCycleTracking(snapshot: BatterySnapshot, timestampMs: Long) {
+        val result = BatteryUtils.CycleTracker.processSample(
+            context = applicationContext,
+            isCharging = snapshot.isCharging,
+            currentMa = snapshot.currentMa,
+            timestampMs = timestampMs,
+            sampleIntervalMs = SAMPLE_INTERVAL_MS
+        ) ?: return
+
+        db.cycleDao().insert(
+            CycleEntity(
+                startTimestamp = result.startTimestamp,
+                endTimestamp = result.endTimestamp,
+                startPercent = -1, // tidak relevan untuk cycle akumulasi (bisa lintas banyak sesi)
+                mahDelivered = result.mahDelivered,
+                isFullCalibrationCycle = false
+            )
+        )
     }
 
     private suspend fun evaluateRules(temperatureC: Float, percent: Int, isCharging: Boolean) {

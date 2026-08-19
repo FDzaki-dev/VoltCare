@@ -16,6 +16,35 @@
 
 ---
 
+## [Batch 9] Fitur - Cycle Counter Presisi (Pending Queue #2) — 2026-08-19
+
+**Confidence Rating: 96%**
+**File sebelum -> sesudah:** 44 -> 44 file (0 baru/hapus, 2 file diedit: `BatteryUtils.kt`, `BatteryMonitorService.kt`)
+
+### Selesai
+- **`BatteryUtils.CycleTracker`** (baru, di dalam `BatteryUtils.kt`, sejajar `CalibrationStore`): cycle counting standar industri — akumulasi mAh masuk (`currentMa × durasi sample`) **lintas banyak sesi charging kecil**, tidak perlu 0-100% sekali jalan tanpa putus (beda dengan syarat `CalibrationStore`). State persisten di `SharedPreferences` terpisah (`voltcare_cycle_tracker`), tahan service di-kill/reboot. Saat akumulasi ≥ kapasitas desain (5000 mAh default), 1 cycle tercatat & sisa (remainder) dibawa ke akumulasi berikutnya (tidak dibuang).
+- **`BatteryMonitorService`**: heuristik lama `trackCycle()` (akumulasi kenaikan persen, tidak pernah menulis ke DB — dead-end sejak Batch 1) **dihapus total**, diganti `processCycleTracking()` yang insert ke `CycleEntity(isFullCalibrationCycle = false)` via `CycleDao` tiap cycle presisi selesai. `startPercent` diisi `-1` untuk baris jenis ini (tidak relevan karena satu cycle bisa lintas banyak sesi charging berbeda titik mulai) — field lain (`mahDelivered`, timestamps) tetap terisi akurat.
+- Cycle presisi (`isFullCalibrationCycle=false`) & cycle kalibrasi (`isFullCalibrationCycle=true`, Batch 8) berjalan **independen berdampingan** — total di Dashboard (`CycleDao.count()`) otomatis menjumlahkan keduanya, sesuai definisi wear baterai standar (representasi total energi yang pernah masuk, bukan cuma sesi kalibrasi formal).
+
+### Sengaja TIDAK diubah
+- `DashboardViewModel.kt` / `DashboardScreen.kt` — kontrak `cycleCount` di `uiState` tidak berubah (masih `db.cycleDao().count()`), otomatis ikut bertambah tanpa perlu edit UI.
+- `CycleEntity`/`CycleDao` (DB Schema/DAO, protected) — dipakai apa adanya, tidak ada perubahan schema/migration.
+
+### Protected Assets tersentuh
+Tidak ada.
+
+### Pending Queue (Batch 9: item #2 selesai, 4 tersisa)
+1. ~~Kalibrasi engine~~ ✅ Batch 8
+2. ~~Cycle Counter presisi~~ ✅ selesai batch ini
+3. Drain Analyzer (UsageStatsManager + force-stop)
+4. Riwayat 30 Hari (grafik + CSV export)
+5. Tes Baterai (Stress Test)
+6. Aturan Cerdas - UI Editor
+7. (opsional) Set `room.schemaLocation` agar warning KSP hilang
+8. (opsional) Rename repo GitHub ke `VoltCare` via `gh repo rename` (manual)
+
+---
+
 ## [Batch 8] Fitur - Kalibrasi Engine (Pending Queue #1) — 2026-08-19
 
 **Confidence Rating: 95%**
