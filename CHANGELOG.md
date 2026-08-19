@@ -1,6 +1,11 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch25] - 2026-08-19
+### Removed
+- `.github/workflows/build.yml` ("Build PromptVault APK", workflow sisa app lain, non-protected).
+- 65 file source/test orphan `com/elprompter/promptvault/*` di module `:app` (0 referensi ke/dari VoltCare, penyebab `compileDebugKotlin` gagal & berisiko ikut gagalkan `release.yml`).
+
 ## [v1.0.0-batch24] - 2026-08-19
 ### Fixed
 - Update checker (`UpdateManager.kt`) salah baca `tag_name` GitHub Release (`v{version}-{run_number}`) sehingga segmen versi terakhir gagal parse & dibuang → app selalu bilang "Sudah Versi Terbaru" meski rilis baru sudah live/compile hijau. Fix: strip suffix run_number sebelum compare versi.

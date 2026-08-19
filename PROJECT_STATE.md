@@ -16,6 +16,30 @@
 
 ---
 
+## [Batch 25] Cleanup - Hapus Workflow & Source Orphan "PromptVault" — 2026-08-19
+
+**Confidence Rating: 98%**
+**File sebelum -> sesudah:** 124 -> 58 file (66 dihapus: `.github/workflows/build.yml` + 65 file source/test `com/elprompter/promptvault/*`, semua non-protected)
+
+### Root Cause
+Repo VoltCare (`FDzaki-dev/PowerVaultHealthPro`) ternyata masih membawa sisa project app LAIN — **PromptVault** (file-organizer app) — dari sebelum repo dipakai untuk VoltCare:
+- `.github/workflows/build.yml` ("Build PromptVault APK") masih ter-trigger tiap push ke `main`, terpisah dari `release.yml`.
+- 65 file `.kt` di `app/src/main/java/com/elprompter/promptvault/...` & `app/src/test/.../promptvault/...` ikut ke-bundle di module `:app` yang sama dengan VoltCare (`com.voltcare.app`).
+
+Gradle `compileDebugKotlin` (dipicu `build.yml`) mengcompile SEMUA `.kt` di `app/src/main/java` tanpa pandang package → source PromptVault ikut kecompile tapi `build.gradle.kts` VoltCare tidak punya dependency yang PromptVault butuh (datastore, kotlinx-serialization, splashscreen, lifecycle-compose) → build gagal (artifact `build-failure-log-v1.0.0`). Berpotensi juga bikin `release.yml` (`assembleRelease`) ikut gagal karena compile source set yang sama.
+
+Verifikasi sebelum hapus: 0 referensi silang antara `com.voltcare.app` <-> `com.elprompter.promptvault` (grep 2 arah, hasil kosong) → 100% unreferenced. Izin hapus sudah dikonfirmasi user.
+
+### Selesai
+- Hapus `.github/workflows/build.yml` (bukan protected — hanya `release.yml` yang protected).
+- Hapus `app/src/main/java/com/elprompter/` (termasuk `promptvault/`), `app/src/test/java/com/elprompter/`, `app/src/main/aidl/com/elprompter/` — total 65 file.
+- `release.yml`, `AndroidManifest.xml`, `build.gradle.kts`, `settings.gradle.kts`, `.gitignore` (semua protected) dicek utuh, tidak tersentuh.
+
+### Pending Queue
+- (tidak ada — murni cleanup sesuai temuan & izin user)
+
+---
+
 ## [Batch 24] Bugfix - Update Checker Salah Deteksi "Sudah Versi Terbaru" — 2026-08-19
 
 **Confidence Rating: 97%**
