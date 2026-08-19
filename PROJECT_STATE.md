@@ -16,6 +16,40 @@
 
 ---
 
+## [Batch 10] Fitur - Drain Analyzer (Pending Queue #3) — 2026-08-19
+
+**Confidence Rating: 90%**
+**File sebelum -> sesudah:** 44 -> 45 file (1 baru: `UsageStatsHelper.kt`, 2 diedit: `DrainScreen.kt` ditulis ulang penuh, `AndroidManifest.xml` parsial)
+
+### Keterbatasan API (transparan, bukan bug)
+Android **tidak** mengekspos data drain-per-app (mAh terpakai saat layar mati) ke aplikasi pihak ketiga tanpa root/system privilege — data itu hanya ada di Settings > Baterai internal OS (API tersembunyi). Yang tersedia publik via `UsageStatsManager` adalah **total waktu pemakaian foreground per app**. Implementasi ini mengurutkan app berdasarkan itu sebagai proxy kandidat penguras (app yang sering dipakai lama & punya kemungkinan besar meninggalkan proses/service di background) — bukan pengukuran mAh langsung. Dicatat eksplisit di komentar kode & UI (`UsageStatsHelper.kt`, `DrainScreen.kt`) supaya user tidak salah ekspektasi.
+
+### Selesai
+- **`util/UsageStatsHelper.kt`** (baru): `hasUsageAccessPermission()` (cek via `AppOpsManager.OPSTR_GET_USAGE_STATS`), `openUsageAccessSettings()` (buka `Settings.ACTION_USAGE_ACCESS_SETTINGS`), `topAppsByForegroundUsage()` (query `UsageStatsManager.queryUsageStats(INTERVAL_BEST, ...)` 24 jam terakhir, resolve label app via `PackageManager`, urut descending, exclude system app dari daftar force-stop), `killBackgroundApp()` (best-effort via `ActivityManager.killBackgroundProcesses`).
+- **`DrainScreen.kt`** (ditulis ulang dari scaffold placeholder): alur permission-gate (tombol buka Pengaturan Usage Access jika belum diizinkan) → `LazyColumn` daftar top app + waktu pemakaian + tombol "Force Stop" per app (disembunyikan untuk system app, karena `killBackgroundProcesses` pada app sistem umumnya no-op/berisiko).
+- **`AndroidManifest.xml`** (edit parsial, protected asset): tambah `<uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />` (izin normal, auto-grant saat install, wajib dideklarasikan untuk memakai `ActivityManager.killBackgroundProcesses`). `PACKAGE_USAGE_STATS` sudah ada sejak Batch 1, tidak diubah.
+
+### Batasan "Force Stop"
+`killBackgroundProcesses` hanya mematikan proses cached/background milik app target — **tidak sekuat** "Force Stop" bawaan Settings (yang butuh hak sistem, tidak tersedia untuk app pihak ketiga sejak Android 5+). Didokumentasikan langsung di UI ("best-effort") supaya user paham batasannya, bukan janji berlebih — alasan utama Confidence 90% (bukan 95%+) karena efektivitas fitur ini secara inheren dibatasi platform, bukan karena implementasi kurang matang.
+
+### Sengaja TIDAK diubah
+- `NavGraph.kt` — route/tab `Drain` sudah ada sejak Batch 1, tidak perlu edit untuk hook screen baru (composable call `DrainScreen()` sudah generic tanpa parameter).
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`AndroidManifest.xml` — 1 baris `<uses-permission>` ditambah, seluruh isi lain diverifikasi utuh (diff minimal, tidak ada penghapusan).
+
+### Pending Queue (Batch 10: item #3 selesai, 3 tersisa)
+1. ~~Kalibrasi engine~~ ✅ Batch 8
+2. ~~Cycle Counter presisi~~ ✅ Batch 9
+3. ~~Drain Analyzer~~ ✅ selesai batch ini
+4. Riwayat 30 Hari (grafik + CSV export)
+5. Tes Baterai (Stress Test)
+6. Aturan Cerdas - UI Editor
+7. (opsional) Set `room.schemaLocation` agar warning KSP hilang
+8. (opsional) Rename repo GitHub ke `VoltCare` via `gh repo rename` (manual)
+
+---
+
 ## [Batch 9] Fitur - Cycle Counter Presisi (Pending Queue #2) — 2026-08-19
 
 **Confidence Rating: 96%**

@@ -41,4 +41,4 @@ app/src/main/java/com/voltcare/app/
   data/db/dao/{BatteryLogDao,CycleDao,RuleDao}.kt
   service/BatteryMonitorService.kt
   receiver/BootReceiver.kt
-  util/{BatteryUtils,CrashLogger}.kt
+  util/{BatteryUtils,CrashLogger,UsageStatsHelper}.kt

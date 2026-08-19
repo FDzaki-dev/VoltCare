@@ -1,6 +1,14 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch10] - 2026-08-19
+### Added
+- **Drain Analyzer** (Pending Queue #3): `UsageStatsHelper.kt` (baca top app via `UsageStatsManager`, cek/buka izin Usage Access, force-stop best-effort via `killBackgroundProcesses`). `DrainScreen.kt` ditulis ulang dari scaffold jadi fungsional (permission-gate + daftar app + tombol Force Stop).
+### Changed
+- `AndroidManifest.xml`: tambah `KILL_BACKGROUND_PROCESSES` (izin normal, diperlukan fitur Force Stop).
+### Note
+- Data drain per-app (mAh saat layar mati) tidak tersedia di API publik non-root; fitur ini pakai proxy waktu pemakaian foreground 24 jam, didokumentasikan transparan di UI & kode.
+
 ## [v1.0.0-batch9] - 2026-08-19
 ### Added
 - **Cycle Counter Presisi** (Pending Queue #2): `BatteryUtils.CycleTracker` — akumulasi mAh lintas sesi charging (standar industri), 1 cycle = setara 1x kapasitas desain. Insert ke `cycle_history` (`isFullCalibrationCycle=false`), berjalan independen dari kalibrasi (Batch 8).
