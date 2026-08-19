@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch4] - 2026-08-19
+### Fixed
+- **Critical**: APK release ter-publish unsigned (`app-release-unsigned.apk`) sehingga tidak bisa diinstal ("paket tampaknya tidak valid"). Penyebab: `file()` di `app/build.gradle.kts` resolve relatif ke `app/`, bukan root repo, jadi keystore tidak pernah ketemu saat cek signing.
+- `app/build.gradle.kts`: pakai `rootProject.file()` untuk resolusi path keystore (2 lokasi).
+- `.github/workflows/release.yml`: `ANDROID_KEYSTORE_PATH` jadi absolute path; tambah guard "Verify APK is signed" yang abort build kalau APK signed tidak ditemukan, supaya tidak pernah lagi publish APK unsigned.
+
 ## [v1.0.0-batch3] - 2026-08-19
 ### Fixed
 - Build gagal (`compileReleaseKotlin`): tambah import `androidx.compose.foundation.layout.padding` yang hilang di `NavGraph.kt` (ditemukan dari analisa log Actions upload user).

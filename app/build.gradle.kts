@@ -20,7 +20,10 @@ android {
     signingConfigs {
         create("release") {
             val storeFilePath = System.getenv("ANDROID_KEYSTORE_PATH") ?: "keystore/release.keystore"
-            val f = file(storeFilePath)
+            // rootProject.file() dipakai (bukan file()) karena file() di module build.gradle.kts
+            // resolve relatif ke app/, bukan root repo -> keystore/release.keystore tidak pernah
+            // ketemu -> signingConfig silent-skip -> AGP keluarkan app-release-unsigned.apk.
+            val f = rootProject.file(storeFilePath)
             if (f.exists()) {
                 storeFile = f
                 storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: ""
@@ -36,7 +39,7 @@ android {
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             val storeFilePath = System.getenv("ANDROID_KEYSTORE_PATH") ?: "keystore/release.keystore"
-            if (file(storeFilePath).exists()) {
+            if (rootProject.file(storeFilePath).exists()) {
                 signingConfig = signingConfigs.getByName("release")
             }
         }
