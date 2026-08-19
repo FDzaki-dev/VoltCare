@@ -15,8 +15,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExposedDropdownMenu
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -156,6 +156,7 @@ private fun RuleRow(
     }
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun RuleFormDialog(
     existing: RuleEntity?,
@@ -198,7 +199,7 @@ private fun RuleFormDialog(
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = conditionMenuOpen) },
                         modifier = Modifier.fillMaxWidth().menuAnchor()
                     )
-                    ExposedDropdownMenu(
+                    DropdownMenu(
                         expanded = conditionMenuOpen,
                         onDismissRequest = { conditionMenuOpen = false }
                     ) {
@@ -241,7 +242,7 @@ private fun RuleFormDialog(
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = actionMenuOpen) },
                         modifier = Modifier.fillMaxWidth().menuAnchor()
                     )
-                    ExposedDropdownMenu(
+                    DropdownMenu(
                         expanded = actionMenuOpen,
                         onDismissRequest = { actionMenuOpen = false }
                     ) {

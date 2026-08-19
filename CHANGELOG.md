@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch15] - 2026-08-19
+### Fixed
+- **Build gagal** (regresi Batch 14): `RulesScreen.kt` pakai `ExposedDropdownMenu` yang belum ada di material3 1.2.1 (baru di 1.3.0+) + 3 API experimental tanpa opt-in. Diganti `DropdownMenu` biasa + `@OptIn(ExperimentalMaterial3Api::class)`. Sumber: log GitHub Actions job `build-release` yang diupload user.
+### Queued
+- Fitur baru diminta user: artifact `log_fail_<version>_<run-number>` otomatis di `release.yml` saat compile gagal — masuk Pending Queue #9, dikerjakan batch terpisah.
+
 ## [v1.0.0-batch14] - 2026-08-19
 ### Added
 - **Aturan Cerdas UI Editor** (Pending Queue #6, item terakhir dari roadmap Batch 1): `RulesViewModel.kt` (baru, CRUD ke `RuleEntity`/`RuleDao` apa adanya). `RulesScreen.kt` ditulis ulang: daftar aturan + toggle aktif + form tambah/edit (`AlertDialog`: nama, dropdown kondisi, nilai ambang, switch charging, dropdown aksi) + hapus dengan konfirmasi.

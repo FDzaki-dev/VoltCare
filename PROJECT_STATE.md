@@ -16,6 +16,39 @@
 
 ---
 
+## [Batch 15] Hotfix - Build Gagal (RulesScreen.kt, regresi Batch 14) — 2026-08-19
+
+**Confidence Rating: 97%**
+**File sebelum -> sesudah:** 49 -> 49 file (0 baru/hapus, 1 file diedit)
+**Sumber analisa:** log GitHub Actions run yang diupload user (job `build-release`, step "Build signed release APK") — `:app:compileReleaseKotlin FAILED`.
+
+### Root Cause
+1. `RulesScreen.kt:19` import `androidx.compose.material3.ExposedDropdownMenu` -> **Unresolved reference**. Composable wrapper ini baru ada di Compose Material3 **1.3.0+**; project pin di `material3:1.2.1` (lihat `app/build.gradle.kts`, protected asset, tidak diubah) belum punya API itu.
+2. `ExposedDropdownMenuBox`, `ExposedDropdownMenuDefaults.TrailingIcon`, `Modifier.menuAnchor()` ditandai `@ExperimentalMaterial3Api` di versi 1.2.1 — dipakai tanpa opt-in, jadi Kotlin compiler menolaknya sebagai **error** (bukan cuma warning), sesuai baris 189/198/199/201/232/241/242/244 di log.
+
+### Fix
+- `RulesScreen.kt`: import `ExposedDropdownMenu` dihapus, 2 pemakaiannya diganti `DropdownMenu` biasa (pola resmi Compose utk material3 1.2.1 — child langsung di dalam `ExposedDropdownMenuBox`, tanpa wrapper khusus).
+- `RuleFormDialog()` (fungsi yang memuat kedua dropdown) diberi `@OptIn(ExperimentalMaterial3Api::class)`.
+- Diverifikasi: brace `{}` seimbang (85/85), tidak ada sisa referensi `ExposedDropdownMenu` berdiri sendiri, hanya `ExposedDropdownMenuBox`/`ExposedDropdownMenuDefaults` (nama beda, API valid di 1.2.1).
+
+### Sengaja TIDAK diubah
+- `app/build.gradle.kts` (protected) — **tidak** menaikkan versi material3 ke 1.3.0+ untuk fix ini; opt-in + `DropdownMenu` biasa cukup dan lebih aman (naik versi BOM/material3 berisiko breaking change lain di luar scope hotfix).
+- `RulesViewModel.kt` — tidak ada error dari file ini di log, tidak disentuh.
+
+### Protected Assets tersentuh
+Tidak ada.
+
+### Catatan
+Karena tidak ada akses jaringan/Gradle di lingkungan pembuatan ZIP ini, fix ini diverifikasi via **audit statis** (baca API history material3 1.2.1 + cocokkan tiap baris error log satu-per-satu ke kode), bukan re-run compile sungguhan. Rekomendasi: pantau run GitHub Actions berikutnya untuk konfirmasi hijau. **Pending Queue baru ditambahkan user**: artifact `log_fail_<version>_<run-number>` otomatis saat compile gagal (lihat Pending Queue #9) — akan mempermudah diagnosa hotfix serupa ke depannya tanpa perlu user upload log manual.
+
+### Pending Queue (Batch 15: hotfix selesai, +1 fitur baru diminta user)
+1-6. ✅ selesai (lihat Batch 8-14)
+7. (opsional) Set `room.schemaLocation` agar warning KSP hilang
+8. (opsional) Rename repo GitHub ke `VoltCare` via `gh repo rename` (manual)
+9. **Artifact `log_fail_<version>_<run-number>`** di `release.yml`: capture otomatis log Gradle saat compile gagal, upload sbg GitHub Actions artifact (bukan Release) supaya debug gak perlu re-download log manual. Diminta user di Batch 15, dikerjakan batch berikutnya (protected asset `.github/workflows/release.yml`, task terpisah dari hotfix ini sesuai Micro-Batching Rule).
+
+---
+
 ## [Batch 14] Fitur - Aturan Cerdas UI Editor (Pending Queue #6) — 2026-08-19
 
 **Confidence Rating: 95%**
