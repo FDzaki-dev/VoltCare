@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch18] - 2026-08-19
+### Added
+- **`FEATURE_PARITY_GOALS.md`** (dokumentasi baru): matrix gap-analysis vs AccuBattery/GSam Battery Monitor/Greenify (sumber: 2 screenshot Google AI Overview diupload user). Hasil audit source code: 3 fitur Done, 3 Partial, 2 belum ada. 4 item Pending Queue baru (#10-#13) ditambahkan ke `PROJECT_STATE.md`.
+
 ## [v1.0.0-batch17] - 2026-08-19
 ### Fixed
 - **Warning KSP Room hilang** (Pending Queue #7): `app/build.gradle.kts` tambah `ksp { arg("room.schemaLocation", "$projectDir/schemas") }`. `AppDatabase.kt` (`exportSchema=true`, tidak diubah) sekarang benar-benar menulis JSON skema ke `app/schemas/` tiap build — dasar formal untuk `Migration` saat `version` naik.

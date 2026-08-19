@@ -16,6 +16,37 @@
 
 ---
 
+## [Batch 18] Dokumentasi - Feature Parity Goals vs Kompetitor (AccuBattery/GSam/Greenify) — 2026-08-19
+
+**Confidence Rating: 98%**
+**File sebelum -> sesudah:** 49 -> 50 file (1 baru: `FEATURE_PARITY_GOALS.md`; 0 kode diubah, murni dokumentasi)
+
+### Alasan
+User upload 2 screenshot Google AI Overview ("Pilihan Aplikasi Battery Manager Terbaik": AccuBattery, GSam Battery Monitor, Greenify) dan minta ditanamkan `.md` di repo berdasarkan tujuan mencapai 100% fitur yang tergambar. Dibuat `FEATURE_PARITY_GOALS.md` (matrix referensi, bukan log kronologis) sbg peta gap resmi.
+
+### Selesai
+- **`FEATURE_PARITY_GOALS.md`** (baru, root): matrix 9 fitur dari screenshot vs status implementasi VoltCare, diaudit langsung ke source code (bukan asumsi) — termasuk `grep` yang membuktikan `work-runtime-ktx` sudah dependency sejak Batch 1 tapi **belum pernah dipakai** (0 hasil grep `WorkManager` di seluruh `app/src/main/java/`).
+- Hasil audit: **3 Done** (Health%, Alarm generik via Rules, Suhu/status real-time), **3 Partial** (Drain Analyzer proxy-only, History stats, Force Stop manual-only), **2 Not Implemented** (estimasi sisa waktu discharge; auto-hibernate terjadwal — 1 di antaranya, "cegah auto-launch", platform-limited/tidak buildable generik tanpa root).
+- **Pending Queue baru #10-#13** ditambahkan (lihat di bawah): 3 item buildable batch berikutnya (#10 estimasi sisa waktu, #11 preset alarm cepat, #12 auto-hibernate terjadwal via WorkManager) + 1 item platform-limited perlu izin eksplisit user dulu sebelum jadi task aktif (#13).
+
+### Sengaja TIDAK diubah
+- Tidak ada kode (`.kt`) yang disentuh batch ini — murni dokumentasi perencanaan, sesuai permintaan user ("tanamkan .md").
+- `FILE_MANIFEST.txt` — **belum** diupdate untuk mencantumkan `FEATURE_PARITY_GOALS.md` (akan menambah ke 4 file diedit, melebihi Micro-Batching Rule 3 file/1 task). Di-queue ke batch berikutnya sbg housekeeping kecil, bukan fitur.
+
+### Protected Assets tersentuh
+Tidak ada.
+
+### Pending Queue (Batch 18: 4 item baru ditambahkan, sumber `FEATURE_PARITY_GOALS.md`)
+1-7, 9. ✅ selesai (lihat Batch 8-17)
+8. (opsional) Rename repo GitHub ke `VoltCare` via `gh repo rename` (manual)
+10. **Estimasi Sisa Waktu Pakai (discharge)** — Dashboard, agregasi drain rate dari `BatteryLogDao`/`StressTestScreen`, tanpa perubahan skema DB.
+11. **Preset Cepat "Alarm Batas Charge"** — UX shortcut auto-create `RuleEntity(PERCENT_ABOVE, ALARM)`, engine sudah ada.
+12. **Auto-Hibernate Terjadwal** — `PeriodicWorkRequest` (WorkManager, dependency existing, baru dipakai pertama kali) + whitelist app approved user.
+13. (butuh izin user dulu, platform-limited) **"Cegah auto-launch tanpa izin"** — best-effort: tombol buka `Settings.ACTION_APPLICATION_DETAILS_SETTINGS` per-app, bukan otomatis (tidak ada API generik non-root).
+14. (housekeeping, non-fitur) Update `FILE_MANIFEST.txt` untuk mencantumkan `FEATURE_PARITY_GOALS.md`.
+
+---
+
 ## [Batch 17] Fix - Set room.schemaLocation (Pending Queue #7) — 2026-08-19
 
 **Confidence Rating: 97%**
