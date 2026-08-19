@@ -36,10 +36,10 @@ object UpdateManager {
 
     private const val TAG = "UpdateManager"
 
-    // Sesuai konvensi PROJECT_STATE: nama repo GitHub TETAP FDzaki-dev/PowerVaultHealthPro
-    // (artifact/APK release-nya bernama VoltCare, tapi repo & path Termux tidak berubah).
+    // Sesuai konvensi PROJECT_STATE (Batch 28/29): repo GitHub sudah di-rename ke VoltCare,
+    // konstanta ini WAJIB ikut diupdate setiap kali repo/username di-rename (lihat Batch 30).
     private const val GITHUB_OWNER = "FDzaki-dev"
-    private const val GITHUB_REPO = "PowerVaultHealthPro"
+    private const val GITHUB_REPO = "VoltCare"
     private const val API_LATEST_RELEASE =
         "https://api.github.com/repos/$GITHUB_OWNER/$GITHUB_REPO/releases/latest"
 

@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch30] - 2026-08-19
+### Fixed
+- **Bug kritis**: cek update selalu bilang "Sudah Versi Terbaru" meski sebenarnya gagal cek — `UpdateManager.kt` masih hardcode `GITHUB_REPO = "PowerVaultHealthPro"` (repo lama, 404 sejak rename Batch 28/29). Diganti ke `"VoltCare"`.
+
 ## [v1.0.0-batch29] - 2026-08-19
 ### Changed
 - Rename folder lokal Termux `~/projects/PowerVaultHealthPro` → `~/projects/VoltCare` (permintaan eksplisit user). Semua skrip Termux ke depan pakai path baru. Tidak ada perubahan kode/source — murni operasi filesystem + update dokumentasi konvensi.

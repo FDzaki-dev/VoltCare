@@ -17,6 +17,32 @@
 
 ---
 
+## [Batch 30] Fix - Update Checker Selalu 'Sudah Versi Terbaru' Palsu (GITHUB_REPO Stale) — 2026-08-19
+
+**Confidence Rating: 95%**
+**File sebelum -> sesudah:** 59 -> 59 file (1 file kode diedit: `UpdateManager.kt`, bukan protected asset)
+
+### Root Cause
+Regresi dari rename repo Batch 28/29: `UpdateManager.kt` masih hardcode `GITHUB_REPO = "PowerVaultHealthPro"`. `checkForUpdate()` panggil `api.github.com/repos/FDzaki-dev/PowerVaultHealthPro/releases/latest` -> 404 (repo sudah pindah nama) -> `!response.isSuccessful` -> return null -> UI (`UpdateScreen.kt`) treat null == "tidak ada update" -> dialog "Sudah Versi Terbaru" muncul PADAHAL cek-nya gagal total, bukan karena memang sudah versi terbaru. Bug ini SELALU terjadi (deterministik) tiap tombol cek update dipencet, sejak Batch 28.
+
+### Selesai
+- **`UpdateManager.kt`**: `GITHUB_REPO` diganti `"PowerVaultHealthPro"` -> `"VoltCare"`. Komentar diupdate jadi warning eksplisit: konstanta ini WAJIB ikut diupdate kalau repo di-rename lagi.
+
+### Diperiksa, TIDAK ada instance lain
+`grep -rn "PowerVaultHealthPro" app/ .github/` -> HANYA `UpdateManager.kt` (sudah fix). Tidak ada file kode/CI lain yang hardcode nama repo lama.
+
+### Sengaja TIDAK diubah (di luar scope 1 task ini, dicatat Pending Queue)
+- **UX ambiguitas fail-safe**: `checkForUpdate()` return `null` untuk 2 kasus berbeda (benar-benar sudah terbaru VS gagal cek/network/404) dan digabung jadi 1 pesan "Sudah Versi Terbaru" di UI — user tidak bisa bedain. Idealnya `UpdateInfo?` diganti sealed result (`UpToDate` / `CheckFailed(reason)` / `Available(info)`) biar UI bisa tampil pesan beda. TIDAK dikerjakan batch ini (scope kode lebih luas, >1 file: `UpdateManager.kt` + `UpdateScreen.kt`), masuk Pending Queue #21.
+- Icon shield/lock kecil yang keliatan overlap sama huruf "D" di judul "Dashboard" (kelihatan di screenshot user) — BELUM diverifikasi apakah ini bug beneran atau cuma badge kecil yang emang didesain nempel di situ. Tidak disentuh batch ini (di luar topik update-checker), masuk Pending Queue #22 kalau user konfirmasi itu bug.
+
+### Catatan
+Setelah update ini, pencet cek update lagi di app — HARUS berhasil hit API beneran (bukan 404). Kalau memang belum ada release baru di GitHub Releases repo `VoltCare`, dialog "Sudah Versi Terbaru" yang muncul SEKARANG baru valid (bukan false-positive dari 404).
+
+### Pending Queue
+1-7, 9-20. Tidak berubah. 21. (baru) Pisahkan hasil `checkForUpdate()` jadi sealed result biar UI bisa bedain "sudah terbaru" vs "gagal cek". 22. (baru, perlu konfirmasi user) Cek overlap icon shield vs teks "Dashboard" di header.
+
+---
+
 ## [Batch 29] Housekeeping - Rename Folder Lokal Termux (PowerVaultHealthPro -> VoltCare) — 2026-08-19
 
 **Confidence Rating: 96%**
