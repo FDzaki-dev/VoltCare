@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch24] - 2026-08-19
+### Fixed
+- Update checker (`UpdateManager.kt`) salah baca `tag_name` GitHub Release (`v{version}-{run_number}`) sehingga segmen versi terakhir gagal parse & dibuang → app selalu bilang "Sudah Versi Terbaru" meski rilis baru sudah live/compile hijau. Fix: strip suffix run_number sebelum compare versi.
+
 ## [v1.0.0-batch23] - 2026-08-19
 ### Added
 - **Shizuku Core Integration (engine)**: `ShizukuManager.kt` (baru) - wrapper fail-safe (`hasPermission`, `requestPermission`, `execShellCommand` via `Shizuku.newProcess()` reflection, dll). `app/build.gradle.kts`: +2 dependency `dev.rikka.shizuku:api`/`:provider` 13.1.5. `AndroidManifest.xml`: +`<provider>` `ShizukuProvider`. Tanpa Shizuku aktif, semua fitur existing tetap 100% jalan seperti biasa (graceful fallback), belum diwiring ke UI/fitur manapun.

@@ -16,6 +16,22 @@
 
 ---
 
+## [Batch 24] Bugfix - Update Checker Salah Deteksi "Sudah Versi Terbaru" — 2026-08-19
+
+**Confidence Rating: 97%**
+**File sebelum -> sesudah:** 55 -> 55 file (1 diedit parsial: `UpdateManager.kt`, tidak protected)
+
+### Root Cause
+`release.yml` menerbitkan `tag_name: v{version}-{run_number}` (mis. `v1.0.0-23`). Di `UpdateManager.isNewerVersion()`, tag di-split by `.` lalu tiap segmen di-`toIntOrNull()` — segmen terakhir `"0-23"` gagal parse (bukan angka murni karena ada `-23`) dan **diam-diam dibuang** dari `latestParts`. Akibatnya array versi terbaru jadi lebih pendek dari versi lokal, perbandingan digit hilang selalu dianggap `0`, dan APK yang sudah live di GitHub Release (compile hijau) tidak pernah terdeteksi lebih baru → dialog selalu bilang "Sudah Versi Terbaru" walau ada rilis baru.
+
+### Selesai
+- **`util/UpdateManager.kt`** (edit parsial): `latestVersion` sekarang `substringBefore("-")` sebelum di-parse, jadi `"1.0.0-23"` → `"1.0.0"` (bersih) sebelum dibandingkan. `checkForUpdate()`/`downloadUpdate()` lain tidak berubah.
+
+### Pending Queue (tidak dikerjakan batch ini)
+- (tidak ada penambahan baru — murni bugfix 1 file sesuai laporan user)
+
+---
+
 ## [Batch 23] Fitur - Shizuku Core Integration (Engine, belum diwiring UI) — 2026-08-19
 
 **Confidence Rating: 90%**

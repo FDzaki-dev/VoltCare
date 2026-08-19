@@ -92,7 +92,9 @@ object UpdateManager {
                 val json = JSONObject(body)
 
                 val tagName = json.optString("tag_name", "")
-                val latestVersion = tagName.removePrefix("v").removePrefix("V")
+                // tag_name format workflow: "v{version}-{run_number}" (mis. "v1.0.1-23").
+                // Ambil bagian versi murni sebelum "-" agar tidak merusak parsing numerik.
+                val latestVersion = tagName.removePrefix("v").removePrefix("V").substringBefore("-")
                 val releaseNotes = json.optString("body", "").take(2000)
 
                 val assets = json.optJSONArray("assets")
