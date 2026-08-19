@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.0-batch13] - 2026-08-19
+### Fixed
+- **Symbol Unicode berisiko mojibake/tofu**: `DashboardScreen.kt`, `BatteryMonitorService.kt` (notifikasi persisten), `StressTestScreen.kt` — ellipsis/bullet/panah/em-dash/emoji-peringatan (`\u2026`,`\u2022`,`\u2190`,`\u2192`,`\u2014`,`\u26A0\uFE0F`) diganti ASCII polos (`...`,`-`,`<`,`->`,`-`,`[!]`). `\u00B0C` (derajat) dipertahankan (aman, Latin-1). Diverifikasi: 0 raw non-ASCII byte di seluruh source.
+
 ## [v1.0.0-batch12] - 2026-08-19
 ### Added
 - **Tes Baterai / Stress Test** (Pending Queue #5): `StressTestScreen.kt` (baru, self-contained) — sesi tetap 10 menit, poll `BatteryUtils.readSnapshot()` tiap 1 detik, hasil drop% & laju drain %/menit. Wake lock `PARTIAL` terkontrol (timeout eksplisit 11 menit, selalu dilepas via `DisposableEffect`).

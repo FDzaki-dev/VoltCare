@@ -16,6 +16,37 @@
 
 ---
 
+## [Batch 13] Fix - Symbol Unicode Berisiko Mojibake/Tofu — 2026-08-19
+
+**Confidence Rating: 98%**
+**File sebelum -> sesudah:** 48 -> 48 file (0 baru/hapus, 3 file diedit)
+
+### Root Cause
+Audit penuh (`grep -rlP '[^\x00-\x7F]'`) memastikan **tidak ada raw non-ASCII byte** di source manapun (aman dari corrupt-encoding klasik). Tapi 3 file memakai escape `\u` untuk glyph di blok General Punctuation/Emoji (`\u2026` ellipsis, `\u2022` bullet, `\u2190`/`\u2192` panah, `\u2014` em dash, `\u26A0\uFE0F` emoji peringatan+variation-selector) — glyph ini valid secara kode tapi dukungan font-nya tidak seuniversal Latin-1, jadi berisiko tampil sebagai kotak/tofu di sebagian device/font sistem. `\u00B0` (derajat, °C) **sengaja dipertahankan** — bagian Latin-1 Supplement, didukung 100% font manapun, bukan risiko.
+
+### Selesai
+- **`DashboardScreen.kt`**: `"Kalibrasi berjalan\u2026"` -> `"Kalibrasi berjalan..."`.
+- **`BatteryMonitorService.kt`** (notifikasi persisten, paling sering dilihat user): `\u2026` -> `"..."`, `\u2022` (2x) -> `"-"`.
+- **`StressTestScreen.kt`** (4 titik, paling berisiko krn ada emoji+variation-selector): `\u2190 Kembali` -> `< Kembali`, `\u2192` -> `->`, `\u2014` -> `-`, `\u26A0\uFE0F` (emoji) -> `[!]` (penanda ASCII polos, paling aman lintas device).
+
+### Verifikasi
+- Ulang audit setelah fix: 0 raw non-ASCII byte, 0 escape `\u` selain `\u00B0` (derajat) tersisa di ketiga file.
+- Brace balance (`{`/`}`) dicek manual per file, seimbang — tidak ada syntax pecah akibat edit string.
+
+### Sengaja TIDAK diubah
+- `HistoryScreen.kt` & `RulesScreen.kt` — diaudit, hanya pakai `\u00B0C` (aman), tidak ada glyph berisiko. Tidak masuk hitungan file batch ini.
+
+### Protected Assets tersentuh
+Tidak ada (`BatteryMonitorService.kt` bukan Protected Asset list; NavGraph/Manifest/dll tidak disentuh batch ini).
+
+### Pending Queue (tidak berubah dari Batch 12)
+1-5. ✅ selesai (lihat Batch 8-12)
+6. Aturan Cerdas - UI Editor
+7. (opsional) Set `room.schemaLocation` agar warning KSP hilang
+8. (opsional) Rename repo GitHub ke `VoltCare` via `gh repo rename` (manual)
+
+---
+
 ## [Batch 12] Fitur - Tes Baterai / Stress Test (Pending Queue #5) — 2026-08-19
 
 **Confidence Rating: 95%**

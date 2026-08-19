@@ -93,7 +93,7 @@ fun DashboardScreen(viewModel: DashboardViewModel = viewModel()) {
                 enabled = !calibrating,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(if (calibrating) "Kalibrasi berjalan\u2026" else "Mulai Kalibrasi")
+                Text(if (calibrating) "Kalibrasi berjalan..." else "Mulai Kalibrasi")
             }
         }
     }

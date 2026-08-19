@@ -78,11 +78,11 @@ fun StressTestScreen(onBack: () -> Unit) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            TextButton(onClick = onBack) { Text("\u2190 Kembali") }
+            TextButton(onClick = onBack) { Text("< Kembali") }
             Text("Tes Baterai (Stress Test)", style = MaterialTheme.typography.headlineMedium)
             Text(
                 "Sesi tetap 10 menit. Mengukur laju drop persen baterai sebagai indikator " +
-                    "kesehatan relatif (bukan pengukuran mAh presisi) \u2014 lepas charger & " +
+                    "kesehatan relatif (bukan pengukuran mAh presisi) - lepas charger & " +
                     "biarkan layar menyala untuk hasil paling representatif.",
                 style = MaterialTheme.typography.bodyMedium
             )
@@ -152,7 +152,7 @@ private fun RunningCard(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text("Sisa waktu: ${formatMmSs(remainingSec)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text("Awal: $startPercent%  \u2192  Sekarang: $currentPercent%")
+            Text("Awal: $startPercent%  ->  Sekarang: $currentPercent%")
             Text(
                 "Drop sejauh ini: ${(startPercent - currentPercent).coerceAtLeast(0)}%",
                 style = MaterialTheme.typography.bodyMedium
@@ -188,7 +188,7 @@ private fun ResultCard(
             Text("Laju drain: ${"%.2f".format(ratePerMin)}%/menit")
             if (pluggedDuringTest) {
                 Text(
-                    "\u26A0\uFE0F Charger sempat terpasang selama tes \u2014 hasil kemungkinan tidak akurat.",
+                    "[!] Charger sempat terpasang selama tes - hasil kemungkinan tidak akurat.",
                     style = MaterialTheme.typography.bodySmall
                 )
             }

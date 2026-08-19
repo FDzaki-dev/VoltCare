@@ -50,7 +50,7 @@ class BatteryMonitorService : Service() {
         super.onCreate()
         db = AppDatabase.getInstance(applicationContext)
         registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        startForeground(NOTIF_ID, buildNotification("Memantau baterai\u2026"))
+        startForeground(NOTIF_ID, buildNotification("Memantau baterai..."))
         scope.launch { monitorLoop() }
     }
 
@@ -201,7 +201,7 @@ class BatteryMonitorService : Service() {
     private fun updateNotification(percent: Int, temperatureC: Float, isCharging: Boolean) {
         val manager = getSystemService(NotificationManager::class.java) ?: return
         val statusText = if (isCharging) "Mengecas" else "Tidak mengecas"
-        manager.notify(NOTIF_ID, buildNotification("$percent% \u2022 ${temperatureC}\u00B0C \u2022 $statusText"))
+        manager.notify(NOTIF_ID, buildNotification("$percent% - ${temperatureC}\u00B0C - $statusText"))
     }
 
     private fun buildNotification(text: String): Notification {
