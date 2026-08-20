@@ -24,6 +24,23 @@
 
 ---
 
+## [Batch 62] Fix - FEATURE_PARITY_GOALS.md Desync soal "Hemat Daya Otomatis" (RESOLVED) — 2026-08-20
+
+**Konteks:** User tanya "next pending: Hemat daya otomatis tanpa bikin lambat HP" — mengira fitur ini belum ada (mengacu ke tabel `FEATURE_PARITY_GOALS.md` item #9 yang masih ❌).
+
+**Audit:** Fitur ini SUDAH selesai sejak **Batch 44** — **Auto-Hibernate Terjadwal** (`HibernateWorker.kt`, WorkManager `PeriodicWorkRequest` interval 30 menit, whitelist per-app via checkbox di tab **Penguras**). `PROJECT_STATE.md` Batch 44 sudah mencatat "Pending Queue: 12 ✅ selesai", TAPI `FEATURE_PARITY_GOALS.md` (dokumen matrix terpisah) tidak pernah di-update in-place saat itu — root cause murni dokumentasi basi, BUKAN kode hilang/regresi.
+
+**Fix:** Update tabel `FEATURE_PARITY_GOALS.md` item #7 & #9 ke status akurat + skor cakupan (3→4 Done) + entri revisi baru. Tidak ada perubahan kode/APK.
+
+**File diubah (1)**: `FEATURE_PARITY_GOALS.md`.
+**Bump**: versionCode 25→26, versionName 1.0.24→1.0.25 (docs-only, tetap wajib per RULE Batch 37).
+
+**Rekomendasi ke user:** Fitur sudah aktif — buka tab **Penguras**, nyalakan Switch "Auto-Hibernate Terjadwal", centang app yang mau di-hibernate otomatis tiap 30 menit. Kalau maksud user beda dari ini (mis. mode hemat daya sistem-wide: turunkan refresh rate/brightness/sync interval), balas biar dikerjain sbg item baru — bukan duplikat Batch 44.
+
+**Pending Queue tetap:** #27 (isEnabled ke-reset saat edit rule, belum digarap).
+
+---
+
 ## [Batch 61] Fix - Judul Nada Alarm Custom Gak Kebaca (RESOLVED) — 2026-08-20
 
 **Konteks:** Setelah Batch 60, tombol nada alarm cuma nampilin teks generik "Nada Alarm: Custom terpilih ✓" — user gak tau file sound apa yang kepilih (screenshot user).

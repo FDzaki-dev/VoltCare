@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.25-batch62] - 2026-08-20
+### Fixed
+- Docs-only: `FEATURE_PARITY_GOALS.md` desync — item #9 "Hemat daya otomatis" masih ditandai ❌ padahal sudah ✅ selesai sejak Batch 44 (Auto-Hibernate Terjadwal). Tidak ada perubahan kode/APK.
+
 ## [v1.0.24-batch61] - 2026-08-20
 ### Fixed
 - Tombol nada alarm cuma nampilin "Custom terpilih ✓" generik, judul sound asli gak kebaca. Sekarang `RuleFormDialog` resolve judul via `RingtoneManager.getRingtone(context, uri).getTitle(context)` (LaunchedEffect, fallback "Custom" kalau gagal resolve). Lihat `PROJECT_STATE.md` Batch 61.

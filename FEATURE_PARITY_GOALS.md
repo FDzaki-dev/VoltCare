@@ -8,9 +8,9 @@ dicatat descending di bawah.)
 
 ---
 
-## Skor Cakupan Saat Ini (per Batch 18)
+## Skor Cakupan Saat Ini (per Batch 61, direvisi dari per Batch 18)
 
-**3 Done • 3 Partial • 2 Not Implemented (1 platform-limited, 1 buildable) = ~67% penuh, ~89% termasuk partial**
+**4 Done • 3 Partial • 1 Not Implemented (1 platform-limited, 1 buildable) = ~78% penuh, ~94% termasuk partial**
 
 | # | App Rujukan | Fitur (dari gambar) | Status | Bukti / Implementasi VoltCare |
 |---|---|---|---|---|
@@ -20,9 +20,9 @@ dicatat descending di bawah.)
 | 4 | GSam | Statistik penggunaan baterai mendetail | ✅ **Done** | `HistoryScreen`/`HistoryViewModel` — agregat 30 hari (Health/Suhu/Cycle) + grafik Canvas + export CSV (Batch 11) |
 | 5 | GSam | Lacak app paling banyak menguras CPU & sinyal | ✅ **Done** | `UsageStatsHelper.fetchDrainMahByPackage()` + `BatteryStatsParser` (Batch 49-52) — mAh riil per app via `dumpsys batterystats` (Shizuku), digabung ke daftar `topAppsByForegroundUsage()` di `DrainScreen`. Fallback proxy waktu-foreground tetap aktif kalau Shizuku tidak dipakai/tidak tersedia |
 | 6 | GSam | Pantau suhu & status pengisian daya real-time | ✅ **Done** | `DashboardScreen` — baca live `BatteryManager` tiap sample (Batch 1) |
-| 7 | Greenify | Tidurkan app latar belakang yang tidak dipakai | ⚠️ **Partial** | `UsageStatsHelper.killBackgroundApp()` — force-stop **manual per-app** dari `DrainScreen` (Batch 10). Belum ada **otomatis/terjadwal** |
+| 7 | Greenify | Tidurkan app latar belakang yang tidak dipakai | ⚠️ **Partial** (naik dari force-stop manual) | `killBackgroundApp()` manual per-app (Batch 10) TETAP ada, DITAMBAH jalur otomatis via item #9 di baris bawah — masih Partial krn otomatis hanya jalan utk app whitelist eksplisit, bukan semua app |
 | 8 | Greenify | Cegah app berjalan sendiri tanpa izin (auto-launch) | ❌ **Platform-limited** | Android membatasi kontrol App Standby Bucket (`UsageStatsManager.setAppStandbyBucket`) hanya untuk app sistem sejak API 30 — 3rd-party app tanpa root/device-admin tidak bisa cegah auto-launch app lain secara generik. Sama kelas keterbatasan dengan item #5 |
-| 9 | Greenify | Hemat daya otomatis tanpa bikin lambat HP | ❌ **Belum ada** | `androidx.work:work-runtime-ktx:2.9.1` **sudah** jadi dependency sejak Batch 1 (komentar: "used by service layer") tapi **audit `grep -rn WorkManager app/src/main/java/` = 0 hasil** — belum pernah benar-benar dipakai. Tidak ada scheduler otomatis |
+| 9 | Greenify | Hemat daya otomatis tanpa bikin lambat HP | ✅ **Done** (sejak Batch 44) | **Auto-Hibernate Terjadwal** — `HibernateWorker.kt` (`CoroutineWorker` + WorkManager `PeriodicWorkRequest`, interval 30 menit, di atas minimum WorkManager shg tidak membebani device). Card di tab **Penguras**: Switch master ON/OFF + checkbox whitelist per-app (`HibernateWhitelistStore`, SharedPreferences). HANYA kill app yang **di-approve eksplisit user** — bukan semua app, sesuai maksud "tanpa bikin lambat HP" (mencegah OOM-loop/kill app penting otomatis) |
 
 ---
 
@@ -42,4 +42,5 @@ Item **platform-limited** (dicatat sbg batasan, bukan buildable penuh — best-e
 
 ## Revisi
 
+- **2026-08-20 (Batch 61)**: Fix desync — tabel masih nampilin item #9 "❌ Belum ada" & #7 status lama, padahal Auto-Hibernate (Pending #12) sudah RESOLVED sejak Batch 44 (tidak pernah di-update in-place saat itu). Direvisi ke status akurat, skor naik 3→4 Done.
 - **2026-08-19 (Batch 18)**: Dibuat pertama kali. Sumber: 2 screenshot Google AI Overview diupload user ("Pilihan Aplikasi Battery Manager Terbaik" — AccuBattery, GSam Battery Monitor, Greenify). Audit dilakukan terhadap source code aktual (Batch 1-17), bukan asumsi — termasuk `grep` untuk memverifikasi WorkManager belum pernah dipakai walau sudah jadi dependency sejak Batch 1.
