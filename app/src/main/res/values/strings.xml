@@ -12,7 +12,7 @@
     <string name="update_checking_title">Mengecek pembaruan...</string>
     <string name="update_up_to_date_title">Sudah Versi Terbaru</string>
     <string name="update_up_to_date_body">VoltCare Anda sudah menggunakan versi paling baru.</string>
-    <string name="update_available_title">Update Tersedia: v%1$s</string>
+    <string name="update_available_title">Update Tersedia: v%1$s (build %2$d)</string>
     <string name="update_no_notes">Tidak ada catatan rilis.</string>
     <string name="update_download">Unduh</string>
     <string name="update_downloading_title">Mengunduh... %1$d%%</string>

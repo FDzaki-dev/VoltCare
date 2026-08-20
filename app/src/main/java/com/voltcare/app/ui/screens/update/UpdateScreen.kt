@@ -109,7 +109,7 @@ fun UpdateCheckAction(viewModel: UpdateViewModel = viewModel()) {
                 TextButton(onClick = { viewModel.startDownload(s.info) }) { Text(stringResource(R.string.update_download)) }
             },
             dismissButton = { TextButton(onClick = { viewModel.dismiss() }) { Text(stringResource(R.string.update_close)) } },
-            title = { Text(stringResource(R.string.update_available_title, s.info.latestVersionName)) },
+            title = { Text(stringResource(R.string.update_available_title, s.info.latestVersionName, s.info.latestRunNumber)) },
             text = { Text(s.info.releaseNotes.ifBlank { stringResource(R.string.update_no_notes) }) }
         )
         is UpdateUiState.Downloading -> AlertDialog(

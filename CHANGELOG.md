@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.3-batch38] - 2026-08-20
+### Fixed
+- Pending #23: dialog "Update Tersedia" sekarang nampilin label `(build N)` di sebelah versi (`UpdateInfo.latestRunNumber` diteruskan dari `UpdateManager.kt` ke `UpdateScreen.kt`/`strings.xml`) — mencegah kebingungan user saat fallback run_number (Batch 36) trigger update walau `versionName` sama persis dgn yang terpasang.
+### Changed
+- Bump versi `1.0.2` -> `1.0.3` (`versionCode` 3->4) sesuai RULE WAJIB Batch 37.
+
 ## [v1.0.1-batch33] - 2026-08-19
 ### Fixed
 - Pending #21: `checkForUpdate()` sekarang return sealed `UpdateCheckResult` (`UpToDate`/`Available`/`CheckFailed`) bukan `UpdateInfo?` — cek yang GAGAL (404/network) tidak lagi ditampilkan sebagai "Sudah Versi Terbaru" palsu, tapi masuk pesan error jelas. Kemungkinan besar penyebab awal: repo `VoltCare` belum punya Release sama sekali (cek Actions + secrets, lihat catatan Batch 33 di PROJECT_STATE.md).

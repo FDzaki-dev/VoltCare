@@ -18,6 +18,39 @@
 
 ---
 
+## [Batch 38] Fix - Pending #23: Label Build-Number di Dialog "Update Tersedia" — 2026-08-20
+
+**Confidence Rating: 96%**
+**File sebelum -> sesudah:** 59 -> 59 file (3 file kode diedit: `UpdateManager.kt`, `UpdateScreen.kt`, `strings.xml` — semua bukan protected; 1 file protected edit parsial: `app/build.gradle.kts` — bump versi wajib per RULE Batch 37)
+
+### Konteks
+Lanjutan langsung catatan Batch 36 ("Scope yang SENGAJA tidak disentuh") — dialog "Update tersedia" cuma nampilin `latestVersionName` (mis. "1.0.1") walau fallback run_number (Batch 36) bisa trigger `Available` walau versionName SAMA dgn yang terpasang. Tanpa label build-number, user bisa kira dialog salah/aneh ("kok bilang ada update tapi versinya sama?").
+
+### Selesai
+- **`UpdateManager.kt`**: `UpdateInfo` data class +1 field `latestRunNumber: Int` (nilai sudah ada di scope `checkForUpdate()` sejak Batch 36 — `latestRunNumber`, sekarang diteruskan ke `UpdateInfo` alih-alih cuma dipakai internal buat perbandingan). Brace 50/50 curly, 175/175 paren.
+- **`strings.xml`**: `update_available_title` "Update Tersedia: v%1$s" -> "Update Tersedia: v%1$s (build %2$d)".
+- **`UpdateScreen.kt`**: `stringResource(R.string.update_available_title, s.info.latestVersionName)` -> tambah arg ke-2 `s.info.latestRunNumber`. Brace 55/55 curly, 102/102 paren.
+- **`app/build.gradle.kts`** (protected, edit parsial, RULE WAJIB Batch 37): `versionCode` 3->4, `versionName` "1.0.2"->"1.0.3". Brace 23/23 curly, 65/65 paren.
+- Dicek: `grep -rn "UpdateInfo("` -> hanya 1 call site (`checkForUpdate()`), sudah diisi field baru, tidak ada caller lain yang perlu diupdate. `grep -rn "update_available_title"` -> hanya 1 pemakaian (`UpdateScreen.kt`), sudah cocok jumlah `%N$` placeholder dgn argumen yang dikirim.
+
+### Sengaja TIDAK diubah
+- `UpdateManager.checkForUpdate()`/`isNewerVersion()`/`isSameVersion()` — logika perbandingan versi Batch 36 dipakai apa adanya, batch ini murni nerusin nilai yang sudah dihitung ke UI, bukan ubah logika.
+
+### Koreksi housekeeping (bukan task terpisah, murni perbaikan pencatatan)
+Baris "Pending Queue" di beberapa batch terakhir (36, 37) salah menuliskan ulang `1-7, 9-20, 22` seolah semua item itu MASIH pending — padahal berdasar isi log detail tiap batch, item 1-7, 9, 14-17, 21, 22 SUDAH ✅ selesai (lihat Batch 8, 14, 16, 17, 22, 26, 28, 31, 33). Ini murni salah copy-paste baris Pending Queue antar batch (bukan regresi kode). Daftar pending AKTUAL yang benar per batch ini: **10, 11, 12, 13, 18, 19, 20** (lihat detail di bawah). 23 selesai batch ini.
+
+### Pending Queue (daftar terkoreksi, lihat catatan housekeeping di atas)
+10. Estimasi Sisa Waktu Pakai (discharge) — Dashboard, agregasi drain rate dari `BatteryLogDao`/`StressTestScreen`.
+11. Preset Cepat "Alarm Batas Charge" — shortcut auto-create `RuleEntity(PERCENT_ABOVE, ALARM)`.
+12. Auto-Hibernate Terjadwal — `PeriodicWorkRequest` (WorkManager) + whitelist app approved user.
+13. (butuh izin user dulu, platform-limited) "Cegah auto-launch tanpa izin" — best-effort per-app settings shortcut.
+18. Force Stop via Shizuku — `UsageStatsHelper.killBackgroundApp()` pakai `am force-stop` kalau `ShizukuManager.hasPermission()` true.
+19. Statistik drain per-app riil via Shizuku — parsing `dumpsys batterystats` via `execShellCommand()`.
+20. Auto-grant PACKAGE_USAGE_STATS via Shizuku — `appops set <pkg> GET_USAGE_STATS allow`.
+23. ~~Label build-number di dialog Update tersedia~~ ✅ selesai batch ini.
+
+---
+
 ## [Batch 37] Chore - RULE BARU: wajib bump version manual tiap kirim artifact — 2026-08-20
 
 **Confidence Rating: 98%**

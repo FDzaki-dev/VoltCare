@@ -63,7 +63,11 @@ object UpdateManager {
         val currentVersionName: String,
         val downloadUrl: String,
         val fileSizeBytes: Long,
-        val releaseNotes: String
+        val releaseNotes: String,
+        // Batch 38 (Pending #23): run_number rilis terbaru (dari tag_name "v{version}-{run}"),
+        // dipakai UI utk label "(build N)" -- krusial saat latestVersionName == currentVersionName
+        // (kasus fallback run_number Batch 36) supaya user tidak kira dialog salah tampil versi sama.
+        val latestRunNumber: Int
     )
 
     /** Hasil cek update — 3 kemungkinan yang HARUS dibedakan di UI (Pending Queue #21).
@@ -155,7 +159,8 @@ object UpdateManager {
                         currentVersionName = currentVersion,
                         downloadUrl = apkUrl,
                         fileSizeBytes = apkSize,
-                        releaseNotes = releaseNotes
+                        releaseNotes = releaseNotes,
+                        latestRunNumber = latestRunNumber
                     )
                 )
             }
