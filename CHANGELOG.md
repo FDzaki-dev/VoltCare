@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.23-batch60] - 2026-08-20
+### Added
+- UI pilih nada alarm custom (Pending Queue #26): tombol di `RuleFormDialog` (`RulesScreen.kt`) buka `RingtoneManager.ACTION_RINGTONE_PICKER`, tersimpan via `RulesViewModel.saveRule()` ke `RuleEntity.alarmSoundUri`. Lihat `PROJECT_STATE.md` Batch 60.
+### Queued
+- Bug `isEnabled` ke-reset `true` saat edit rule — Pending Queue #27.
+
 ## [v1.0.23-batch59] - 2026-08-20
 ### Fixed
 - Alarm tidak bunyi saat threshold rule tercapai: wiring `AlarmPlayer.play()` ke `BatteryMonitorService.fireAlert()` (sebelumnya cuma posting notifikasi pasif). Lihat `PROJECT_STATE.md` Batch 59.

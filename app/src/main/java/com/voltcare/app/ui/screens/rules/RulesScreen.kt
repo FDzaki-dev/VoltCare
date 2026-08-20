@@ -1,5 +1,10 @@
 package com.voltcare.app.ui.screens.rules
 
+import android.content.Intent
+import android.media.RingtoneManager
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -113,8 +118,8 @@ fun RulesScreen(viewModel: RulesViewModel = viewModel()) {
         RuleFormDialog(
             existing = editingRule,
             onDismiss = { showForm = false },
-            onSave = { label, condition, value, requireCharging, action ->
-                viewModel.saveRule(editingRule?.id, label, condition, value, requireCharging, action)
+            onSave = { label, condition, value, requireCharging, action, alarmSoundUri ->
+                viewModel.saveRule(editingRule?.id, label, condition, value, requireCharging, action, alarmSoundUri)
                 showForm = false
             }
         )
@@ -233,15 +238,23 @@ private fun RuleRow(
 private fun RuleFormDialog(
     existing: RuleEntity?,
     onDismiss: () -> Unit,
-    onSave: (label: String, condition: RuleCondition, value: Float, requireCharging: Boolean, action: RuleAction) -> Unit
+    onSave: (label: String, condition: RuleCondition, value: Float, requireCharging: Boolean, action: RuleAction, alarmSoundUri: String?) -> Unit
 ) {
     var label by remember { mutableStateOf(existing?.label ?: "") }
     var condition by remember { mutableStateOf(RuleCondition.fromStored(existing?.conditionType ?: RuleCondition.TEMP_ABOVE.stored)) }
     var valueText by remember { mutableStateOf(existing?.conditionValue?.toString() ?: "") }
     var requireCharging by remember { mutableStateOf(existing?.requireCharging ?: true) }
     var action by remember { mutableStateOf(RuleAction.fromStored(existing?.actionType ?: RuleAction.NOTIFY.stored)) }
+    // Pending Queue #26 (RESOLVED): custom nada alarm via RingtoneManager.ACTION_RINGTONE_PICKER.
+    var alarmSoundUri by remember { mutableStateOf(existing?.alarmSoundUri) }
     var conditionMenuOpen by remember { mutableStateOf(false) }
     var actionMenuOpen by remember { mutableStateOf(false) }
+    val ringtonePickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val uri = result.data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+        alarmSoundUri = uri?.toString()
+    }
 
     val parsedValue = valueText.toFloatOrNull()
     val isValid = label.isNotBlank() && parsedValue != null
@@ -326,11 +339,25 @@ private fun RuleFormDialog(
                         }
                     }
                 }
+
+                if (action == RuleAction.ALARM) {
+                    TextButton(onClick = {
+                        val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                            alarmSoundUri?.let { putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(it)) }
+                        }
+                        ringtonePickerLauncher.launch(intent)
+                    }) {
+                        Text(if (alarmSoundUri == null) "Pilih Nada Alarm (default sistem)" else "Nada Alarm: Custom terpilih ✓")
+                    }
+                }
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { onSave(label.trim(), condition, parsedValue ?: 0f, requireCharging, action) },
+                onClick = { onSave(label.trim(), condition, parsedValue ?: 0f, requireCharging, action, alarmSoundUri) },
                 enabled = isValid
             ) { Text("Simpan") }
         },

@@ -24,6 +24,21 @@
 
 ---
 
+## [Batch 60] Fitur - UI Pilih Nada Alarm Custom (Pending Queue #26, RESOLVED) — 2026-08-20
+
+**Konteks:** Lanjutan Batch 59 — engine+wiring alarm sudah bunyi, tapi user tidak bisa pilih nada sendiri (selalu default sistem).
+
+**Implementasi:**
+- `RulesScreen.kt` (`RuleFormDialog`): tombol "Pilih Nada Alarm" muncul saat Aksi = ALARM, buka `RingtoneManager.ACTION_RINGTONE_PICKER` via `rememberLauncherForActivityResult`, hasil `EXTRA_RINGTONE_PICKED_URI` disimpan ke state lokal lalu diteruskan lewat `onSave`.
+- `RulesViewModel.kt` (`saveRule`): tambah parameter `alarmSoundUri: String?`, diteruskan ke `RuleEntity.alarmSoundUri` (kolom sudah ada dari Batch 58).
+- Efek samping fix: sebelumnya `saveRule` saat mode edit selalu membangun `RuleEntity` baru tanpa membawa `alarmSoundUri` lama → override ke null. Sekarang eksplisit dibawa dari state form (`existing?.alarmSoundUri` sbg initial value).
+- 2 file, sesuai batch cap.
+
+**Pending Queue (belum dikerjakan, dicatat, BUKAN diabaikan):**
+- #27: `saveRule` masih hardcode `isEnabled = true` saat edit — toggle aktif/nonaktif yang sudah di-set user bisa ke-reset ke `true` tiap kali rule diedit lewat form (bug lama, ditemukan saat audit batch ini, di luar scope Pending #26).
+
+---
+
 ## [Batch 59] Fix - Alarm Tidak Bunyi Saat Threshold Tercapai (Wiring AlarmPlayer) — 2026-08-20
 
 **Masalah:** Rule dengan aksi ALARM tidak pernah bunyi/getar walau kondisi (threshold) terpenuhi.

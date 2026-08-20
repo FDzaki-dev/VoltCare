@@ -50,7 +50,8 @@ class RulesViewModel(application: Application) : AndroidViewModel(application) {
         condition: RuleCondition,
         conditionValue: Float,
         requireCharging: Boolean,
-        action: RuleAction
+        action: RuleAction,
+        alarmSoundUri: String?
     ) {
         viewModelScope.launch {
             val rule = RuleEntity(
@@ -60,7 +61,8 @@ class RulesViewModel(application: Application) : AndroidViewModel(application) {
                 conditionValue = conditionValue,
                 requireCharging = requireCharging,
                 actionType = action.stored,
-                isEnabled = true
+                isEnabled = true,
+                alarmSoundUri = alarmSoundUri
             )
             if (existingId == null) db.ruleDao().insert(rule) else db.ruleDao().update(rule)
         }
