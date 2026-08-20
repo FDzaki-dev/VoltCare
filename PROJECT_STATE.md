@@ -20,6 +20,36 @@
 
 ---
 
+---
+
+## [Batch 53] Konfirmasi - Pending #19 Ditutup 100% (Verifikasi Device Nyata via Screenshot) — 2026-08-20
+
+**Confidence Rating: 98%**
+**File sebelum -> sesudah:** 57 -> 57 file (0 diedit selain protected; 1 file protected edit parsial: `app/build.gradle.kts` — bump versi wajib per RULE Batch 37)
+
+### Konteks
+User jalankan rekomendasi Batch 52 (build + buka tab Drain dgn Shizuku aktif) dan kirim screenshot device nyata sebagai bukti.
+
+### Temuan (dari screenshot user)
+Ketiga poin verifikasi Batch 52 terkonfirmasi sekaligus:
+1. **UI tidak freeze** — `withContext(Dispatchers.IO)` di `LaunchedEffect` (`DrainScreen.kt`) terbukti aman, screenshot menampilkan layar penuh ter-render normal (bukan blank/stuck loading).
+2. **Baris mAh riil tampil** — 3 dari 3 app di daftar (`Jam` 0,25 mAh, `Peluncur XOS` 0,12 mAh, `TranResolver` 0,01 mAh) menampilkan baris "≈ X,XX mAh (riil, sejak charge terakhir)" — `mergeDrainData()` berhasil match package -> UID -> mAh utk SEMUA app di layar ini (bukan cuma sebagian), termasuk `TranResolver` (komponen sistem Transsion, UID kemungkinan besar hasil `getPackagesForUid()` di ROM custom — sempat jadi keraguan di catatan Batch 52).
+3. **Hint teks sesuai `hasRealDrainData=true`** — teks di atas daftar persis kalimat cabang "Kolom mAh dari dumpsys batterystats (Shizuku, sejak charge penuh terakhir)...", bukan fallback proxy.
+
+### Sengaja TIDAK diubah
+Tidak ada perubahan kode/logic — batch ini murni pencatatan hasil verifikasi (dokumentasi), sesuai rekomendasi eksplisit di catatan Batch 52 ("Pending #19 resmi SELESAI 2/2 setelah konfirmasi ini").
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`app/build.gradle.kts` — `versionCode` 18->19, `versionName` "1.0.17"->"1.0.18" (RULE WAJIB Batch 37, berlaku walau batch ini docs-only).
+
+### Catatan
+Confidence **98%** (naik dari 92% Batch 52) — 2 keraguan yang tersisa di catatan Batch 52 (potensi masalah `getPackagesForUid()` di ROM custom, & coroutine blocking-exec-dalam-Compose belum dites end-to-end) **keduanya terjawab positif** oleh screenshot ini. Sisa 2% murni krn baru 1 screenshot/1 device (Transsion XOS, sesuai laporan bug historis project ini) — belum ada data dari device/ROM lain.
+
+### Pending Queue
+19. ✅ **DITUTUP 100%** (parser Batch 49-51, wiring Batch 52, terverifikasi device nyata Batch 53 — ini).
+
+---
+
 ## [Batch 52] Fitur - Pending #19 (2/2, SELESAI): Wiring BatteryStatsParser + Shizuku ke Drain Analyzer — 2026-08-20
 
 **Confidence Rating: 92%**

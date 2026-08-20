@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.18-batch53] - 2026-08-20
+### Confirmed
+- Pending #19 ditutup 100%: screenshot device nyata (Shizuku aktif) konfirmasi kolom mAh riil tampil benar di Drain Analyzer, UI tidak freeze, hint teks sesuai.
+
 ## [v1.0.17-batch52] - 2026-08-20
 ### Added
 - **Pending #19 SELESAI (2/2)**: wiring `BatteryStatsParser` + `ShizukuManager` ke Drain Analyzer. `UsageStatsHelper.AppUsageInfo` dapat field `mahEstimate` (nullable), fungsi baru `fetchDrainMahByPackage()` (exec dumpsys via Shizuku + parse + resolve UID->package) & `mergeDrainData()` (gabung ke daftar existing, re-sort).
