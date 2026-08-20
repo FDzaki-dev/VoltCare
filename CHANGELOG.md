@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.15-batch50] - 2026-08-20
+### Fixed
+- **Bug casing regex `BatteryStatsParser.kt`** (Pending #19, 1.5/2): ditemukan dari validasi output `adb shell dumpsys batterystats` NYATA yang ditempel user — device pakai `"UID"` (kapital semua), regex Batch 49 cuma cocok `"Uid"` (case-sensitive) -> selalu return list kosong. Fix: `RegexOption.IGNORE_CASE`. Bagian `u0aXX` (UID aplikasi) masih belum tervalidasi data nyata — wiring UI masih ditahan.
+### Changed
+- Bump versi `1.0.14` -> `1.0.15` (`versionCode` 15->16) sesuai RULE WAJIB Batch 37.
+
 ## [v1.0.14-batch49] - 2026-08-20
 ### Added
 - **`BatteryStatsParser.kt`** (Pending #19, langkah 1/2): parser murni utk section "Estimated power use (mAh):" dari `dumpsys batterystats`. Belum di-wiring ke UI — lihat catatan confidence 85% di `PROJECT_STATE.md`, WAJIB verifikasi output dumpsys nyata sebelum langkah 2/2 (wiring).

@@ -18,6 +18,40 @@
 
 ---
 
+## [Batch 50] Fix - Pending #19 (1.5/2): Bug Casing Regex `UID` Ditemukan dari Dumpsys Nyata — 2026-08-20
+
+**Confidence Rating: 90%**
+**File sebelum -> sesudah:** 57 -> 57 file (0 baru/hapus, 1 file diedit: `BatteryStatsParser.kt` — bukan protected; 1 file protected edit parsial: `app/build.gradle.kts` — bump versi wajib per RULE Batch 37)
+
+### Konteks
+User jalankan rekomendasi WAJIB dari catatan Batch 49 (`adb shell dumpsys batterystats --charged | grep -A 30 "Estimated power use"`) dan tempel hasil NYATA dari device (Transsion XOS, sesuai laporan bug Batch 45). Ini validasi pertama parser terhadap output dumpsys sungguhan sejak dibuat.
+
+### Temuan (dari data nyata user)
+1. **Bug dikonfirmasi**: baris per-UID device user berbunyi `UID 1000: 4.58 bg: 4.58` — **"UID" huruf besar semua**, bukan `"Uid"` (campuran) seperti diasumsikan Batch 49 dari dokumentasi tool pihak ketiga. Regex `UID_LINE` sebelumnya case-sensitive -> **tidak akan cocok sama sekali** di device user, parser akan selalu return list kosong walau section ada.
+2. Bagian lain **cocok/valid**: header section, baris "Capacity/Computed drain", section "Global" (screen/cpu/audio/dst — otomatis ter-skip krn tidak match pola `UID_LINE`, sesuai desain), heuristik akhir section (baris rata kolom 0), dan breakdown tambahan setelah angka mAh (`" bg: 4.58"`) tidak mengganggu penangkapan grup regex (memang tidak di-anchor ke akhir baris).
+3. **Belum tervalidasi**: format UID **aplikasi** (`u0aXX`) — capture user baru sampai baris UID sistem (`1000`, otomatis ter-filter `minUid`) sebelum output kepotong. Belum ada 1 pun baris `u0aXX` nyata yang terlihat.
+
+### Selesai
+- **`BatteryStatsParser.kt`**: `UID_LINE` regex ditambah `RegexOption.IGNORE_CASE` — sekarang cocok baik `"Uid"` maupun `"UID"` (atau kombinasi kapital lain). KDoc class-level diupdate: status validasi sebagian terverifikasi (bukan lagi murni asumsi teoretis).
+- **Sanity-test ulang** (Python, regex identik + `re.IGNORECASE`): baris `UID 1000: 4.58 bg: 4.58` (persis dari device user), `UID u0a55: 45.678`, `UID u0a123: 12.3 ( cpu=... )` — semua ke-parse benar (UID 1000 otomatis ter-filter `minUid=10000` saat wiring nanti, u0a55->10055 & u0a123->10123 akan lolos).
+- **`app/build.gradle.kts`** (protected, edit parsial, RULE WAJIB Batch 37): `versionCode` 15->16, `versionName` "1.0.14"->"1.0.15". Brace 23/23 curly, 65/65 paren.
+
+### Sengaja TIDAK diubah
+- `decodeUid()` (logic `u0aXX` -> UID Android asli) — TIDAK diubah, karena belum ada data nyata untuk membandingkan (lihat "Belum tervalidasi" di atas). Mengubah tanpa data konkret = spekulasi, bukan fix.
+- Masih **belum wiring ke UI** (`ShizukuManager.kt`/`DrainScreen.kt`/`UsageStatsHelper.kt` tetap tidak disentuh) — Pending #19 masih belum 100% selesai, sengaja ditahan sampai ada minimal 1 baris `u0aXX` nyata utk validasi penuh.
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`app/build.gradle.kts` — brace balance 23/23 curly, 65/65 paren, hanya 2 baris versi diganti.
+
+### Catatan
+Confidence **90%** (naik dari 85% Batch 49, tapi belum 95%+) — bug casing yang ditemukan & fix sudah solid (data nyata, bukan asumsi), TAPI bagian `u0aXX` (paling krusial utk fitur "per-app mAh") masih 100% belum divalidasi. **Rekomendasi WAJIB sebelum wiring UI (2/2)**: jalankan ulang dgn capture lebih panjang, misalnya:
+`adb shell dumpsys batterystats --charged > /sdcard/batterystats.txt` lalu `cat`/`grep -A 100 "Estimated power use"` filenya, atau langsung `termux-clipboard-set < ...` — tempel minimal sampai terlihat beberapa baris `UID u0aXX: X.XX` (app pihak ketiga, bukan cuma UID sistem 0/1000/1001/dst).
+
+### Pending Queue
+19. Masih belum selesai (1.5/2 — casing tervalidasi & fix, `u0aXX` masih menunggu data nyata sebelum wiring UI).
+
+---
+
 ## [Batch 49] Fitur - Pending #19 (1/2): Parser "Estimated Power Use" dari dumpsys batterystats — 2026-08-20
 
 **Confidence Rating: 85%**

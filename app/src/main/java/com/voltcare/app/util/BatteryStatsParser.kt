@@ -19,16 +19,18 @@ data class UidPowerUsage(val uid: Int, val mah: Double)
  * tinggi -> mungkin perlu dipecah lagi"), supaya bagian paling berisiko (parsing teks
  * tidak terstruktur) bisa diaudit terpisah dari perubahan UI.
  *
- * ⚠️ PERINGATAN JUJUR SOAL AKURASI: format section ini TIDAK didokumentasikan resmi
- * oleh Android (bagian dari `dumpsys`, bukan API publik) — pola di bawah disusun dari
- * format yang secara luas dipakai tool open-source (mis. Battery Historian) & relatif
- * stabil sejak Android 5, TAPI belum diverifikasi terhadap output dumpsys nyata di
- * lingkungan pembuatan file ini (sandbox tanpa device Android). Parser dibuat DEFENSIF
- * (regex + skip baris tak cocok, TIDAK PERNAH throw) supaya kegagalan parsing di 1
- * device/ROM cuma menghasilkan list kosong, bukan crash — tapi "list kosong" ATAU
- * "angka tidak masuk akal" sama-sama mungkin kalau format device user ternyata beda.
- * WAJIB diverifikasi dgn `adb shell dumpsys batterystats --charged` nyata sebelum
- * batch berikutnya (wiring UI) dianggap 100% andal.
+ * ⚠️ STATUS VALIDASI (update Batch 50): sebagian TERVERIFIKASI dari output `adb shell
+ * dumpsys batterystats --charged` nyata (device user, Transsion XOS) yang ditempel user
+ * setelah Batch 49 — header section, posisi baris "Capacity/Computed drain", section
+ * "Global" (screen/cpu/audio/dst, otomatis ter-skip krn tidak match [UID_LINE]), heuristik
+ * akhir section, DAN 1 baris UID sistem (`UID 1000: 4.58 bg: 4.58`) semuanya cocok pola —
+ * TAPI ditemukan 1 bug nyata: device pakai "UID" (kapital semua), regex awal Batch 49
+ * cuma cocok "Uid" (case-sensitive) -> SUDAH DIPERBAIKI (`RegexOption.IGNORE_CASE`).
+ * ⚠️ MASIH BELUM terverifikasi: format UID APLIKASI (`u0aXX`) — capture user baru sampai
+ * baris UID sistem (`1000`, otomatis ter-filter [minUid]) sebelum output terpotong. WAJIB
+ * capture lebih panjang (mis. `dumpsys batterystats --charged | grep -A 100 "Estimated
+ * power use"` atau simpan ke file) berisi minimal 1 baris `u0aXX` nyata sebelum batch
+ * berikutnya (wiring UI) dianggap 100% andal untuk data per-app (bukan cuma per-sistem).
  */
 object BatteryStatsParser {
 
@@ -36,9 +38,12 @@ object BatteryStatsParser {
     private val SECTION_HEADER = Regex("""Estimated power use \(mAh\)""")
 
     // Baris per-UID di dalam section, contoh: "    Uid u0a55: 45.678" atau
-    // "    Uid 1000: 5.678 ( cpu=... wake=... )" - breakdown "( ... )" di akhir diabaikan
-    // (tidak masuk grup regex, tidak perlu di-strip manual).
-    private val UID_LINE = Regex("""^\s*Uid\s+(\S+):\s+([\d.]+)""")
+    // "    UID 1000: 4.58 bg: 4.58" - breakdown tambahan di akhir baris (dalam kurung
+    // ATAU token polos spt "bg: 4.58") diabaikan (tidak masuk grup regex, tidak perlu
+    // di-strip manual). IGNORE_CASE: divalidasi Batch 50 dari dumpsys nyata (adb shell
+    // dumpsys batterystats --charged) - device user pakai "UID" (all caps), bukan "Uid"
+    // spt asumsi awal Batch 49 (dari dokumentasi tool pihak ketiga/Android versi lain).
+    private val UID_LINE = Regex("""^\s*uid\s+(\S+):\s+([\d.]+)""", RegexOption.IGNORE_CASE)
 
     // Heuristik akhir section: dumpsys batterystats secara konsisten membuat header
     // section besar (mis. "Estimated power use (mAh):", "Discharge step durations:")
