@@ -14,6 +14,24 @@
 - **APK release asset** (`release.yml`): `VoltCare_v<Versi>_<RunNumber>.apk` (otomatis dari `rootProject.name`, tidak terpengaruh).
 - **Skrip Termux (mulai Batch 29 dan seterusnya)**: `LATEST_ZIP=$(ls -t ~/storage/downloads/VoltCare*.zip | head -1)` + `cd ~/projects/VoltCare` (BUKAN lagi `PowerVaultHealthPro`). `git remote -v` menunjuk `https://github.com/FDzaki-dev/VoltCare.git`.
 - Ringkas: **VoltCare = nama produk/artifact/repo GitHub/folder lokal Termux** — SEMUA SUDAH SELARAS mulai Batch 29. Tidak ada lagi perbedaan nama produk vs repo vs folder.
+- 🔴 **RULE WAJIB (mulai Batch 37, permintaan eksplisit user):** SETIAP batch yang menghasilkan artifact ZIP WAJIB bump `versionCode` (+1) & `versionName` (patch, mis. 1.0.1 -> 1.0.2) di `app/build.gradle.kts` — TIDAK BOLEH dilewatkan/ditunda lagi, walaupun perubahan batch itu kecil (docs-only, 1 baris, dsb). Ini berlaku TERPISAH dari fallback teknis `CI_RUN_NUMBER` (Batch 36) — fallback itu tetap ada sbg jaring pengaman kalau suatu saat bump kelewat, TAPI bukan alasan buat malas bump manual. Tiap kali mau `present_files` ZIP baru, cek dulu: apakah `versionCode`/`versionName` sudah naik dari batch sebelumnya? Kalau belum, bump DULU sebelum repack & present.
+
+---
+
+## [Batch 37] Chore - RULE BARU: wajib bump version manual tiap kirim artifact — 2026-08-20
+
+**Confidence Rating: 98%**
+**File sebelum -> sesudah:** 59 -> 59 file (2 file diedit: `PROJECT_STATE.md` — dokumentasi; `app/build.gradle.kts` — **protected asset**, edit parsial 2 baris)
+
+### Permintaan user
+"Tambahkan rule baru di repository: setiap sesi wajib bump version manual tiap kirim artifact. Jangan malas." — respons atas kelalaian berulang: versionName cuma di-bump 1x (Batch 32) padahal sudah 5 batch (33-36) kirim artifact tanpa bump, salah satu penyebab langsung bug Batch 36 ("Sudah Versi Terbaru" palsu).
+
+### Selesai
+- **`PROJECT_STATE.md`** (section KONVENSI TETAP, dibaca duluan tiap batch): tambah RULE WAJIB — setiap batch yang hasilkan ZIP artifact HARUS bump `versionCode`+`versionName` di `app/build.gradle.kts`, tanpa kecuali (termasuk batch docs-only). Ditegaskan ini rule DISIPLIN, terpisah dari fallback teknis `CI_RUN_NUMBER` (Batch 36) — fallback tetap ada sbg jaring pengaman, bukan alasan menunda bump manual.
+- **`app/build.gradle.kts`**: langsung diterapkan di batch ini juga — `versionCode` 2->3, `versionName` "1.0.1"->"1.0.2". Brace balance 23/23, paren 65/65.
+
+### Pending Queue
+1-7, 9-20, 22, 23. Tidak berubah. 21 ✅ (Batch 33).
 
 ---
 
