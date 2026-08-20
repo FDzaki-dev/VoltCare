@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.20-batch55] - 2026-08-20
+### Fixed
+- Drain Analyzer "kurang fleksibel dan scrollable" (laporan user via screenshot): `DrainScreen.kt` sebelumnya `Column` non-scroll berisi `LazyColumn` bersarang tanpa weight, konten bisa ke-clip di bawah tanpa cara scroll (makin mungkin sejak toggle "Semua App" Batch 54 bisa nampilin sampai 50 app). Diganti jadi SATU `LazyColumn` datar (`item{}` untuk header/card, `items(apps){}` untuk daftar) — pola idiomatic Compose, seluruh layar sekarang scroll normal.
+
 ## [v1.0.19-batch54] - 2026-08-20
 ### Added
 - Mode "Tampilkan Semua App" di Drain Analyzer (permintaan user): toggle baru menampilkan SEMUA app dgn data mAh riil dari dumpsys, tidak dibatasi top-15 waktu pemakaian. `UsageStatsHelper.fullDrainAppList()` + `rawForegroundMsByPackage()` (baru), `DrainScreen.kt` dapat Card toggle + gating izin disesuaikan.

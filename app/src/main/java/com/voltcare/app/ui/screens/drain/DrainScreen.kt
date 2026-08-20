@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.item
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -85,145 +86,166 @@ fun DrainScreen() {
     }
 
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
-        Column(
+        // Fix (dilaporkan user via screenshot, "kurang fleksibel dan scrollable"): sebelumnya
+        // ini Column(fillMaxSize) BIASA (tidak scroll) berisi LazyColumn bersarang di dalamnya
+        // tanpa Modifier.weight - kalau konten di atas list (judul + 2 card toggle + hint text)
+        // + jumlah baris app SUDAH melebihi tinggi layar (makin mungkin sejak toggle "Semua App"
+        // Batch 54 bisa nampilin sampai 50 app), sisanya ke-clip di bawah TANPA cara scroll utk
+        // menjangkaunya - layar jadi "kaku", bukan cuma daftar app-nya yang harusnya scroll.
+        // Fix: SATU LazyColumn datar untuk seluruh isi layar - header/card/hint jadi `item{}`,
+        // baris app tetap `items(apps){}`. Ini pola idiomatic Compose utk kasus header+list
+        // campur (nested scrollable di dalam non-scrollable parent adalah anti-pattern).
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Drain Analyzer", style = MaterialTheme.typography.headlineMedium)
+            item {
+                Text("Drain Analyzer", style = MaterialTheme.typography.headlineMedium)
+            }
 
             // Pending #12 (FEATURE_PARITY_GOALS.md): Auto-Hibernate Terjadwal via WorkManager,
             // HANYA untuk app yang di-approve eksplisit user lewat checkbox per app di bawah -
             // scheduler tidak pernah menyentuh app di luar whitelist.
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Auto-Hibernate Terjadwal", fontWeight = FontWeight.Bold)
-                        Text(
-                            if (whitelist.isEmpty()) "Belum ada app di whitelist (centang di bawah)"
-                            else "Tiap 30 menit, force-stop ${whitelist.size} app whitelist",
-                            style = MaterialTheme.typography.bodySmall
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Auto-Hibernate Terjadwal", fontWeight = FontWeight.Bold)
+                            Text(
+                                if (whitelist.isEmpty()) "Belum ada app di whitelist (centang di bawah)"
+                                else "Tiap 30 menit, force-stop ${whitelist.size} app whitelist",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        Switch(
+                            checked = hibernateEnabled,
+                            enabled = whitelist.isNotEmpty(),
+                            onCheckedChange = { checked ->
+                                if (checked) HibernateWorker.schedule(context) else HibernateWorker.cancel(context)
+                                hibernateEnabled = checked
+                            }
                         )
                     }
-                    Switch(
-                        checked = hibernateEnabled,
-                        enabled = whitelist.isNotEmpty(),
-                        onCheckedChange = { checked ->
-                            if (checked) HibernateWorker.schedule(context) else HibernateWorker.cancel(context)
-                            hibernateEnabled = checked
-                        }
-                    )
                 }
             }
 
             // Batch 54 (permintaan user): toggle tampilkan SEMUA app dari dumpsys (bukan cuma
             // yang masuk 15 besar waktu pemakaian). Disabled sampai hasRealDrainData true -
             // tanpa data mAh riil, tidak ada apa pun tambahan yang bisa ditampilkan mode ini.
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Tampilkan Semua App (dumpsys)", fontWeight = FontWeight.Bold)
-                        Text(
-                            if (hasRealDrainData) {
-                                "Termasuk app dgn waktu pemakaian rendah/0 dalam 24 jam, asal tercatat mAh riil"
-                            } else {
-                                "Butuh Shizuku aktif & data mAh riil dulu"
-                            },
-                            style = MaterialTheme.typography.bodySmall
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Tampilkan Semua App (dumpsys)", fontWeight = FontWeight.Bold)
+                            Text(
+                                if (hasRealDrainData) {
+                                    "Termasuk app dgn waktu pemakaian rendah/0 dalam 24 jam, asal tercatat mAh riil"
+                                } else {
+                                    "Butuh Shizuku aktif & data mAh riil dulu"
+                                },
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        Switch(
+                            checked = showAllDrainApps,
+                            enabled = hasRealDrainData,
+                            onCheckedChange = { showAllDrainApps = it }
                         )
                     }
-                    Switch(
-                        checked = showAllDrainApps,
-                        enabled = hasRealDrainData,
-                        onCheckedChange = { showAllDrainApps = it }
-                    )
                 }
             }
 
             if (!showAllDrainApps && !hasPermission) {
-                Text(
-                    "Butuh izin \"Akses Penggunaan\" untuk melihat app paling banyak menyita waktu " +
-                        "layar 24 jam terakhir (indikator kandidat penguras baterai).",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Button(onClick = { UsageStatsHelper.openUsageAccessSettings(context) }) {
-                    Text("Buka Pengaturan Akses Penggunaan")
-                }
-                // Batch 41 (Pending #20): shortcut kalau Shizuku sudah aktif & diizinkan -
-                // langsung "appops set ... allow" tanpa perlu buka Settings manual sama sekali.
-                // Tombol cuma muncul kalau Shizuku Ready (hasPermission()), TIDAK mengubah
-                // alur existing untuk user yang belum/tidak pakai Shizuku (tetap harus buka
-                // Settings manual via tombol di atas, jalur lama 100% dipertahankan).
-                if (ShizukuManager.hasPermission()) {
-                    OutlinedButton(onClick = {
-                        ShizukuManager.autoGrantUsageAccess(context)
-                        refreshTrigger++
-                    }) {
-                        Text("Izinkan Otomatis via Shizuku")
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            "Butuh izin \"Akses Penggunaan\" untuk melihat app paling banyak menyita waktu " +
+                                "layar 24 jam terakhir (indikator kandidat penguras baterai).",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Button(onClick = { UsageStatsHelper.openUsageAccessSettings(context) }) {
+                            Text("Buka Pengaturan Akses Penggunaan")
+                        }
+                        // Batch 41 (Pending #20): shortcut kalau Shizuku sudah aktif & diizinkan -
+                        // langsung "appops set ... allow" tanpa perlu buka Settings manual sama sekali.
+                        // Tombol cuma muncul kalau Shizuku Ready (hasPermission()), TIDAK mengubah
+                        // alur existing untuk user yang belum/tidak pakai Shizuku (tetap harus buka
+                        // Settings manual via tombol di atas, jalur lama 100% dipertahankan).
+                        if (ShizukuManager.hasPermission()) {
+                            OutlinedButton(onClick = {
+                                ShizukuManager.autoGrantUsageAccess(context)
+                                refreshTrigger++
+                            }) {
+                                Text("Izinkan Otomatis via Shizuku")
+                            }
+                        }
+                        OutlinedButton(onClick = { refreshTrigger++ }) {
+                            Text("Sudah diizinkan, muat ulang")
+                        }
                     }
-                }
-                OutlinedButton(onClick = { refreshTrigger++ }) {
-                    Text("Sudah diizinkan, muat ulang")
                 }
             } else if (apps.isEmpty()) {
-                Text(
-                    if (showAllDrainApps) {
-                        "Tidak ada app dgn data mAh riil yang cocok ke package terinstall."
-                    } else {
-                        "Belum ada data pemakaian signifikan dalam 24 jam terakhir."
-                    },
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                item {
+                    Text(
+                        if (showAllDrainApps) {
+                            "Tidak ada app dgn data mAh riil yang cocok ke package terinstall."
+                        } else {
+                            "Belum ada data pemakaian signifikan dalam 24 jam terakhir."
+                        },
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             } else {
-                Text(
-                    when {
-                        showAllDrainApps && hasRealDrainData ->
-                            "Menampilkan SEMUA app dari dumpsys batterystats (Shizuku, sejak charge penuh " +
-                                "terakhir), diurutkan mAh tertinggi - termasuk app dgn waktu pemakaian " +
-                                "rendah/0 dalam 24 jam. \"Force Stop\" bersifat best-effort."
-                        hasRealDrainData ->
-                            "Kolom mAh dari dumpsys batterystats (Shizuku, sejak charge penuh terakhir) - " +
-                                "app tanpa data mAh riil tetap diurutkan berdasar waktu pemakaian. " +
-                                "\"Force Stop\" bersifat best-effort."
-                        else ->
-                            "Diurutkan dari waktu pemakaian tertinggi (proxy - lihat catatan di UsageStatsHelper.kt). " +
-                                "\"Force Stop\" bersifat best-effort."
-                    },
-                    style = MaterialTheme.typography.bodySmall
-                )
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(apps, key = { it.packageName }) { app ->
-                        DrainAppRow(
-                            app = app,
-                            isWhitelisted = whitelist.contains(app.packageName),
-                            onToggleWhitelist = {
-                                HibernateWhitelistStore.toggle(context, app.packageName)
-                                whitelist = HibernateWhitelistStore.getAll(context)
-                            },
-                            onForceStop = {
-                                val success = UsageStatsHelper.killBackgroundApp(context, app.packageName)
-                                scope.launch {
-                                    snackbarHostState.showSnackbar(
-                                        if (success) "${app.appLabel} dihentikan" else "Gagal menghentikan ${app.appLabel}"
-                                    )
-                                }
-                                refreshTrigger++
-                            },
-                            onOpenSettings = {
-                                UsageStatsHelper.openAppDetailsSettings(context, app.packageName)
+                item {
+                    Text(
+                        when {
+                            showAllDrainApps && hasRealDrainData ->
+                                "Menampilkan SEMUA app dari dumpsys batterystats (Shizuku, sejak charge penuh " +
+                                    "terakhir), diurutkan mAh tertinggi - termasuk app dgn waktu pemakaian " +
+                                    "rendah/0 dalam 24 jam. \"Force Stop\" bersifat best-effort."
+                            hasRealDrainData ->
+                                "Kolom mAh dari dumpsys batterystats (Shizuku, sejak charge penuh terakhir) - " +
+                                    "app tanpa data mAh riil tetap diurutkan berdasar waktu pemakaian. " +
+                                    "\"Force Stop\" bersifat best-effort."
+                            else ->
+                                "Diurutkan dari waktu pemakaian tertinggi (proxy - lihat catatan di UsageStatsHelper.kt). " +
+                                    "\"Force Stop\" bersifat best-effort."
+                        },
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                items(apps, key = { it.packageName }) { app ->
+                    DrainAppRow(
+                        app = app,
+                        isWhitelisted = whitelist.contains(app.packageName),
+                        onToggleWhitelist = {
+                            HibernateWhitelistStore.toggle(context, app.packageName)
+                            whitelist = HibernateWhitelistStore.getAll(context)
+                        },
+                        onForceStop = {
+                            val success = UsageStatsHelper.killBackgroundApp(context, app.packageName)
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    if (success) "${app.appLabel} dihentikan" else "Gagal menghentikan ${app.appLabel}"
+                                )
                             }
-                        )
-                    }
+                            refreshTrigger++
+                        },
+                        onOpenSettings = {
+                            UsageStatsHelper.openAppDetailsSettings(context, app.packageName)
+                        }
+                    )
                 }
             }
         }

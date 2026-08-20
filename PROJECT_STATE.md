@@ -24,6 +24,36 @@
 
 ---
 
+## [Batch 55] Fix - Drain Analyzer "Kurang Fleksibel dan Scrollable" (Laporan User via Screenshot) — 2026-08-20
+
+**Confidence Rating: 95%**
+**File sebelum -> sesudah:** 57 -> 57 file (0 baru/hapus, 1 file diedit: `DrainScreen.kt` — bukan protected; 1 file protected edit parsial: `app/build.gradle.kts` — bump versi wajib per RULE Batch 37)
+
+### Konteks
+User kirim screenshot tab Drain Analyzer device nyata + laporan "kurang fleksibel dan scrollable".
+
+### Root Cause
+`DrainScreen.kt` sebelumnya: `Column(fillMaxSize())` BIASA (bukan scrollable) sebagai wadah utama, berisi judul + 2 Card toggle + hint text + `LazyColumn` **bersarang** (nested) di posisi terakhir TANPA `Modifier.weight`. Column induk sendiri tidak scroll — kalau total tinggi konten (judul + 2 card + hint + baris app) melebihi tinggi layar, sisanya ke-clip di bawah tanpa cara scroll untuk menjangkaunya. Risiko ini naik signifikan sejak Batch 54 (toggle "Tampilkan Semua App" bisa menampilkan sampai 50 app sekaligus, vs sebelumnya max 15).
+
+### Fix
+Restrukturisasi total: `Column` + `LazyColumn` bersarang -> **SATU `LazyColumn` datar** untuk seluruh isi layar. Judul, 2 card toggle, dan hint/pesan kondisional dibungkus `item { }`; baris app tetap `items(apps) { }`. Ini pola idiomatic Compose untuk kombinasi header+list (nested scrollable di dalam parent non-scrollable adalah anti-pattern, bisa bikin konten atas ke-clip seperti kasus ini — kebalikan dari kasus umum lain, yaitu crash "infinite height", yang terjadi kalau nested LazyColumn diletakkan di dalam `Modifier.verticalScroll`).
+Efek samping kosmetik minor (disengaja, tidak signifikan): spacing antar baris app di list menyatu jadi 12dp (sebelumnya 8dp khusus di LazyColumn nested) — satu `Arrangement.spacedBy` untuk seluruh list, LazyColumn tidak mendukung spacing berbeda per segmen tanpa spacer composable tambahan.
+
+### Sengaja TIDAK diubah
+- `DrainAppRow()`, seluruh logic `LaunchedEffect` (fetch data), `UsageStatsHelper.kt` — 0 perubahan, murni restrukturisasi composition tree, tidak ada logic/kalkulasi yang disentuh.
+- **Ditemukan pola identik di `RulesScreen.kt`** (`Column(fillMaxSize)` + nested `LazyColumn` tanpa weight) saat audit cepat file lain yang pakai `LazyColumn` — TIDAK diperbaiki di batch ini (user cuma laporkan Drain Analyzer, scope batch ini dijaga 1 file supaya bisa diverifikasi presisi). Diangkat jadi kandidat Pending Queue baru di bawah.
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`app/build.gradle.kts` — `versionCode` 20->21, `versionName` "1.0.19"->"1.0.20" (RULE WAJIB Batch 37).
+
+### Catatan
+Confidence **95%** — perubahan murni struktural (pemindahan composable ke `item{}`/`items{}`, logic & callback 100% identik copy-paste), risiko utama cuma kesalahan penempatan kurung/urutan yang sudah diverifikasi manual (brace/paren balance dicek). 5% sisa: belum ada verifikasi device nyata untuk kondisi scroll spesifik (device sama yang laporkan bug, idealnya juga coba toggle "Semua App" dgn banyak app buat pastikan LazyColumn scroll mulus sampai baris terakhir).
+
+### Pending Queue (tambahan)
+20. Terapkan fix pola yang sama (Column+nested-LazyColumn tanpa scroll -> flat LazyColumn) ke `RulesScreen.kt` — ditemukan saat audit Batch 55, belum diperbaiki (di luar scope, user belum minta eksplisit).
+
+---
+
 ## [Batch 54] Fitur - Mode "Tampilkan Semua App" di Drain Analyzer (Permintaan User) — 2026-08-20
 
 **Confidence Rating: 93%**
