@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.17-batch52] - 2026-08-20
+### Added
+- **Pending #19 SELESAI (2/2)**: wiring `BatteryStatsParser` + `ShizukuManager` ke Drain Analyzer. `UsageStatsHelper.AppUsageInfo` dapat field `mahEstimate` (nullable), fungsi baru `fetchDrainMahByPackage()` (exec dumpsys via Shizuku + parse + resolve UID->package) & `mergeDrainData()` (gabung ke daftar existing, re-sort).
+### Changed
+- `DrainScreen.kt`: fetch data mAh riil dibungkus `withContext(Dispatchers.IO)` (shell exec blocking), tampilkan baris mAh riil per app + hint teks dinamis (real data vs proxy).
+
 ## [v1.0.16-batch51] - 2026-08-20
 ### Fixed
 - **Bug baris tergabung `BatteryStatsParser.kt`** (Pending #19, 1.9/2): capture dumpsys panjang nyata dari user (13 app UID + 5 sistem) ungkap parser lama cuma nangkep 1/18 baris UID krn banyak baris konseptual dumpsys tergabung jadi 1 baris fisik & regex pakai anchor `^` ketat. Fix: `(?:^|\s)` boundary-aware + `findAll` (bukan `find` tunggal). Hasil setelah fix: 13 app + 5 sistem = 18 total, cocok 100% manual-count. Parser sekarang confidence 96%, tervalidasi penuh dari data nyata.

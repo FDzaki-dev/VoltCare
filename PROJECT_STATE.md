@@ -18,6 +18,42 @@
 
 ---
 
+---
+
+## [Batch 52] Fitur - Pending #19 (2/2, SELESAI): Wiring BatteryStatsParser + Shizuku ke Drain Analyzer — 2026-08-20
+
+**Confidence Rating: 92%**
+**File sebelum -> sesudah:** 57 -> 57 file (0 baru/hapus, 2 file diedit: `UsageStatsHelper.kt`, `DrainScreen.kt` — bukan protected; 1 file protected edit parsial: `app/build.gradle.kts` — bump versi wajib per RULE Batch 37)
+
+### Konteks
+Langkah terakhir Pending #19 (`FEATURE_PARITY_GOALS.md` Batch 18). Parser (`BatteryStatsParser.kt`, Batch 49-51) sudah TERVALIDASI PENUH terhadap data nyata device user — batch ini menghubungkannya ke `DrainScreen.kt` supaya tab Drain Analyzer benar-benar menampilkan mAh riil (bukan cuma proxy waktu pemakaian), TAPI hanya saat Shizuku aktif & diizinkan.
+
+### Selesai
+- **`UsageStatsHelper.kt`**: `AppUsageInfo` dapat field baru `mahEstimate: Double? = null` (nullable, default param — TIDAK memecah pemanggil existing). Fungsi baru `fetchDrainMahByPackage(context)`: cek `ShizukuManager.hasPermission()` -> exec `dumpsys batterystats --charged` -> `BatteryStatsParser.parseEstimatedPowerUse()` -> resolve tiap `uid` ke package name via `PackageManager.getPackagesForUid()` (1 UID bisa dipakai >1 package/shared UID, semua diberi nilai mAh yang sama karena mAh memang milik UID) -> `Map<packageName, mah>`. Return `null` (bukan map kosong) kalau Shizuku tidak aktif/command gagal/parsing kosong — sinyal eksplisit "data riil tidak tersedia" ke caller. Fungsi baru `mergeDrainData(apps, mahByPackage)`: isi `mahEstimate` pada app yang match, lalu re-sort (mAh riil descending duluan, sisanya tetap urutan waktu pemakaian semula) — `null`/kosong -> no-op, list `apps` dikembalikan apa adanya.
+- **`DrainScreen.kt`**: `LaunchedEffect` sekarang, setelah dapat daftar proxy dari `topAppsByForegroundUsage()`, panggil `fetchDrainMahByPackage()` **dibungkus `withContext(Dispatchers.IO)`** (WAJIB — exec shell Shizuku itu blocking `Process.waitFor()`, kalau dibiarkan di Main dispatcher LaunchedEffect bakal freeze UI) lalu `mergeDrainData()`. State baru `hasRealDrainData` mengontrol hint teks (beda kalimat saat data riil vs proxy). `DrainAppRow` tampilkan baris tambahan "≈ X.XX mAh (riil, sejak charge terakhir)" **hanya** untuk app yang punya `mahEstimate` non-null — app lain di daftar yang sama tetap tampil normal tanpa baris itu (bukan dihilangkan dari list).
+
+### Keputusan Desain Penting
+- **Bukan daftar terpisah** — batch ini SENGAJA mengisi mAh riil ke daftar top-15-by-foreground-time yang sudah ada (bukan bikin daftar top-15-by-mAh independen). Alasan: menjaga jumlah baris (max 3 file) & scope tetap "wiring", bukan redesign fitur. Konsekuensi jujur: app dengan mAh riil tinggi TAPI foreground time-nya rendah (tidak masuk 15 besar waktu pemakaian) TIDAK akan muncul di daftar sama sekali — ini keterbatasan yang diketahui, bukan bug, didokumentasikan di KDoc `fetchDrainMahByPackage`.
+- **Jendela waktu berbeda, sengaja tidak diselaraskan**: `dumpsys batterystats --charged` = sejak charge penuh terakhir; `topAppsByForegroundUsage` = 24 jam terakhir. Dua angka ini TIDAK diklaim mengukur periode yang sama — didokumentasikan eksplisit di KDoc & hint UI, bukan disamarkan seolah-olah 1 angka gabungan yang konsisten.
+- **Fail-safe berlapis**: `fetchDrainMahByPackage` return null di 3 titik gagal berbeda (Shizuku off, command gagal, parsing kosong) — `mergeDrainData` treat semua sama (no-op), jadi SATU jalur fallback tunggal yang predictable, bukan beda-beda perilaku tiap kegagalan.
+
+### Sengaja TIDAK diubah
+- `BatteryStatsParser.kt` — 0 perubahan, dipakai persis seperti tervalidasi di Batch 51.
+- `ShizukuManager.kt` — `execShellCommand` dipakai apa adanya, tidak ada fungsi baru di file ini.
+- `AndroidManifest.xml` — TIDAK perlu entri baru; `dumpsys` dieksekusi lewat proses Shizuku (privilege shell UID eksternal), sama seperti `am force-stop` yang sudah dipakai `killBackgroundApp` sejak Batch 39 tanpa manifest change.
+- Fallback proxy (`topAppsByForegroundUsage`, tanpa Shizuku) — 0 perubahan perilaku, user yang belum pakai Shizuku sama sekali tetap dapat pengalaman identik dengan sebelum batch ini.
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`app/build.gradle.kts` — brace balance 23/23 curly, 65/65 paren, hanya 2 baris versi diganti (`versionCode` 17->18, `versionName` "1.0.16"->"1.0.17").
+
+### Catatan
+Confidence **92%** — bukan 96%+ (level Batch 51) karena parser murni sudah tervalidasi penuh, TAPI 2 hal di wiring ini belum ada verifikasi device fisik: (1) `getPackagesForUid()` di ROM custom (mis. Transsion XOS, sumber bug isSystemApp Batch 45/48) belum tentu 100% konsisten dgn AOSP murni untuk semua UID app pihak ketiga; (2) urutan `withContext(Dispatchers.IO)` dalam `LaunchedEffect` belum dites end-to-end di device nyata dgn Shizuku aktif (pola coroutine-nya standar & sudah dipakai project lain, tapi kombinasi spesifik shell-exec-blocking-dalam-Compose ini baru pertama kali di codebase). Rekomendasi: build + buka tab Drain dgn Shizuku aktif & diizinkan, konfirmasi (a) UI tidak freeze saat memuat, (b) minimal 1 app menampilkan baris "≈ X.XX mAh (riil...)", (c) hint teks berubah sesuai `hasRealDrainData`. Pending #19 resmi **SELESAI 2/2** setelah konfirmasi ini (tidak perlu batch tambahan kecuali ditemukan bug baru).
+
+### Pending Queue
+19. ✅ **SELESAI (2/2)** — parser tervalidasi (Batch 49-51) + wiring UI (Batch 52, ini).
+
+---
+
 ## [Batch 51] Fix - Pending #19 (1.9/2): Bug Baris Tergabung, Parser Sekarang Tervalidasi Penuh — 2026-08-20
 
 **Confidence Rating: 96%**

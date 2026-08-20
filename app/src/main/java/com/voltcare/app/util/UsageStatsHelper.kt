@@ -11,12 +11,19 @@ import android.net.Uri
 import android.os.Process
 import android.provider.Settings
 
-/** Satu baris hasil Drain Analyzer: 1 app + total waktu pemakaian foreground. */
+/**
+ * Satu baris hasil Drain Analyzer: 1 app + total waktu pemakaian foreground.
+ * [mahEstimate] null secara default (proxy waktu pemakaian saja, jalur lama sejak Batch 1) -
+ * terisi HANYA jika Shizuku aktif & `dumpsys batterystats` berhasil di-parse (Pending #19 2/2,
+ * lihat [fetchDrainMahByPackage]/[mergeDrainData] di bawah). Nullable, BUKAN default 0.0, supaya
+ * UI bisa membedakan "belum ada data riil" vs "data riil = 0 mAh" secara eksplisit.
+ */
 data class AppUsageInfo(
     val packageName: String,
     val appLabel: String,
     val totalForegroundMs: Long,
-    val isSystemApp: Boolean
+    val isSystemApp: Boolean,
+    val mahEstimate: Double? = null
 )
 
 /**
@@ -126,6 +133,68 @@ object UsageStatsHelper {
         } catch (e: SecurityException) {
             false
         }
+    }
+
+    /**
+     * Pending #19 (2/2, Batch 52): wiring [BatteryStatsParser] (logic parsing, Batch 49-51,
+     * TERVALIDASI PENUH terhadap data nyata) + [ShizukuManager.execShellCommand] jadi data
+     * mAh riil per app. Return null (BUKAN map kosong) kalau Shizuku belum aktif/diizinkan,
+     * command shell gagal, atau parsing tidak menemukan section sama sekali - caller WAJIB
+     * treat null sebagai "data riil tidak tersedia, tetap pakai proxy waktu pemakaian" (fallback
+     * graceful, TIDAK pernah membuat Drain Analyzer kosong/crash hanya karena Shizuku absen).
+     *
+     * Catatan jujur soal jendela waktu: `dumpsys batterystats --charged` mengukur SEJAK CHARGE
+     * PENUH TERAKHIR (bukan window 24 jam spt [topAppsByForegroundUsage]) - dua sumber data ini
+     * TIDAK diklaim mengukur periode yang identik, murni dikombinasikan di [mergeDrainData] utk
+     * memberi estimasi mAh riil pada app yang sudah tersaring dari daftar 24 jam.
+     *
+     * 1 UID Android bisa dipakai bareng oleh beberapa package (shared UID, jarang tapi valid
+     * di AOSP) - `getPackagesForUid` mengembalikan semua package tsb & masing-masing diberi
+     * nilai mAh yang sama (nilai mAh memang milik UID, bukan per-package individual).
+     */
+    fun fetchDrainMahByPackage(context: Context): Map<String, Double>? {
+        if (!ShizukuManager.hasPermission()) return null
+        val result = ShizukuManager.execShellCommand(arrayOf("dumpsys", "batterystats", "--charged"))
+        if (!result.isSuccess) return null
+
+        val parsed = BatteryStatsParser.parseEstimatedPowerUse(result.stdout)
+        if (parsed.isEmpty()) return null
+
+        val pm = context.packageManager
+        val mahByPackage = mutableMapOf<String, Double>()
+        for (entry in parsed) {
+            val packages = try {
+                pm.getPackagesForUid(entry.uid)
+            } catch (e: Exception) {
+                null
+            } ?: continue
+
+            for (pkg in packages) {
+                // Defensif: kalau (jarang) ada >1 entri UidPowerUsage utk uid yang sama,
+                // simpan nilai tertinggi - bukan ditimpa/dijumlah begitu saja.
+                val existing = mahByPackage[pkg]
+                if (existing == null || entry.mah > existing) mahByPackage[pkg] = entry.mah
+            }
+        }
+        return mahByPackage.ifEmpty { null }
+    }
+
+    /**
+     * Gabungkan hasil [fetchDrainMahByPackage] ke daftar [apps] existing (dari
+     * [topAppsByForegroundUsage]) - TIDAK mengganti daftar app, hanya mengisi [AppUsageInfo.mahEstimate]
+     * kalau ada match `packageName`, lalu urutkan ulang: app dengan data mAh riil di atas
+     * (descending mAh), app tanpa match tetap di bawah dgn urutan waktu pemakaian semula
+     * (BUKAN dihapus dari daftar - tetap actionable via Force Stop/Pengaturan App spt biasa).
+     * [mahByPackage] null/kosong -> return [apps] apa adanya (no-op, jalur lama utuh).
+     */
+    fun mergeDrainData(apps: List<AppUsageInfo>, mahByPackage: Map<String, Double>?): List<AppUsageInfo> {
+        if (mahByPackage.isNullOrEmpty()) return apps
+        return apps
+            .map { app -> mahByPackage[app.packageName]?.let { mah -> app.copy(mahEstimate = mah) } ?: app }
+            .sortedWith(
+                compareByDescending<AppUsageInfo> { it.mahEstimate ?: -1.0 }
+                    .thenByDescending { it.totalForegroundMs }
+            )
     }
 
     fun formatDuration(ms: Long): String {

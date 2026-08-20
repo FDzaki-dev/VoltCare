@@ -35,7 +35,9 @@ import com.voltcare.app.util.HibernateWhitelistStore
 import com.voltcare.app.util.HibernateWorker
 import com.voltcare.app.util.ShizukuManager
 import com.voltcare.app.util.UsageStatsHelper
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Tab Penguras (Drain Analyzer): top app berdasarkan waktu pemakaian foreground 24 jam
@@ -50,12 +52,25 @@ fun DrainScreen() {
     var refreshTrigger by remember { mutableStateOf(0) }
     var hibernateEnabled by remember { mutableStateOf(HibernateWhitelistStore.isEnabled(context)) }
     var whitelist by remember { mutableStateOf(HibernateWhitelistStore.getAll(context)) }
+    // Pending #19 (2/2): true hanya kalau Shizuku aktif DAN dumpsys batterystats berhasil
+    // di-parse jadi minimal 1 baris mAh riil - menentukan apakah hint "data riil" ditampilkan.
+    var hasRealDrainData by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(refreshTrigger) {
         hasPermission = UsageStatsHelper.hasUsageAccessPermission(context)
-        apps = if (hasPermission) UsageStatsHelper.topAppsByForegroundUsage(context) else emptyList()
+        var proxyApps = if (hasPermission) UsageStatsHelper.topAppsByForegroundUsage(context) else emptyList()
+
+        // Wiring Pending #19 (2/2): dumpsys via Shizuku = shell process blocking (Process.waitFor),
+        // WAJIB dijalankan di luar Main dispatcher - LaunchedEffect defaultnya Main, jadi dibungkus
+        // withContext(IO) supaya UI tidak freeze menunggu proses shell selesai.
+        val mahByPackage = withContext(Dispatchers.IO) {
+            UsageStatsHelper.fetchDrainMahByPackage(context)
+        }
+        hasRealDrainData = !mahByPackage.isNullOrEmpty()
+        proxyApps = UsageStatsHelper.mergeDrainData(proxyApps, mahByPackage)
+        apps = proxyApps
     }
 
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
@@ -128,8 +143,14 @@ fun DrainScreen() {
                 )
             } else {
                 Text(
-                    "Diurutkan dari waktu pemakaian tertinggi. \"Force Stop\" bersifat best-effort " +
-                        "(mematikan proses background cached, tidak sekuat Force Stop di Pengaturan).",
+                    if (hasRealDrainData) {
+                        "Kolom mAh dari dumpsys batterystats (Shizuku, sejak charge penuh terakhir) - " +
+                            "app tanpa data mAh riil tetap diurutkan berdasar waktu pemakaian. " +
+                            "\"Force Stop\" bersifat best-effort."
+                    } else {
+                        "Diurutkan dari waktu pemakaian tertinggi (proxy - lihat catatan di UsageStatsHelper.kt). " +
+                            "\"Force Stop\" bersifat best-effort."
+                    },
                     style = MaterialTheme.typography.bodySmall
                 )
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -182,6 +203,17 @@ private fun DrainAppRow(
                         UsageStatsHelper.formatDuration(app.totalForegroundMs),
                         style = MaterialTheme.typography.bodySmall
                     )
+                    // Pending #19 (2/2): tampil hanya kalau mergeDrainData() berhasil match
+                    // package ini ke UID di dumpsys batterystats - app lain di daftar yang
+                    // sama tetap tampil tanpa baris ini (bukan dihilangkan, hanya tidak ada
+                    // data riilnya di siklus charge saat ini).
+                    app.mahEstimate?.let { mah ->
+                        Text(
+                            "\u2248 ${"%.2f".format(mah)} mAh (riil, sejak charge terakhir)",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
                 if (isActionable(app.packageName)) {
                     Checkbox(checked = isWhitelisted, onCheckedChange = { onToggleWhitelist() })
