@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.21-batch56] - 2026-08-20
+### Fixed
+- **Regresi Batch 55**: build CI gagal (`compileReleaseKotlin FAILED: Unresolved reference: item`) krn import `androidx.compose.foundation.lazy.item` yang tidak valid (`item{}` itu member function `LazyListScope`, bukan top-level import spt `items`). Baris import salah dihapus dari `DrainScreen.kt`. Ditemukan dari log GitHub Actions yang di-upload user (guard Batch 4 mencegah APK rusak ke-publish, sesuai desain).
+
 ## [v1.0.20-batch55] - 2026-08-20
 ### Fixed
 - Drain Analyzer "kurang fleksibel dan scrollable" (laporan user via screenshot): `DrainScreen.kt` sebelumnya `Column` non-scroll berisi `LazyColumn` bersarang tanpa weight, konten bisa ke-clip di bawah tanpa cara scroll (makin mungkin sejak toggle "Semua App" Batch 54 bisa nampilin sampai 50 app). Diganti jadi SATU `LazyColumn` datar (`item{}` untuk header/card, `items(apps){}` untuk daftar) — pola idiomatic Compose, seluruh layar sekarang scroll normal.

@@ -24,6 +24,38 @@
 
 ---
 
+## [Batch 56] Fix - Build CI Gagal: Import `item` Tidak Valid (Regresi dari Batch 55) — 2026-08-20
+
+**Confidence Rating: 99%**
+**File sebelum -> sesudah:** 57 -> 57 file (0 baru/hapus, 1 file diedit: `DrainScreen.kt` — bukan protected; 1 file protected edit parsial: `app/build.gradle.kts` — bump versi wajib per RULE Batch 37)
+
+### Konteks
+User upload log GitHub Actions run yang GAGAL (`gh run download` / ZIP log). Root cause ditemukan dari step "Build signed release APK" (bukan dari CrashLogger runtime — build bahkan tidak sampai jadi APK, jadi log CI adalah satu-satunya sumber, sesuai fallback yang didokumentasikan di README).
+
+### Root Cause
+**Regresi dari fix Batch 55 (kesalahan saya sendiri).** Saat restrukturisasi `DrainScreen.kt` ke satu `LazyColumn` datar, ditambahkan `import androidx.compose.foundation.lazy.item` — import ini TIDAK VALID. `LazyListScope.item(...)` adalah **member function** dari interface `LazyListScope` (otomatis tersedia di dalam lambda `LazyColumn { }`, tanpa import terpisah) — BEDA dengan `items(List<T>, ...)` yang memang top-level extension function di package yang sama (makanya `import androidx.compose.foundation.lazy.items` valid & tetap dipakai). Kotlin compiler gagal resolve `androidx.compose.foundation.lazy.item` sebagai declaration yang bisa di-import, sehingga `compileReleaseKotlin` FAILED:
+```
+e: .../DrainScreen.kt:10:41 Unresolved reference: item
+```
+Build gagal total (0 APK dihasilkan sama sekali) -> `find app/build/outputs/apk/release` tidak ketemu folder -> guard "Verify APK is signed" (Batch 4) benar-benar bekerja sesuai desain: abort duluan, TIDAK ada APK rusak/kosong yang ke-publish. Release Blocking Rule berhasil mencegah dampak ke user, tapi builder tetap gagal & perlu fix ini.
+
+### Fix
+Hapus baris `import androidx.compose.foundation.lazy.item` dari `DrainScreen.kt`. Pemanggilan `item { ... }` di dalam `LazyColumn { }` tetap 100% valid tanpa import itu (member function). Tidak ada perubahan logic/UI apa pun selain penghapusan 1 baris import yang salah.
+
+### Sengaja TIDAK diubah
+Seluruh restrukturisasi Batch 55 (flat LazyColumn, item/items placement) tetap dipertahankan apa adanya — cuma importnya yang salah, bukan strukturnya.
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`app/build.gradle.kts` — `versionCode` 21->22, `versionName` "1.0.20"->"1.0.21" (RULE WAJIB Batch 37).
+
+### Catatan
+Confidence **99%** — root cause eksplisit tertulis di error compiler (bukan dugaan), fix single-line, dan dasar teorinya (item = member function LazyListScope, items = top-level extension) konsisten dengan API Compose Foundation resmi. 1% sisa murni krn belum ada run CI baru yang mengonfirmasi build hijau setelah fix ini (rekomendasi: push batch ini, cek tab Actions sampai `build-release` selesai centang hijau sebelum anggap kelar).
+
+### Pending Queue
+Tidak ada nomor baru — ini pure regresi-fix dari Batch 55, bukan fitur baru.
+
+---
+
 ## [Batch 55] Fix - Drain Analyzer "Kurang Fleksibel dan Scrollable" (Laporan User via Screenshot) — 2026-08-20
 
 **Confidence Rating: 95%**
