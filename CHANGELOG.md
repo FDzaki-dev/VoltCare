@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.22-batch57] - 2026-08-20
+### Fixed
+- 3 bug P0 dari audit UX eksternal (diverifikasi manual thd source code dulu, bukan trust dokumen): (1) `DashboardScreen.kt` tidak scrollable -> tambah `verticalScroll`; (2) `RulesScreen.kt` pola Column+nested-LazyColumn sama persis dgn bug `DrainScreen.kt` -> diflatkan jadi 1 LazyColumn (tanpa import `item` yang salah, pelajaran dari Batch 56); (3) `StressTestScreen.kt` WakeLock diambil sejak layar dibuka (bukan saat tes mulai) -> dipindah ke `LaunchedEffect(testState==RUNNING)`.
+### Rejected
+- Item P1 audit (copy/tooltip/onboarding) sengaja tidak dikerjakan - bukan bug terverifikasi, di luar scope "debugging" yang diminta user. Dicatat sbg Pending Queue #21-25 (opsional, perlu diminta eksplisit).
+
 ## [v1.0.21-batch56] - 2026-08-20
 ### Fixed
 - **Regresi Batch 55**: build CI gagal (`compileReleaseKotlin FAILED: Unresolved reference: item`) krn import `androidx.compose.foundation.lazy.item` yang tidak valid (`item{}` itu member function `LazyListScope`, bukan top-level import spt `items`). Baris import salah dihapus dari `DrainScreen.kt`. Ditemukan dari log GitHub Actions yang di-upload user (guard Batch 4 mencegah APK rusak ke-publish, sesuai desain).

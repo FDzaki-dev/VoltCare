@@ -24,6 +24,45 @@
 
 ---
 
+## [Batch 57] Fix - 3 Bug P0 dari Audit UX Eksternal (Terverifikasi Manual, P1 Ditolak) — 2026-08-20
+
+**Confidence Rating: 94%**
+**File sebelum -> sesudah:** 57 -> 57 file (0 baru/hapus, 3 file diedit: `DashboardScreen.kt`, `RulesScreen.kt`, `StressTestScreen.kt` — bukan protected; 1 file protected edit parsial: `app/build.gradle.kts` — bump versi wajib per RULE Batch 37)
+
+### Konteks
+User upload dokumen audit eksternal `VoltCare_UX_Audit_Final_Verdict.md` (P0/P1, "100% user-friendly") dengan instruksi eksplisit: **jangan telan mentah-mentah, verifikasi dulu, abaikan yang menyesatkan**. Sesuai instruksi itu, SETIAP klaim P0 di-cross-check langsung ke source code sebelum ada satu baris pun diubah — bukan trust-by-default ke dokumen pihak ketiga (dokumen audit BUKAN bagian dari hirarki konteks resmi proyek: Chat Saat Ini > PROJECT_STATE.md > FILE_MANIFEST.txt > CHANGELOG.md > README.md).
+
+### Hasil Verifikasi (semua 3 klaim P0 TERBUKTI BENAR, bukan menyesatkan)
+1. **Dashboard tidak scrollable** — TERKONFIRMASI. `DashboardScreen.kt` pakai `Column(fillMaxWidth())` tanpa `verticalScroll`. Baris/kartu terakhir (Cycle, tombol Kalibrasi) berisiko ke-clip di layar kecil/skala font besar.
+2. **Rules screen scroll/layout** — TERKONFIRMASI, dan sudah SESUAI dgn temuan audit internal saya sendiri (Pending #20, ditulis di Batch 55): `RulesScreen.kt` pola PERSIS sama dgn bug `DrainScreen.kt` yang sudah diperbaiki (Column fillMaxSize + LazyColumn bersarang tanpa weight).
+3. **WakeLock StressTest diambil terlalu dini** — TERKONFIRMASI paling serius dari ketiganya (bug perilaku, bukan cuma kosmetik): `val wakeLock = remember { acquirePartialWakeLock(context) }` diambil SAAT LAYAR PERTAMA KALI DI-COMPOSE (begitu `StressTestScreen` tampil/`IdleCard` muncul), BUKAN saat user tekan "Mulai Tes" - CPU tetap terjaga sia-sia kalau user cuma buka layar lalu urung mulai tes. Ironis untuk app kesehatan baterai.
+
+### Selesai
+- **`DashboardScreen.kt`**: tambah `.verticalScroll(rememberScrollState())` ke `Modifier` Column yang sudah ada. TIDAK diganti jadi LazyColumn (isinya fixed set of Row/Card, bukan list dinamis) - `verticalScroll` sudah cukup & lebih sederhana. 0 state/logic/data flow disentuh.
+- **`RulesScreen.kt`**: pola fix IDENTIK dgn `DrainScreen.kt` Batch 55 - `Column`+`LazyColumn` bersarang -> SATU `LazyColumn` datar (`item{}` utk judul/deskripsi/tombol preset, `items(rules){}` utk daftar). **Pelajaran dari Batch 56 diterapkan**: TIDAK menambah import `androidx.compose.foundation.lazy.item` (itu member function `LazyListScope`, bukan top-level symbol - sumber regresi CI kemarin). Diverifikasi manual: tidak ada import `lazy.item` di file ini.
+- **`StressTestScreen.kt`**: `val wakeLock = remember { acquirePartialWakeLock(context) }` (eager) diganti `var wakeLock by remember { mutableStateOf<PowerManager.WakeLock?>(null) }` + `LaunchedEffect(testState)` baru yang acquire TEPAT saat `testState == RUNNING`, release begitu keluar dari RUNNING (state apa pun - FINISHED via loop natural ATAU via "Hentikan Lebih Awal", ATAU balik ke IDLE) - satu sumber kebenaran, tidak bergantung jalur transisi. `DisposableEffect` safety-net (screen leave) disesuaikan null-safe. Timeout eksplisit `WAKELOCK_TIMEOUT_MS` (safety-net kedua) TIDAK diubah. 0 perubahan ke countdown loop/kalkulasi drop/measurement logic.
+
+### DITOLAK (P1, sesuai instruksi user "abaikan saran yang menyesatkan" + regression rule di dokumen audit itu sendiri)
+Item 4-8 di dokumen (bahasa teknis "dumpsys/mAh riil/proxy/Shizuku" -> disederhanakan, onboarding izin, deskripsi kontekstual metrik dashboard, tooltip ikon header, copy penjelasan Stress Test) **SENGAJA TIDAK dikerjakan di batch ini**. Alasan: ini bukan "defect" terverifikasi (bug), tapi preferensi desain/copywriting subjektif - dokumen audit itu sendiri menulis regression rule "if a proposed change... without fixing a demonstrated user-facing defect, REJECT the change", dan user secara eksplisit minta fokus "debugging". Kalau user mau salah satu dari P1 dikerjakan, perlu diminta eksplisit sebagai task terpisah (masuk Pending Queue di bawah, bukan diasumsikan otomatis disetujui).
+
+### Sengaja TIDAK diubah
+`DrainAppRow`, `RuleRow`, `RuleFormDialog`, `ChargeLimitPresetDialog`, seluruh logic countdown/kalkulasi drop di `StressTestScreen.kt`, `RulesViewModel.kt`, `DashboardViewModel.kt` — 0 perubahan, sesuai batas ketat "Forbidden" di dokumen audit (yang bagian ini justru valid & diikuti: jangan ubah business logic/kalkulasi/data flow).
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`app/build.gradle.kts` — `versionCode` 22->23, `versionName` "1.0.21"->"1.0.22" (RULE WAJIB Batch 37).
+
+### Catatan
+Confidence **94%** — ketiga fix diverifikasi manual terhadap source code asli (bukan trust dokumen), brace/paren balance dicek per file, pola RulesScreen sama persis dgn DrainScreen yang sudah terverifikasi struktural. 6% sisa: belum ada build CI hijau + belum ada verifikasi device nyata untuk 3 perubahan ini (khususnya WakeLock - perlu tes manual: buka Stress Test, JANGAN tekan Mulai, cek `adb shell dumpsys power` tidak ada `VoltCare:StressTest` PARTIAL_WAKE_LOCK aktif sebelum test dimulai).
+
+### Pending Queue (tambahan, TIDAK otomatis dikerjakan - opsional)
+21. P1 dari audit (kalau user minta eksplisit): sederhanakan bahasa teknis (dumpsys/mAh riil/proxy/Shizuku) di empty-state Drain Analyzer.
+22. P1 dari audit: alur onboarding izin (Usage Access/Shizuku) - jelaskan alasan sebelum minta, auto-recheck setelah user kembali dari Settings.
+23. P1 dari audit: deskripsi kontekstual singkat di tiap metric card Dashboard (Health/Suhu/Volt/Cycle).
+24. P1 dari audit: content description/tooltip utk ikon aksi header (Shizuku, Update).
+25. P1 dari audit: perkuat copy penjelasan Stress Test (durasi, kenapa lepas charger, hasil apa yg didapat).
+
+---
+
 ## [Batch 56] Fix - Build CI Gagal: Import `item` Tidak Valid (Regresi dari Batch 55) — 2026-08-20
 
 **Confidence Rating: 99%**

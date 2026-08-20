@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
@@ -31,9 +33,14 @@ fun DashboardScreen(
     // TIDAK pakai Scaffold di sini -- screen ini sudah dibungkus Scaffold di NavGraph.kt.
     // Insets/systemBars sudah dikonsumsi SATU KALI di titik itu (Aturan Emas: hindari
     // redundansi, lihat dokumentasi_insets_targetsdk34.md & PROJECT_STATE Batch 31).
+    // Fix (audit UX, terverifikasi): Column ini sebelumnya TIDAK scroll - di layar kecil atau
+    // skala font/display besar, kartu paling bawah (Cycle/tombol Kalibrasi) bisa ke-clip tanpa
+    // cara menjangkaunya. Cukup tambah verticalScroll di Column yang sama (bukan LazyColumn -
+    // isinya fixed, bukan list dinamis) - 0 perubahan state/logic/data flow di bawah ini.
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {

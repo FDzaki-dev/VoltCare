@@ -61,39 +61,49 @@ fun RulesScreen(viewModel: RulesViewModel = viewModel()) {
             }
         }
     ) { padding ->
-        Column(
+        // Fix (audit UX, terverifikasi - pola identik dgn DrainScreen Batch 55): sebelumnya
+        // Column(fillMaxSize) TIDAK scroll berisi LazyColumn bersarang tanpa weight - kalau
+        // daftar aturan berkembang bisa ke-clip di bawah tanpa cara scroll. Diganti SATU
+        // LazyColumn datar (item{} utk header, items(rules){} utk daftar) - 0 logic disentuh.
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Aturan Cerdas", style = MaterialTheme.typography.headlineMedium)
-            Text(
-                "Contoh: IF suhu > 40C AND charging THEN alarm. Ketuk + untuk tambah aturan baru.",
-                style = MaterialTheme.typography.bodyMedium
-            )
-            // Batch 42 (Pending #11): shortcut 1-tap, tidak perlu isi form lengkap 5 field
-            // buat kasus paling umum "alarm kalau charging kelewat batas".
-            TextButton(onClick = { showPreset = true }) {
-                Text("+ Preset Cepat: Alarm Batas Charge")
+            item {
+                Text("Aturan Cerdas", style = MaterialTheme.typography.headlineMedium)
+            }
+            item {
+                Text(
+                    "Contoh: IF suhu > 40C AND charging THEN alarm. Ketuk + untuk tambah aturan baru.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+            item {
+                // Batch 42 (Pending #11): shortcut 1-tap, tidak perlu isi form lengkap 5 field
+                // buat kasus paling umum "alarm kalau charging kelewat batas".
+                TextButton(onClick = { showPreset = true }) {
+                    Text("+ Preset Cepat: Alarm Batas Charge")
+                }
             }
 
             if (rules.isEmpty()) {
-                Text(
-                    "Belum ada aturan. Tambah aturan pertama lewat tombol + di kanan bawah.",
-                    style = MaterialTheme.typography.bodySmall
-                )
+                item {
+                    Text(
+                        "Belum ada aturan. Tambah aturan pertama lewat tombol + di kanan bawah.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(rules, key = { it.id }) { rule ->
-                        RuleRow(
-                            rule = rule,
-                            onToggle = { enabled -> viewModel.setEnabled(rule, enabled) },
-                            onEdit = { editingRule = rule; showForm = true },
-                            onDelete = { pendingDelete = rule }
-                        )
-                    }
+                items(rules, key = { it.id }) { rule ->
+                    RuleRow(
+                        rule = rule,
+                        onToggle = { enabled -> viewModel.setEnabled(rule, enabled) },
+                        onEdit = { editingRule = rule; showForm = true },
+                        onDelete = { pendingDelete = rule }
+                    )
                 }
             }
         }

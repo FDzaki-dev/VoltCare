@@ -38,9 +38,10 @@ private enum class StressState { IDLE, RUNNING, FINISHED }
 /**
  * Tab Tes Baterai (Stress Test): sesi tetap 10 menit, mengukur drop persen baterai
  * dari BatteryUtils.readSnapshot() (polling 1 detik, sumber sama dengan Dashboard/service,
- * tidak ada BroadcastReceiver baru). Wake lock PARTIAL dipakai TERKONTROL: acquire dengan
- * timeout eksplisit (buffer 1 menit di atas durasi tes) sebagai safety-net, dan selalu
- * dilepas via DisposableEffect saat tes selesai/dibatalkan/layar ditinggalkan.
+ * tidak ada BroadcastReceiver baru). Wake lock PARTIAL dipakai TERKONTROL: diambil TEPAT saat
+ * tes benar-benar mulai (bukan saat layar dibuka), dengan timeout eksplisit (buffer 1 menit di
+ * atas durasi tes) sebagai safety-net, dan selalu dilepas via LaunchedEffect+DisposableEffect
+ * saat tes selesai/dibatalkan/layar ditinggalkan.
  */
 @Composable
 fun StressTestScreen(onBack: () -> Unit) {
@@ -50,12 +51,28 @@ fun StressTestScreen(onBack: () -> Unit) {
     var startSnapshot by remember { mutableStateOf<BatterySnapshot?>(null) }
     var currentSnapshot by remember { mutableStateOf(BatteryUtils.readSnapshot(context)) }
     var pluggedDuringTest by remember { mutableStateOf(false) }
-    val wakeLock = remember { acquirePartialWakeLock(context) }
+    var wakeLock by remember { mutableStateOf<PowerManager.WakeLock?>(null) }
+
+    // Fix (audit UX, terverifikasi lewat baca kode langsung): SEBELUMNYA
+    // `val wakeLock = remember { acquirePartialWakeLock(context) }` mengambil wake lock SAAT
+    // LAYAR INI PERTAMA KALI DI-COMPOSE - CPU tetap terjaga sia-sia begitu user cuma MEMBUKA
+    // layar (IdleCard tampil), walau belum tentu jadi tekan "Mulai Tes". Sekarang lock diambil
+    // TEPAT saat testState pindah ke RUNNING, dan dilepas begitu keluar dari RUNNING (baik
+    // selesai alami di loop bawah maupun "Hentikan Lebih Awal" dari RunningCard) - satu sumber
+    // kebenaran, tidak bergantung jalur mana yang men-trigger transisi state.
+    LaunchedEffect(testState) {
+        if (testState == StressState.RUNNING) {
+            wakeLock = acquirePartialWakeLock(context)
+        } else {
+            wakeLock?.let { if (it.isHeld) it.release() }
+            wakeLock = null
+        }
+    }
 
     // Safety-net: wake lock TIDAK PERNAH dibiarkan menyala setelah layar ini ditinggalkan,
     // apapun alasannya (tes selesai, dibatalkan, atau user navigasi keluar paksa).
     DisposableEffect(Unit) {
-        onDispose { if (wakeLock.isHeld) wakeLock.release() }
+        onDispose { wakeLock?.let { if (it.isHeld) it.release() } }
     }
 
     LaunchedEffect(testState) {
