@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.12-batch47] - 2026-08-20
+### Removed
+- **4 file dokumentasi orphan project lain "PromptVault"** (manifest desync, terdeteksi saat audit awal sesi): `ROADMAP.md`, `TROUBLESHOOTING.md`, `MAINTENANCE.md`, `scripts/preflight_check.sh` — bukan milik VoltCare, 0 referensi silang, tidak tercatat `FILE_MANIFEST.txt`, tidak dipanggil `release.yml`. Izin hapus dikonfirmasi eksplisit user. Pola sama dgn insiden Batch 25 (source `.kt` orphan), kali ini dokumentasi.
+### Changed
+- Bump versi `1.0.11` -> `1.0.12` (`versionCode` 12->13) sesuai RULE WAJIB Batch 37.
+
 ## [v1.0.11-batch46] - 2026-08-20
 ### Fixed
 - **Tombol "Force Stop" tidak ada feedback** (lanjutan laporan user setelah Batch 45): `DrainScreen.kt` sekarang tampilkan Snackbar sukses/gagal (pola sama seperti `HistoryScreen.kt`) — sebelumnya return value `killBackgroundApp()` dibuang & list tidak pernah berubah visual (representasi historis, bukan proses live), jadi klik kelihatan "tidak ngefek".

@@ -18,6 +18,40 @@
 
 ---
 
+## [Batch 47] Cleanup - Hapus 4 File Dokumentasi Orphan "PromptVault" (Manifest Desync) — 2026-08-20
+
+**Confidence Rating: 98%**
+**File sebelum -> sesudah:** 60 -> 56 file (4 dihapus: `ROADMAP.md`, `TROUBLESHOOTING.md`, `MAINTENANCE.md`, `scripts/preflight_check.sh`; 1 file protected edit parsial: `app/build.gradle.kts` — bump versi wajib per RULE Batch 37)
+
+### Konteks
+User upload ZIP baru minta "lanjutkan progress" seperti sesi fresh. Audit awal (baca `PROJECT_STATE.md`/`ROADMAP.md`/`TROUBLESHOOTING.md`/`MAINTENANCE.md` sebelum eksekusi task apapun) menemukan 4 file berisi konten project **LAIN** milik user yang sama — **PromptVault** (aplikasi file-organizer terpisah, repo `FDzaki-dev/PromptVault`, package `com.elprompter.promptvault`) — bukan VoltCare. Persis pola insiden **Batch 25** (dulu 65 file source `.kt` PromptVault ikut kebundle & bikin `compileDebugKotlin`/CI gagal), kali ini yang kebawa adalah dokumentasi perencanaan (bukan source code, jadi tidak bikin build gagal — tapi tetap berbahaya: `MAINTENANCE.md` secara eksplisit instruksikan sesi Claude berikutnya `web_fetch` ke repo GitHub `FDzaki-dev/PromptVault` yang SALAH kalau tidak ketahuan).
+
+### Verifikasi sebelum hapus (sesuai Strict Delete & Repack Guard)
+- **0 referensi silang**: `grep -rn "PromptVault\|elprompter"` di `PROJECT_STATE.md`/`CHANGELOG.md` (dokumen sah) HANYA muncul di entri riwayat Batch 25 (menceritakan insiden lama, sah/tidak dihapus) — tidak ada referensi dari kode VoltCare (`com.voltcare.app`) ke 4 file yang dihapus, maupun sebaliknya.
+- `scripts/preflight_check.sh` hardcoded `KT_DIR="app/src/main/java/com/elprompter/promptvault"` — 100% tidak relevan/tidak jalan untuk `com.voltcare.app`, dan **tidak dipanggil** dari `.github/workflows/release.yml` (grep bersih) — orphan tooling, bukan bagian CI aktif.
+- **Manifest desync dikonfirmasi**: ke-4 file **tidak tercantum** di `FILE_MANIFEST.txt` (terakhir digenerate Batch 22) — tidak pernah resmi jadi bagian VoltCare.
+- **Izin hapus**: dikonfirmasi eksplisit oleh user via pilihan "Hapus 4 file itu, lanjut Batch 47" (bukan asumsi sepihak).
+
+### Selesai
+- Hapus `ROADMAP.md`, `TROUBLESHOOTING.md`, `MAINTENANCE.md`, `scripts/preflight_check.sh` (folder `scripts/` ikut kosong, dihapus).
+- **`app/build.gradle.kts`** (protected, edit parsial, RULE WAJIB Batch 37): `versionCode` 12->13, `versionName` "1.0.11"->"1.0.12". Brace 23/23 curly, 65/65 paren.
+
+### Sengaja TIDAK diubah
+- `FEATURE_PARITY_GOALS.md` — dokumen ini genuine milik VoltCare (dibuat Batch 18, isi 100% soal battery manager AccuBattery/GSam/Greenify), TIDAK ikut terhapus walau sempat dicurigai di awal audit.
+- `PROJECT_STATE.md`/`CHANGELOG.md` entri Batch 25 lama — dipertahankan apa adanya (riwayat sah, bukan kontaminasi aktif).
+- `FILE_MANIFEST.txt` — tidak perlu diedit (ke-4 file yang dihapus memang sudah tidak pernah tercantum di sana sejak awal, jadi tidak ada baris yang perlu dicabut).
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`app/build.gradle.kts` — brace balance 23/23 curly, 65/65 paren, hanya 2 baris versi diganti.
+
+### Catatan
+Root cause KENAPA 4 file ini bisa nyasar ke ZIP VoltCare tidak bisa dipastikan dari lingkungan Claude (kemungkinan besar: user mengerjakan PromptVault di sesi/percakapan terpisah, lalu folder lokal Termux `~/projects/VoltCare` sempat tercampur file dari `~/projects/PromptVault` sebelum di-zip ulang — sama seperti akar masalah Batch 25). Rekomendasi ke user: saat `unzip -o` di Termux (skrip Update Harian), pastikan `LATEST_ZIP` yang dipakai benar-benar hasil terbaru dari sesi VoltCare, bukan campuran folder lain.
+
+### Pending Queue
+13, 19. Tidak berubah (lihat Batch 43/44 utk detail item #10/#12 yang sudah selesai).
+
+---
+
 ## [Batch 46] Fix - Drain Analyzer: Tombol "Force Stop" Tidak Ada Feedback — 2026-08-20
 
 **Confidence Rating: 94%**
