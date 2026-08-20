@@ -18,6 +18,38 @@
 
 ---
 
+## [Batch 40] Fix - Info Update Kurang Jelas: Body Release Cuma Link Compare — 2026-08-20
+
+**Confidence Rating: 90%**
+**File sebelum -> sesudah:** 59 -> 59 file (1 file protected edit parsial: `.github/workflows/release.yml`; 1 file protected edit parsial: `app/build.gradle.kts` — bump versi wajib per RULE Batch 37)
+
+### Konteks
+User kirim screenshot dialog "Update Tersedia": isi body cuma `**Full Changelog**: https://github.com/FDzaki-dev/VoltCare/compare/v1.0.3-35...v1.0.4-36` — markdown mentah (asterisk tidak ter-render, `Text()` Compose polos tidak parse markdown) DAN isinya cuma link compare, tidak ada ringkasan perubahan riil. User: "informasi update kurang jelas/to the point".
+
+### Root Cause
+`.github/workflows/release.yml` step "Publish GitHub Release" pakai `generate_release_notes: true` (fitur bawaan GitHub) — fitur ini dirancang untuk repo yang pakai alur Pull Request + label kategori (bug/feature/dll). Repo VoltCare push LANGSUNG ke `main` (tanpa PR sama sekali, sesuai semua riwayat batch 1-39) — GitHub tidak punya apa pun untuk dikategorikan, jadi fallback ke boilerplate "**Full Changelog**: <link compare>" doang, PERSIS yang muncul di screenshot user. Ini bukan bug UI (`UpdateScreen.kt` menampilkan `releaseNotes` apa adanya, sesuai desain Batch 21) — murni CI menghasilkan body yang tidak informatif dari awal.
+
+### Selesai
+- **`.github/workflows/release.yml`** (protected, edit parsial): step baru "Generate release notes" disisipkan setelah "Clean up keystore", sebelum "Publish GitHub Release" — build `release_notes.md` dari `git log <tag_terakhir>..HEAD --pretty=format:"- %s" --no-merges` (pesan commit riil sejak rilis sebelumnya, format bullet list). Fallback "Rilis pertama VoltCare" kalau belum ada tag sama sekali. `git tag --sort=-creatordate | head -1` dipanggil SEBELUM tag baru dibuat oleh step Publish, jadi otomatis dapat tag SEBELUMNYA tanpa perlu filter tag saat ini.
+- **`Publish GitHub Release`**: `generate_release_notes: true` dihapus, diganti `body_path: release_notes.md` — `softprops/action-gh-release@v2` baca file langsung (support resmi, tidak perlu multiline output trick).
+- **`app/build.gradle.kts`** (protected, edit parsial, RULE WAJIB Batch 37): `versionCode` 5->6, `versionName` "1.0.4"->"1.0.5". Brace 23/23 curly, 65/65 paren.
+- Diverifikasi: `yaml.safe_load()` parse sukses, urutan 15 step utuh (tidak ada yang terhapus), step baru berada di posisi yang benar (setelah cleanup keystore, sebelum publish).
+
+### Sengaja TIDAK diubah
+- `UpdateManager.kt`/`UpdateScreen.kt` — `Text()` polos tanpa markdown parser TETAP dipakai apa adanya. Sekarang body dari CI berupa bullet list `- pesan commit` (plain text, tanpa `**`/markdown), jadi tampil rapi walau tanpa parser markdown — tidak perlu tambah dependency Markdown renderer utk fix ini (di luar scope, bisa jadi peningkatan terpisah kalau commit message ke depan mulai pakai markdown).
+- `fetch-depth: 0` di step Checkout — sudah ada sejak Batch 1 (dibutuhkan Stale Run Guard), otomatis cukup untuk `git log`/`git tag` riwayat penuh tanpa perubahan.
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`.github/workflows/release.yml` — YAML diverifikasi valid (`yaml.safe_load`), 15 step (13 lama + 1 baru "Generate release notes"), Stale Run Guard/Signed-APK Guard/Smart Naming/log_fail artifact semua utuh tidak tersentuh. `app/build.gradle.kts` — brace balance 23/23 curly, 65/65 paren, hanya 2 baris versi diganti.
+
+### Catatan
+Tidak ada akses jaringan/GitHub Actions sungguhan di lingkungan pembuatan ZIP ini (network disabled) — verifikasi terbatas pada validasi sintaks YAML + audit manual alur step & command `git log`/`git tag` (sintaks bash standar, bukan compile/run sungguhan). Confidence 90% (bukan 95%+) karena: (1) belum terverifikasi run nyata apakah `git tag --sort=-creatordate` mengembalikan tag yang benar di semua kondisi (mis. tag dengan format campuran/annotated vs lightweight — semua tag `release.yml` dibuat via `action-gh-release` yang membuat lightweight tag standar, seharusnya konsisten), (2) commit message existing di repo mungkin belum konsisten format singkat/deskriptif (di luar kendali kode ini, tergantung disiplin commit message tiap batch Termux). Rekomendasi: pantau 1x run berikutnya untuk konfirmasi `release_notes.md` terisi bullet list commit yang masuk akal, bukan kosong/aneh.
+
+### Pending Queue
+10, 11, 12, 13, 19, 20. Tidak berubah dari Batch 39.
+
+---
+
 ## [Batch 39] Fitur - Pending #18: Force Stop Nyata via Shizuku (Drain Analyzer) — 2026-08-20
 
 **Confidence Rating: 92%**

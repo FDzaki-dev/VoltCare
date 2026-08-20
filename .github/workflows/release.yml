@@ -123,6 +123,30 @@ jobs:
         if: always()
         run: rm -f keystore/release.keystore
 
+      # --- Release Notes yang To-The-Point (fix laporan user: dialog Update cuma nampilin
+      # "**Full Changelog**: <link compare>" tanpa isi apa pun) ---
+      # Root cause: `generate_release_notes: true` (GitHub bawaan) dirancang utk repo yang
+      # pakai alur Pull Request + label kategori - repo ini push langsung ke `main` (tanpa PR),
+      # jadi GitHub tidak punya apa pun utk dikategorikan & fallback ke boilerplate compare-link
+      # doang. Solusi: build body sendiri dari `git log` (pesan commit riil sejak tag terakhir)
+      # SEBELUM tag baru dibuat oleh step Publish di bawah, jadi `git tag` di sini masih murni
+      # berisi tag lama (aman, tidak perlu filter tag saat ini keluar dari daftar).
+      - name: Generate release notes
+        id: notes
+        run: |
+          PREV_TAG=$(git tag --sort=-creatordate | head -1)
+          {
+            echo "Perubahan di rilis ini:"
+            echo ""
+            if [ -n "$PREV_TAG" ]; then
+              git log "$PREV_TAG"..HEAD --pretty=format:"- %s" --no-merges || true
+            else
+              echo "- Rilis pertama VoltCare"
+            fi
+          } > release_notes.md
+          echo "Isi release_notes.md:"
+          cat release_notes.md
+
       # --- GitHub Release Rule ---
       # Publikasikan sebagai GitHub Release (bukan hanya Actions artifact) agar file .apk
       # muncul langsung di sidebar beranda repository.
@@ -132,6 +156,6 @@ jobs:
           tag_name: v${{ steps.version.outputs.version }}-${{ github.run_number }}
           name: VoltCare v${{ steps.version.outputs.version }} (build ${{ github.run_number }})
           files: ${{ steps.rename.outputs.path }}
-          generate_release_notes: true
+          body_path: release_notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

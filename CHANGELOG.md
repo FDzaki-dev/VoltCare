@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.5-batch40] - 2026-08-20
+### Fixed
+- Body release GitHub cuma nampilin `**Full Changelog**: <link compare>` tanpa isi (root cause: `generate_release_notes: true` GitHub butuh alur PR+label, repo ini push langsung ke main) — diganti body custom dari `git log` (bullet list pesan commit riil sejak tag sebelumnya) via `body_path` di `release.yml`.
+### Changed
+- Bump versi `1.0.4` -> `1.0.5` (`versionCode` 5->6) sesuai RULE WAJIB Batch 37.
+
 ## [v1.0.4-batch39] - 2026-08-20
 ### Added
 - Pending #18: `UsageStatsHelper.killBackgroundApp()` sekarang pakai `am force-stop <pkg>` via Shizuku (`ShizukuManager.execShellCommand()`) jika izin Shizuku aktif — jauh lebih kuat dari `killBackgroundProcesses` lama. Fallback otomatis ke jalur lama kalau Shizuku tidak aktif/gagal. Signature fungsi tidak berubah, `DrainScreen.kt` tidak perlu diedit.
