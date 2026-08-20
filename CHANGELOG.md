@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.9-batch44] - 2026-08-20
+### Added
+- Pending #12: Auto-Hibernate Terjadwal — `HibernateWorker.kt` (baru, WorkManager pemakaian PERTAMA sejak dependency ditambahkan Batch 1) force-stop app whitelist tiap 30 menit. `DrainScreen.kt`: Switch master + checkbox whitelist per app (hanya app yang di-approve eksplisit user, bukan semua app).
+### Changed
+- Bump versi `1.0.8` -> `1.0.9` (`versionCode` 9->10) sesuai RULE WAJIB Batch 37.
+
 ## [v1.0.8-batch43] - 2026-08-20
 ### Added
 - Pending #10: Estimasi sisa waktu pakai (discharge) di Dashboard — `DashboardViewModel` hitung drain rate rata-rata 24 jam terakhir dari `battery_log` existing (tanpa DB baru), tampil di kartu "Sisa Pakai" (reuse slot "Estimasi" existing, label dinamis sesuai status charging).

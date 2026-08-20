@@ -18,6 +18,41 @@
 
 ---
 
+## [Batch 44] Fitur - Pending #12: Auto-Hibernate Terjadwal (WorkManager) — 2026-08-20
+
+**Confidence Rating: 90%**
+**File sebelum -> sesudah:** 59 -> 60 file (1 baru: `HibernateWorker.kt`; 1 diedit: `DrainScreen.kt` — bukan protected; 1 file protected edit parsial: `app/build.gradle.kts` — bump versi wajib per RULE Batch 37)
+
+### Konteks
+Pending #12 dari `FEATURE_PARITY_GOALS.md` (Batch 18) — tutup gap #9 (Greenify: hemat daya otomatis) & sebagian gap #7 (Force Stop otomatis, sebelumnya manual per-app dari Batch 10/39). `androidx.work:work-runtime-ktx:2.9.1` sudah jadi dependency SEJAK BATCH 1 tapi **belum pernah dipakai** (dikonfirmasi via audit `grep` di Batch 18) — batch ini pemakaian PERTAMA.
+
+### Selesai
+- **`HibernateWorker.kt`** (baru, `util/`): `HibernateWhitelistStore` (SharedPreferences) — whitelist app yang **di-approve eksplisit user via checkbox**, BUKAN semua app (sesuai definisi item #12, cegah kill app penting/OOM-loop tanpa izin). `HibernateWorker : CoroutineWorker` — `doWork()` panggil `UsageStatsHelper.killBackgroundApp()` (existing sejak Batch 10/39, TIDAK diubah) HANYA untuk app whitelist, fail-safe (`Result.success()` walau ada exception, tidak retry agresif). `companion.schedule()`/`cancel()` — `PeriodicWorkRequestBuilder` interval 30 menit (di atas minimum WorkManager 15 menit), `enqueueUniquePeriodicWork` dgn `ExistingPeriodicWorkPolicy.UPDATE` (aman dipanggil ulang tanpa duplikat job). Brace 11/11 curly, 52/52 paren.
+- **`DrainScreen.kt`**: Card baru "Auto-Hibernate Terjadwal" (di atas daftar app) — `Switch` master ON/OFF (disabled kalau whitelist kosong, cegah aktifkan scheduler tanpa target), label dinamis jumlah app whitelist. `DrainAppRow` dapat 2 parameter baru (`isWhitelisted`, `onToggleWhitelist`) — `Checkbox` disisipkan di sebelah tombol "Force Stop" existing, HANYA utk app non-system (konsisten dgn kondisi `!app.isSystemApp` yang sudah ada utk tombol Force Stop). Brace 36/36 curly, 89/89 paren.
+- **`app/build.gradle.kts`** (protected, edit parsial, RULE WAJIB Batch 37): `versionCode` 9->10, `versionName` "1.0.8"->"1.0.9". Brace 23/23 curly, 65/65 paren.
+
+### Keputusan Desain Penting
+- **Whitelist via `SharedPreferences`, BUKAN tabel Room baru** — set of package name string sederhana, tidak butuh query relasional/DAO/migration; konsisten pola `BatteryUtils.CalibrationStore` (Batch 8) yang juga pakai SharedPreferences utk state sederhana serupa.
+- **Tidak ada AndroidManifest.xml baru** — WorkManager auto-init via `ContentProvider` bawaan library (bagian dari dependency yang sudah ada sejak Batch 1), TIDAK butuh entri manifest manual, TIDAK butuh permission baru (`killBackgroundApp` reuse permission/jalur Shizuku yang sudah ada).
+- **Interval 30 menit hardcoded** (bukan dikonfigurasi user) — sesuai definisi item #12 di `FEATURE_PARITY_GOALS.md` ("interval wajar, mis. tiap 30 menit"), bisa dijadikan slider/pengaturan di batch depan kalau user minta.
+- **`ExistingPeriodicWorkPolicy.UPDATE`** dipilih (bukan `KEEP`) supaya toggle Switch OFF->ON berulang tidak numpuk job duplikat/basi — selalu replace dgn definisi terbaru.
+
+### Sengaja TIDAK diubah
+- `UsageStatsHelper.killBackgroundApp()` — dipakai 100% apa adanya (termasuk jalur Shizuku Batch 39 kalau aktif, fallback `killBackgroundProcesses` kalau tidak).
+- `AndroidManifest.xml` — lihat Keputusan Desain di atas.
+- Tidak ada UI pengaturan interval/advanced scheduling — di luar scope minimal item #12, bisa jadi item pending baru kalau dibutuhkan.
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`app/build.gradle.kts` — brace balance 23/23 curly, 65/65 paren, hanya 2 baris versi diganti.
+
+### Catatan
+Tidak ada compile Gradle/run WorkManager sungguhan di lingkungan pembuatan ZIP ini (network disabled) — verifikasi terbatas brace/paren balance + audit manual API `androidx.work` (`CoroutineWorker`, `PeriodicWorkRequestBuilder`, `ExistingPeriodicWorkPolicy.UPDATE`, `enqueueUniquePeriodicWork` — semua API stabil sejak WorkManager 2.7+, kompatibel dgn versi 2.9.1 yang terpasang). Confidence 90% (bukan 95%+, sama alasan seperti fitur Shizuku/first-use dependency lain di project ini): PERTAMA KALI WorkManager benar-benar dipakai runtime setelah 43 batch cuma jadi dependency nganggur — belum ada bukti compile+run nyata (mis. apakah `doWork()` benar-benar terpanggil tiap 30 menit di device nyata dgn Doze Mode/battery optimization aktif, yang notoriously bisa menunda `PeriodicWorkRequest` non-`setConstraints` di beberapa OEM ROM agresif). Rekomendasi: build + aktifkan Switch dgn 1-2 app whitelist, tunggu >30 menit, cek lewat `adb shell dumpsys jobscheduler | grep voltcare` atau notifikasi app force-stop apakah job benar jalan.
+
+### Pending Queue
+13, 19. Tidak berubah. 12 ✅ selesai (Batch 44, ini).
+
+---
+
 ## [Batch 43] Fitur - Pending #10: Estimasi Sisa Waktu Pakai (Discharge) — 2026-08-20
 
 **Confidence Rating: 93%**

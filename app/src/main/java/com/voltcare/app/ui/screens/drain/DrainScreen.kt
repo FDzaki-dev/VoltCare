@@ -10,9 +10,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,6 +28,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.voltcare.app.util.AppUsageInfo
+import com.voltcare.app.util.HibernateWhitelistStore
+import com.voltcare.app.util.HibernateWorker
 import com.voltcare.app.util.ShizukuManager
 import com.voltcare.app.util.UsageStatsHelper
 
@@ -40,6 +44,8 @@ fun DrainScreen() {
     var hasPermission by remember { mutableStateOf(UsageStatsHelper.hasUsageAccessPermission(context)) }
     var apps by remember { mutableStateOf<List<AppUsageInfo>>(emptyList()) }
     var refreshTrigger by remember { mutableStateOf(0) }
+    var hibernateEnabled by remember { mutableStateOf(HibernateWhitelistStore.isEnabled(context)) }
+    var whitelist by remember { mutableStateOf(HibernateWhitelistStore.getAll(context)) }
 
     LaunchedEffect(refreshTrigger) {
         hasPermission = UsageStatsHelper.hasUsageAccessPermission(context)
@@ -55,6 +61,34 @@ fun DrainScreen() {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text("Drain Analyzer", style = MaterialTheme.typography.headlineMedium)
+
+            // Pending #12 (FEATURE_PARITY_GOALS.md): Auto-Hibernate Terjadwal via WorkManager,
+            // HANYA untuk app yang di-approve eksplisit user lewat checkbox per app di bawah -
+            // scheduler tidak pernah menyentuh app di luar whitelist.
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Auto-Hibernate Terjadwal", fontWeight = FontWeight.Bold)
+                        Text(
+                            if (whitelist.isEmpty()) "Belum ada app di whitelist (centang di bawah)"
+                            else "Tiap 30 menit, force-stop ${whitelist.size} app whitelist",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Switch(
+                        checked = hibernateEnabled,
+                        enabled = whitelist.isNotEmpty(),
+                        onCheckedChange = { checked ->
+                            if (checked) HibernateWorker.schedule(context) else HibernateWorker.cancel(context)
+                            hibernateEnabled = checked
+                        }
+                    )
+                }
+            }
 
             if (!hasPermission) {
                 Text(
@@ -96,6 +130,11 @@ fun DrainScreen() {
                     items(apps, key = { it.packageName }) { app ->
                         DrainAppRow(
                             app = app,
+                            isWhitelisted = whitelist.contains(app.packageName),
+                            onToggleWhitelist = {
+                                HibernateWhitelistStore.toggle(context, app.packageName)
+                                whitelist = HibernateWhitelistStore.getAll(context)
+                            },
                             onForceStop = {
                                 UsageStatsHelper.killBackgroundApp(context, app.packageName)
                                 refreshTrigger++
@@ -109,7 +148,12 @@ fun DrainScreen() {
 }
 
 @Composable
-private fun DrainAppRow(app: AppUsageInfo, onForceStop: () -> Unit) {
+private fun DrainAppRow(
+    app: AppUsageInfo,
+    isWhitelisted: Boolean,
+    onToggleWhitelist: () -> Unit,
+    onForceStop: () -> Unit
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -126,6 +170,7 @@ private fun DrainAppRow(app: AppUsageInfo, onForceStop: () -> Unit) {
                 )
             }
             if (!app.isSystemApp) {
+                Checkbox(checked = isWhitelisted, onCheckedChange = { onToggleWhitelist() })
                 OutlinedButton(onClick = onForceStop) {
                     Text("Force Stop")
                 }
