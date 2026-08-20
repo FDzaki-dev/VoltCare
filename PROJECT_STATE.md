@@ -18,6 +18,34 @@
 
 ---
 
+## [Batch 39] Fitur - Pending #18: Force Stop Nyata via Shizuku (Drain Analyzer) — 2026-08-20
+
+**Confidence Rating: 92%**
+**File sebelum -> sesudah:** 59 -> 59 file (1 file kode diedit: `UsageStatsHelper.kt` — bukan protected; 1 file protected edit parsial: `app/build.gradle.kts` — bump versi wajib per RULE Batch 37)
+
+### Konteks
+Lanjutan langsung dari roadmap Shizuku (engine Batch 23, UI wiring Batch 26) — Pending #18. `killBackgroundApp()` sebelumnya cuma `ActivityManager.killBackgroundProcesses` (izin normal, lemah — cuma proses cached/background, BUKAN "Force Stop" sungguhan).
+
+### Selesai
+- **`UsageStatsHelper.kt`**: `killBackgroundApp()` sekarang cek `ShizukuManager.hasPermission()` DULU — jika true, jalankan `am force-stop <pkg>` via `ShizukuManager.execShellCommand()` (hak sistem, PERSIS setara "Force Stop" bawaan Settings). Jika Shizuku tidak aktif/belum diizinkan ATAU command shell gagal (`!result.isSuccess`), otomatis fallback ke `killBackgroundProcesses` lama — **signature fungsi TIDAK berubah** (`(Context, String): Boolean`), jadi 1 caller existing (`DrainScreen.kt` baris 86) TIDAK perlu diedit sama sekali. Brace 18/18 curly, 47/47 paren.
+- **`app/build.gradle.kts`** (protected, edit parsial, RULE WAJIB Batch 37): `versionCode` 4->5, `versionName` "1.0.3"->"1.0.4". Brace 23/23 curly, 65/65 paren.
+- Dicek: `grep -rn "killBackgroundApp("` -> hanya 1 call site (`DrainScreen.kt`), tidak ada pemanggil lain yang perlu ikut diubah.
+
+### Sengaja TIDAK diubah
+- `DrainScreen.kt` — tombol "Force Stop" existing dipakai apa adanya (di luar scope 1 file/task); UI TIDAK membedakan visual apakah force-stop terjadi via Shizuku (kuat) atau fallback (lemah) — user tetap lihat tombol yang sama, cuma hasilnya sekarang lebih kuat kalau Shizuku aktif. Indikator visual dibedakan ("Force Stop (Shizuku)" vs biasa) BISA jadi peningkatan UX terpisah, TIDAK di-queue formal (kosmetik, bukan bug/fitur inti).
+- `ShizukuManager.kt`, `ShizukuStatusAction.kt` — dipakai 100% apa adanya (Batch 23/26), tidak ada perubahan API.
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`app/build.gradle.kts` — brace balance diverifikasi 23/23 curly, 65/65 paren, hanya 2 baris versi diganti.
+
+### Catatan
+Tidak ada compile Gradle/device fisik sungguhan di lingkungan pembuatan ZIP ini (network disabled) — verifikasi terbatas pada brace/paren balance + audit manual pola `ShizukuManager.execShellCommand()` (dipakai persis sesuai kontrak Batch 23, tidak ada perubahan API di sisi itu). Confidence 92% (bukan 95%+) karena efektivitas nyata `am force-stop` via reflection `Shizuku.newProcess()` belum terverifikasi di device fisik dengan Shizuku aktif (sama seperti catatan confidence Batch 23 yang belum berubah). Rekomendasi: build + test manual di device dengan Shizuku aktif (approve izin dulu via ikon shield Dashboard, Batch 26) sebelum lanjut Pending #19 (statistik drain riil via `dumpsys batterystats`).
+
+### Pending Queue
+10, 11, 12, 13, 19, 20. Tidak berubah. 18 ✅ selesai (Batch 39, ini).
+
+---
+
 ## [Batch 38] Fix - Pending #23: Label Build-Number di Dialog "Update Tersedia" — 2026-08-20
 
 **Confidence Rating: 96%**

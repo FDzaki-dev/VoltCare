@@ -82,12 +82,23 @@ object UsageStatsHelper {
     }
 
     /**
-     * "Force stop" best-effort. `killBackgroundProcesses` (izin normal `KILL_BACKGROUND_PROCESSES`)
-     * hanya mematikan proses cached/background milik app target - TIDAK sekuat "Force Stop" bawaan
-     * Settings (yang butuh hak sistem, tidak tersedia untuk app pihak ketiga sejak Android 5+).
-     * Return true jika perintah terkirim (bukan jaminan proses benar-benar berhenti).
+     * "Force stop" — Batch 39 (Pending #18): SEKARANG prioritas pakai Shizuku (`am force-stop
+     * <pkg>`, hak sistem, PERSIS sama seperti "Force Stop" bawaan Settings) jika
+     * [ShizukuManager.hasPermission] true. Kalau Shizuku tidak aktif/belum diizinkan ATAU
+     * perintah shell gagal, otomatis fallback ke `killBackgroundProcesses` lama (izin normal,
+     * lebih lemah — hanya proses cached/background). Fitur existing TIDAK berubah perilaku
+     * untuk user yang belum pakai Shizuku sama sekali (graceful fallback, sesuai desain
+     * ShizukuManager Batch 23). Return true jika salah satu jalur terkirim (bukan jaminan
+     * proses benar-benar berhenti untuk jalur fallback).
      */
     fun killBackgroundApp(context: Context, packageName: String): Boolean {
+        if (ShizukuManager.hasPermission()) {
+            val result = ShizukuManager.execShellCommand(arrayOf("am", "force-stop", packageName))
+            if (result.isSuccess) return true
+            // Perintah shell gagal walau permission ada (mis. paket invalid) - tetap coba
+            // fallback di bawah alih-alih langsung return false, supaya UX tetap konsisten
+            // dengan perilaku sebelum Batch 39.
+        }
         return try {
             val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
                 ?: return false

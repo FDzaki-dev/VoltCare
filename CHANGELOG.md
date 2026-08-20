@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.4-batch39] - 2026-08-20
+### Added
+- Pending #18: `UsageStatsHelper.killBackgroundApp()` sekarang pakai `am force-stop <pkg>` via Shizuku (`ShizukuManager.execShellCommand()`) jika izin Shizuku aktif — jauh lebih kuat dari `killBackgroundProcesses` lama. Fallback otomatis ke jalur lama kalau Shizuku tidak aktif/gagal. Signature fungsi tidak berubah, `DrainScreen.kt` tidak perlu diedit.
+### Changed
+- Bump versi `1.0.3` -> `1.0.4` (`versionCode` 4->5) sesuai RULE WAJIB Batch 37.
+
 ## [v1.0.3-batch38] - 2026-08-20
 ### Fixed
 - Pending #23: dialog "Update Tersedia" sekarang nampilin label `(build N)` di sebelah versi (`UpdateInfo.latestRunNumber` diteruskan dari `UpdateManager.kt` ke `UpdateScreen.kt`/`strings.xml`) — mencegah kebingungan user saat fallback run_number (Batch 36) trigger update walau `versionName` sama persis dgn yang terpasang.
