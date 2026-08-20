@@ -14,6 +14,8 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,6 +23,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +35,7 @@ import com.voltcare.app.util.HibernateWhitelistStore
 import com.voltcare.app.util.HibernateWorker
 import com.voltcare.app.util.ShizukuManager
 import com.voltcare.app.util.UsageStatsHelper
+import kotlinx.coroutines.launch
 
 /**
  * Tab Penguras (Drain Analyzer): top app berdasarkan waktu pemakaian foreground 24 jam
@@ -46,13 +50,15 @@ fun DrainScreen() {
     var refreshTrigger by remember { mutableStateOf(0) }
     var hibernateEnabled by remember { mutableStateOf(HibernateWhitelistStore.isEnabled(context)) }
     var whitelist by remember { mutableStateOf(HibernateWhitelistStore.getAll(context)) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(refreshTrigger) {
         hasPermission = UsageStatsHelper.hasUsageAccessPermission(context)
         apps = if (hasPermission) UsageStatsHelper.topAppsByForegroundUsage(context) else emptyList()
     }
 
-    Scaffold { padding ->
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -136,7 +142,12 @@ fun DrainScreen() {
                                 whitelist = HibernateWhitelistStore.getAll(context)
                             },
                             onForceStop = {
-                                UsageStatsHelper.killBackgroundApp(context, app.packageName)
+                                val success = UsageStatsHelper.killBackgroundApp(context, app.packageName)
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        if (success) "${app.appLabel} dihentikan" else "Gagal menghentikan ${app.appLabel}"
+                                    )
+                                }
                                 refreshTrigger++
                             }
                         )

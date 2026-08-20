@@ -18,6 +18,34 @@
 
 ---
 
+## [Batch 46] Fix - Drain Analyzer: Tombol "Force Stop" Tidak Ada Feedback — 2026-08-20
+
+**Confidence Rating: 94%**
+**File sebelum -> sesudah:** 60 -> 60 file (1 diedit: `DrainScreen.kt` — bukan protected; 1 file protected edit parsial: `app/build.gradle.kts` — bump versi wajib per RULE Batch 37)
+
+### Konteks
+User konfirmasi fix Batch 45 berhasil (tombol sekarang clickable), tapi lapor lanjutan: "pencet sih bisa, tapi gak ada feedback nya sama sekali". Root cause: `onForceStop` (sejak Batch 10) cuma panggil `UsageStatsHelper.killBackgroundApp()` (fire-and-forget, return value dibuang) lalu `refreshTrigger++` — refresh ini me-reload `topAppsByForegroundUsage()` (data waktu PEMAKAIAN historis 24 jam), BUKAN daftar proses yang sedang jalan, jadi app yang di-Force-Stop TETAP muncul di list persis di posisi sama tanpa perubahan visual apa pun — user (sah) mengira klik tidak berefek.
+
+### Selesai
+- **`DrainScreen.kt`**: `Scaffold` dikasih `snackbarHost` (pola PERSIS sama seperti `HistoryScreen.kt` — `SnackbarHostState` + `rememberCoroutineScope`, konsisten dgn konvensi existing, bukan pola baru). `onForceStop` sekarang tangkap return `Boolean` dari `killBackgroundApp()` (sebelumnya dibuang) -> tampilkan Snackbar `"{appLabel} dihentikan"` / `"Gagal menghentikan {appLabel}"` sesuai hasil nyata, bukan asumsi selalu sukses. Brace 41/41 curly, 104/104 paren.
+- **`app/build.gradle.kts`** (protected, edit parsial, RULE WAJIB Batch 37): `versionCode` 11->12, `versionName` "1.0.10"->"1.0.11". Brace 23/23 curly, 65/65 paren.
+
+### Sengaja TIDAK diubah
+- `UsageStatsHelper.killBackgroundApp()` — signature & perilaku 100% sama, HANYA return value-nya sekarang benar-benar dipakai di caller (sebelumnya sudah ada sejak Batch 39/10, cuma tidak pernah dibaca).
+- Checkbox whitelist & Switch Auto-Hibernate — TIDAK ditambah Snackbar, karena keduanya SUDAH punya feedback visual instan (checkbox tercentang, switch berpindah posisi + teks jumlah app berubah) — tidak silent seperti Force Stop.
+- List app TIDAK di-refresh/dihilangkan otomatis setelah Force Stop — sengaja, karena `topAppsByForegroundUsage()` representasi HISTORIS 24 jam (bukan proses live), menghilangkan entry akan menyesatkan (seolah app itu tidak lagi dipakai, padahal itu cuma refleksi kalau force-stop terkirim).
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`app/build.gradle.kts` — brace balance 23/23 curly, 65/65 paren, hanya 2 baris versi diganti.
+
+### Catatan
+Tidak ada compile Gradle/device fisik sungguhan di lingkungan pembuatan ZIP ini (network disabled) — verifikasi terbatas brace/paren balance + audit manual (pola Snackbar identik `HistoryScreen.kt` yang sudah terbukti compile, tidak ada API Compose baru). Confidence 94% (bukan lebih tinggi) karena nilai `success` bergantung pola existing `killBackgroundApp()` (Shizuku force-stop ATAU fallback `killBackgroundProcesses`) yang efektivitas runtime-nya di device Transsion XOS user BELUM diverifikasi nyata (sama catatan sejak Batch 39). Rekomendasi: build + tekan Force Stop di device user, konfirmasi Snackbar muncul dgn pesan yang sesuai (baik sukses maupun gagal).
+
+### Pending Queue
+13, 19. Tidak berubah.
+
+---
+
 ## [Batch 45] Fix - Drain Analyzer: Filter `isSystemApp` Kelewat Luas (Semua Row Tidak Clickable) — 2026-08-20
 
 **Confidence Rating: 92%**
