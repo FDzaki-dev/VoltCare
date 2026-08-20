@@ -70,6 +70,27 @@ class RulesViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { db.ruleDao().delete(rule) }
     }
 
+    /**
+     * Batch 42 (Pending #11): shortcut 1-tap buat aturan umum "alarm kalau baterai charging
+     * di atas X%" — TIDAK ada tabel/kolom baru, murni auto-isi [RuleEntity] via engine
+     * evaluasi yang sudah jalan sejak Batch 1 (`BatteryMonitorService.checkRule()`, tidak
+     * disentuh). Label otomatis disertakan angka biar user gampang bedain dari aturan manual.
+     */
+    fun saveChargeLimitPreset(percent: Float) {
+        viewModelScope.launch {
+            db.ruleDao().insert(
+                RuleEntity(
+                    label = "Alarm Batas Charge ${if (percent == percent.toInt().toFloat()) percent.toInt() else percent}%",
+                    conditionType = RuleCondition.PERCENT_ABOVE.stored,
+                    conditionValue = percent,
+                    requireCharging = true,
+                    actionType = RuleAction.ALARM.stored,
+                    isEnabled = true
+                )
+            )
+        }
+    }
+
     fun setEnabled(rule: RuleEntity, enabled: Boolean) {
         viewModelScope.launch { db.ruleDao().update(rule.copy(isEnabled = enabled)) }
     }

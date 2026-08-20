@@ -51,6 +51,7 @@ fun RulesScreen(viewModel: RulesViewModel = viewModel()) {
     val rules by viewModel.rules.collectAsState()
     var editingRule by remember { mutableStateOf<RuleEntity?>(null) }
     var showForm by remember { mutableStateOf(false) }
+    var showPreset by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<RuleEntity?>(null) }
 
     Scaffold(
@@ -72,6 +73,11 @@ fun RulesScreen(viewModel: RulesViewModel = viewModel()) {
                 "Contoh: IF suhu > 40C AND charging THEN alarm. Ketuk + untuk tambah aturan baru.",
                 style = MaterialTheme.typography.bodyMedium
             )
+            // Batch 42 (Pending #11): shortcut 1-tap, tidak perlu isi form lengkap 5 field
+            // buat kasus paling umum "alarm kalau charging kelewat batas".
+            TextButton(onClick = { showPreset = true }) {
+                Text("+ Preset Cepat: Alarm Batas Charge")
+            }
 
             if (rules.isEmpty()) {
                 Text(
@@ -120,6 +126,62 @@ fun RulesScreen(viewModel: RulesViewModel = viewModel()) {
             }
         )
     }
+
+    if (showPreset) {
+        ChargeLimitPresetDialog(
+            onDismiss = { showPreset = false },
+            onSave = { percent ->
+                viewModel.saveChargeLimitPreset(percent)
+                showPreset = false
+            }
+        )
+    }
+}
+
+/**
+ * Batch 42 (Pending #11): dialog minimal khusus preset "Alarm Batas Charge" — cuma 1 field
+ * (persen ambang), beda dari [RuleFormDialog] yang minta 5 field lengkap. `requireCharging`
+ * & `actionType` sudah tetap (true / ALARM) sesuai definisi preset, tidak perlu dipilih user.
+ */
+@Composable
+private fun ChargeLimitPresetDialog(
+    onDismiss: () -> Unit,
+    onSave: (percent: Float) -> Unit
+) {
+    var percentText by remember { mutableStateOf("80") }
+    val parsedPercent = percentText.toFloatOrNull()
+    val isValid = parsedPercent != null && parsedPercent in 1f..100f
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Preset: Alarm Batas Charge") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "Alarm otomatis berbunyi saat baterai sedang di-charge dan melewati " +
+                        "persentase ini. Cocok untuk kebiasaan cabut charger tepat waktu.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                OutlinedTextField(
+                    value = percentText,
+                    onValueChange = { percentText = it },
+                    label = { Text("Batas persen (1-100)") },
+                    singleLine = true,
+                    isError = percentText.isNotEmpty() && !isValid,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { parsedPercent?.let(onSave) },
+                enabled = isValid
+            ) { Text("Simpan") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Batal") }
+        }
+    )
 }
 
 @Composable

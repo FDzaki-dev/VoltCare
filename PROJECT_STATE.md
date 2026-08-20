@@ -18,6 +18,35 @@
 
 ---
 
+## [Batch 42] Fitur - Pending #11: Preset Cepat "Alarm Batas Charge" — 2026-08-20
+
+**Confidence Rating: 95%**
+**File sebelum -> sesudah:** 59 -> 59 file (2 file kode diedit: `RulesViewModel.kt`, `RulesScreen.kt` — bukan protected; 1 file protected edit parsial: `app/build.gradle.kts` — bump versi wajib per RULE Batch 37)
+
+### Konteks
+Pending #11 dari `FEATURE_PARITY_GOALS.md` (Batch 18) — engine `RuleEntity`/`checkRule()` sudah mendukung `PERCENT_ABOVE` + `requireCharging` sejak Batch 1, tapi user harus isi form 5 field manual (Nama, Kondisi, Nilai, Switch charging, Aksi) walau kasus paling umum ("alarm kalau charging kelewat X%") cuma butuh 1 angka.
+
+### Selesai
+- **`RulesViewModel.kt`**: fungsi baru `saveChargeLimitPreset(percent: Float)` — langsung `db.ruleDao().insert(RuleEntity(...))` dgn `conditionType=PERCENT_ABOVE`, `requireCharging=true`, `actionType=ALARM` (3 field terkunci sesuai definisi preset), label otomatis `"Alarm Batas Charge {N}%"`. Tidak ada tabel/kolom/migration baru — 100% pakai `RuleEntity`/`RuleDao` existing (protected, tidak disentuh). Brace 16/16 curly, 45/45 paren.
+- **`RulesScreen.kt`**: tombol teks "+ Preset Cepat: Alarm Batas Charge" di bawah judul (terpisah dari FAB "+" form lengkap) -> buka `ChargeLimitPresetDialog` baru (composable privat) — cuma 1 `OutlinedTextField` (persen, default "80", validasi range 1-100) + tombol Simpan/Batal. Brace 103/103 curly, 157/157 paren.
+- **`app/build.gradle.kts`** (protected, edit parsial, RULE WAJIB Batch 37): `versionCode` 7->8, `versionName` "1.0.6"->"1.0.7". Brace 23/23 curly, 65/65 paren.
+
+### Sengaja TIDAK diubah
+- `RuleEntity.kt`/`RuleDao.kt` (DB Schema/DAO, protected) — dipakai 100% apa adanya, tidak ada perubahan schema.
+- `BatteryMonitorService.checkRule()` — rule hasil preset otomatis ikut dievaluasi sample berikutnya (baca `enabledOnce()` dari tabel yang sama), tidak perlu perubahan engine.
+- `RuleFormDialog` (form manual lengkap) — tetap ada apa adanya sbg opsi lanjutan/edit; preset murni shortcut TAMBAHAN, bukan pengganti.
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`app/build.gradle.kts` — brace balance 23/23 curly, 65/65 paren, hanya 2 baris versi diganti.
+
+### Catatan
+Tidak ada compile Gradle sungguhan di lingkungan pembuatan ZIP ini (network disabled) — verifikasi terbatas brace/paren balance + audit manual (pola `AlertDialog`/`OutlinedTextField` identik dgn `RuleFormDialog` yang sudah terverifikasi compile di Batch 14/15, tidak ada API Compose baru yang dipakai). Confidence 95% karena scope kecil & murni reuse pola/API yang sudah terbukti jalan di batch-batch sebelumnya (tidak ada dependency/API baru).
+
+### Pending Queue
+10, 12, 13, 19. Tidak berubah. 11 ✅ selesai (Batch 42, ini).
+
+---
+
 ## [Batch 41] Fitur - Pending #20: Auto-Grant Usage Access via Shizuku (Drain Analyzer) — 2026-08-20
 
 **Confidence Rating: 91%**

@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.7-batch42] - 2026-08-20
+### Added
+- Pending #11: Preset Cepat "Alarm Batas Charge" di tab Aturan — dialog 1-field (persen ambang) auto-create `RuleEntity(PERCENT_ABOVE, requireCharging=true, ALARM)` lewat `RulesViewModel.saveChargeLimitPreset()`, tanpa perlu isi form 5 field manual. Engine evaluasi & skema DB tidak berubah.
+### Changed
+- Bump versi `1.0.6` -> `1.0.7` (`versionCode` 7->8) sesuai RULE WAJIB Batch 37.
+
 ## [v1.0.6-batch41] - 2026-08-20
 ### Added
 - Pending #20: `ShizukuManager.autoGrantUsageAccess()` — auto-grant Akses Penggunaan via `appops set <pkg> GET_USAGE_STATS allow` (Shizuku), diverifikasi ulang lewat `AppOpsManager` sebelum dianggap sukses. Tombol "Izinkan Otomatis via Shizuku" muncul di Drain Analyzer kalau Shizuku aktif — jalur manual buka Settings tetap ada sbg fallback.
