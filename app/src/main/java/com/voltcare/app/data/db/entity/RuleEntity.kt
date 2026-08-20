@@ -7,6 +7,8 @@ import androidx.room.PrimaryKey
  * Aturan cerdas: IF <kondisi> THEN <aksi>.
  * conditionType: "TEMP_ABOVE" | "PERCENT_ABOVE" | "PERCENT_BELOW"
  * actionType: "ALARM" | "NOTIFY"
+ * alarmSoundUri: URI nada custom (dari RingtoneManager.ACTION_RINGTONE_PICKER) untuk aksi ALARM.
+ *   null = pakai nada alarm sistem default (Batch 58, kolom baru - lihat AppDatabase Migration 1->2).
  */
 @Entity(tableName = "smart_rule")
 data class RuleEntity(
@@ -16,5 +18,6 @@ data class RuleEntity(
     val conditionValue: Float,
     val requireCharging: Boolean,
     val actionType: String,
-    val isEnabled: Boolean = true
+    val isEnabled: Boolean = true,
+    val alarmSoundUri: String? = null
 )

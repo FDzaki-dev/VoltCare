@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.23-batch58] - 2026-08-20
+### Added
+- **Custom Alarm (core engine)**: `RuleEntity.kt` +kolom `alarmSoundUri` (nullable, DB Migration 1->2 non-destruktif di `AppDatabase.kt`). `AlarmPlayer.kt` (baru) - putar nada alarm custom/default sistem + getar, fail-safe. Belum diwiring ke `BatteryMonitorService`/UI Aturan.
+### Queued
+- Wiring `AlarmPlayer` ke aksi ALARM di service pemantau, tombol pilih nada custom di form Aturan — Pending Queue #25-26 di `PROJECT_STATE.md`.
+
 ## [v1.0.22-batch57] - 2026-08-20
 ### Fixed
 - 3 bug P0 dari audit UX eksternal (diverifikasi manual thd source code dulu, bukan trust dokumen): (1) `DashboardScreen.kt` tidak scrollable -> tambah `verticalScroll`; (2) `RulesScreen.kt` pola Column+nested-LazyColumn sama persis dgn bug `DrainScreen.kt` -> diflatkan jadi 1 LazyColumn (tanpa import `item` yang salah, pelajaran dari Batch 56); (3) `StressTestScreen.kt` WakeLock diambil sejak layar dibuka (bukan saat tes mulai) -> dipindah ke `LaunchedEffect(testState==RUNNING)`.

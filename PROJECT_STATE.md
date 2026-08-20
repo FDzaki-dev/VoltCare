@@ -24,6 +24,43 @@
 
 ---
 
+## [Batch 58] Fitur - Custom Alarm (Core Engine, belum diwiring UI/Service) — 2026-08-20
+
+**Confidence Rating: 92%**
+**File sebelum -> sesudah:** 57 -> 58 file (1 baru: `AlarmPlayer.kt`; 2 diedit parsial protected: `RuleEntity.kt`, `AppDatabase.kt` — DB Schema/DAO; 1 diedit parsial protected: `app/build.gradle.kts` — bump versi wajib RULE Batch 37)
+
+### Alasan
+User minta "opsi custom alarm". Ditemukan gap nyata: `RuleAction.ALARM` ("Alarm (getar + suara)") sudah tersimpan di DB & bisa dipilih di UI Aturan sejak lama, TAPI `BatteryMonitorService.fireAlert()` ternyata cuma posting notifikasi biasa via `CHANNEL_ALERT` — tidak pernah benar-benar memutar suara alarm/getar berbeda dari notifikasi NOTIFY biasa, dan tidak ada opsi nada custom sama sekali. Scope penuh (schema + picker UI + wiring service) > 3 file → dipecah bertahap meniru pola Shizuku (Batch 23 core -> Batch 26 UI wiring). **Batch 58 (ini) = core engine (schema + player)**, sisanya di-queue.
+
+### Selesai
+- **`RuleEntity.kt`** (edit parsial, protected - DB Schema): +1 kolom `alarmSoundUri: String? = null` (URI nada custom dari `RingtoneManager.ACTION_RINGTONE_PICKER`, null = pakai default sistem).
+- **`AppDatabase.kt`** (edit parsial, protected - DB Schema): `version` 1->2, tambah `MIGRATION_1_2` (`ALTER TABLE smart_rule ADD COLUMN alarmSoundUri TEXT`, non-destruktif, data lama utuh) + `.addMigrations(MIGRATION_1_2)` di builder. TIDAK pakai `fallbackToDestructiveMigration` (sesuai komentar Protected Asset yang sudah ada sejak Batch 1).
+- **`util/AlarmPlayer.kt`** (baru, self-contained, pola fail-safe sama seperti `ShizukuManager.kt`/`UpdateManager.kt`): `play(context, customSoundUri)` — resolve URI custom (fallback ke `TYPE_ALARM` default sistem kalau null/invalid), `RingtoneManager.getRingtone()` + `AudioAttributes.USAGE_ALARM`, lalu getar 700ms (`VibrationEffect.createOneShot`, fallback API lama). `stop()` untuk hentikan manual. Permission `VIBRATE` sudah ada di manifest sejak awal — tidak perlu edit manifest.
+
+### Sengaja TIDAK diubah
+- **`BatteryMonitorService.fireAlert()`** — belum dipanggil `AlarmPlayer.play()` sama sekali; notifikasi tetap jalur lama apa adanya. Wiring (baca `rule.actionType == "ALARM"` -> panggil `AlarmPlayer.play(rule.alarmSoundUri)`) di-queue Batch berikutnya supaya batch ini tetap 3 file inti.
+- **`RulesScreen.kt` / `RuleFormDialog`** — belum ada tombol "Pilih Nada" (launcher `ActivityResultContracts.StartActivityForResult` ke `RingtoneManager.ACTION_RINGTONE_PICKER`) untuk set `alarmSoundUri` dari UI. Murni schema+engine dulu, pola identik Batch 23 (ShizukuManager sebelum UI wiring Batch 26).
+- `RuleDao.kt` — tidak perlu diubah (`@Update`/`@Insert` otomatis ikut kolom baru dari entity, tidak ada query manual yang menyebut kolom lama secara eksplisit).
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`RuleEntity.kt`, `AppDatabase.kt` (DB Schema/DAO — brace/paren balance diverifikasi, migration non-destruktif). `app/build.gradle.kts` — `versionCode` 23->24, `versionName` "1.0.22"->"1.0.23" (RULE WAJIB Batch 37).
+
+### Catatan
+Tidak ada akses Gradle/device fisik sungguhan di lingkungan ini (network disabled) — verifikasi terbatas pada brace/paren balance (semua file 100% seimbang) + review manual API `RingtoneManager`/`VibrationEffect`/`Migration` sesuai dokumentasi resmi, BUKAN compile Gradle sungguhan. Confidence 92% (bukan 95%+) karena: (1) migration Room 1->2 belum diverifikasi jalan di device nyata dengan data lama (`exportSchema=true` berarti file schema JSON baru harus ikut ter-generate saat build - normal, bukan bug), (2) `AlarmPlayer.play()` belum ada caller sama sekali jadi belum bisa diuji device nyata sampai wiring batch berikutnya. Rekomendasi: build lokal dulu (cek folder `app/schemas/` bertambah versi 2) sebelum lanjut wiring UI+Service.
+
+### Pending Queue (Batch 58: fitur besar dipecah, 2 sub-task baru #25-26)
+1-7, 9. ✅ selesai (lihat Batch 8-17)
+8. (opsional) Rename repo GitHub — ✅ selesai (lihat konvensi tetap, Batch 28)
+10-13. (dari Batch 18, belum dikerjakan)
+14. (housekeeping) Update `FILE_MANIFEST.txt` — tambah `AlarmPlayer.kt`, gabung ke housekeeping berikutnya
+17-20. ✅ selesai (lihat Batch 26 + riwayat Shizuku)
+21-23. P1 audit (opsional, kalau user minta eksplisit) — lihat Batch 57
+24. ~~Custom Alarm - schema & player~~ ✅ selesai batch ini
+25. **Wiring `AlarmPlayer` ke `BatteryMonitorService.fireAlert()`**: panggil `AlarmPlayer.play(context, rule.alarmSoundUri)` saat `rule.actionType == RuleAction.ALARM.stored`, biarkan `NOTIFY` tetap notifikasi biasa tanpa suara/getar tambahan. Estimasi 1 file.
+26. **Tombol "Pilih Nada Custom" di `RuleFormDialog`** (`RulesScreen.kt`): launcher `ACTION_RINGTONE_PICKER`, tampilkan nama nada terpilih, simpan hasil ke `alarmSoundUri` lewat `RulesViewModel`. Estimasi 1-2 file (`RulesScreen.kt` + kemungkinan `RulesViewModel.kt` kalau perlu fungsi update terpisah).
+
+---
+
 ## [Batch 57] Fix - 3 Bug P0 dari Audit UX Eksternal (Terverifikasi Manual, P1 Ditolak) — 2026-08-20
 
 **Confidence Rating: 94%**
