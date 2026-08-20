@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.23-batch59] - 2026-08-20
+### Fixed
+- Alarm tidak bunyi saat threshold rule tercapai: wiring `AlarmPlayer.play()` ke `BatteryMonitorService.fireAlert()` (sebelumnya cuma posting notifikasi pasif). Lihat `PROJECT_STATE.md` Batch 59.
+
 ## [v1.0.23-batch58] - 2026-08-20
 ### Added
 - **Custom Alarm (core engine)**: `RuleEntity.kt` +kolom `alarmSoundUri` (nullable, DB Migration 1->2 non-destruktif di `AppDatabase.kt`). `AlarmPlayer.kt` (baru) - putar nada alarm custom/default sistem + getar, fail-safe. Belum diwiring ke `BatteryMonitorService`/UI Aturan.

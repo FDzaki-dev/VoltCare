@@ -187,6 +187,12 @@ class BatteryMonitorService : Service() {
     }
 
     private fun fireAlert(rule: RuleEntity) {
+        // Wiring AlarmPlayer (Pending Queue #25, Batch 58 sebelumnya belum tersambung):
+        // rule.actionType "ALARM" wajib bunyi+getar, bukan cuma notifikasi pasif.
+        if (rule.actionType == "ALARM") {
+            com.voltcare.app.util.AlarmPlayer.play(applicationContext, rule.alarmSoundUri)
+        }
+
         val manager = getSystemService(NotificationManager::class.java) ?: return
         val notification = NotificationCompat.Builder(this, VoltCareApplication.CHANNEL_ALERT)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)

@@ -24,6 +24,19 @@
 
 ---
 
+## [Batch 59] Fix - Alarm Tidak Bunyi Saat Threshold Tercapai (Wiring AlarmPlayer) — 2026-08-20
+
+**Masalah:** Rule dengan aksi ALARM tidak pernah bunyi/getar walau kondisi (threshold) terpenuhi.
+
+**Root cause:** `AlarmPlayer.kt` (engine, dibuat Batch 58) belum disambung ke `BatteryMonitorService.fireAlert()` — fungsi itu cuma posting `NotificationCompat` biasa, tidak pernah cek `rule.actionType` atau panggil `AlarmPlayer.play()`. Sudah tercatat sendiri sbg Pending Queue #25 di komentar `AlarmPlayer.kt`.
+
+**Fix (RESOLVED):** `BatteryMonitorService.kt` → `fireAlert()`: tambah cek `if (rule.actionType == "ALARM") AlarmPlayer.play(applicationContext, rule.alarmSoundUri)` sebelum posting notifikasi. 1 file.
+
+**Pending Queue (belum dikerjakan, next batch):**
+- #26: `RuleFormDialog` di `RulesScreen.kt` belum ada tombol pilih nada custom (`ACTION_RINGTONE_PICKER`) — `alarmSoundUri` masih selalu null dari UI, jadi selalu fallback ke alarm default sistem.
+
+---
+
 ## [Batch 58] Fitur - Custom Alarm (Core Engine, belum diwiring UI/Service) — 2026-08-20
 
 **Confidence Rating: 92%**
