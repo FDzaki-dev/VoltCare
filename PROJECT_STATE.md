@@ -18,6 +18,38 @@
 
 ---
 
+## [Batch 48] Fitur - Pending #13: Shortcut Settings Per-App (Best-Effort) — 2026-08-20
+
+**Confidence Rating: 93%**
+**File sebelum -> sesudah:** 56 -> 56 file (2 diedit: `UsageStatsHelper.kt`, `DrainScreen.kt` — bukan protected; 1 file protected edit parsial: `app/build.gradle.kts` — bump versi wajib per RULE Batch 37)
+
+### Konteks
+Pending #13 dari `FEATURE_PARITY_GOALS.md` (Batch 18) — gap Greenify "cegah app berjalan sendiri tanpa izin". User pilih dikerjakan duluan drpd #19 (Shizuku dumpsys parsing, lebih kompleks). Sesuai catatan sejak Batch 18: **tidak ada API generik non-root** untuk 3rd-party app mengontrol App Standby Bucket/auto-launch app lain (`setAppStandbyBucket` dibatasi utk app sistem sejak API 30) — jadi diimplementasi sbg best-effort **navigasi**, bukan kontrol otomatis.
+
+### Selesai
+- **`UsageStatsHelper.kt`**: fungsi baru `openAppDetailsSettings(context, packageName)` — buka `Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)` dgn `Uri.fromParts("package", packageName, null)`, pola identik `openUsageAccessSettings()` yang sudah ada sejak Batch 1 (`FLAG_ACTIVITY_NEW_TASK`). Import baru: `android.net.Uri`. Brace 20/20 curly, 55/55 paren.
+- **`DrainScreen.kt`**: `DrainAppRow` dapat parameter baru `onOpenSettings`, tombol "Pengaturan App" baru — **tampil utk SEMUA app** (tidak digate `isActionable`, beda dgn Force Stop/Checkbox) karena cuma navigasi ke Settings sistem, tidak berisiko seperti eksekusi Force Stop. Layout diubah dari 1 `Row` datar jadi `Column` (baris info+checkbox di atas, baris tombol aksi di bawah) — supaya 2 tombol ("Force Stop" + "Pengaturan App") + checkbox tidak sesak di 1 baris pada layar sempit. Brace 46/46 curly, 119/119 paren.
+- **`app/build.gradle.kts`** (protected, edit parsial, RULE WAJIB Batch 37): `versionCode` 13->14, `versionName` "1.0.12"->"1.0.13". Brace 23/23 curly, 65/65 paren.
+
+### Keputusan Desain Penting
+- **Tombol "Pengaturan App" TIDAK digate `isActionable`** (beda dari Force Stop) — sengaja, karena membuka dialog Settings tidak pernah bisa bikin crash/reboot-loop (beda kelas risiko dgn force-stop komponen sistem kritis kayak `com.android.systemui`). User yang penasaran soal `com.android.settings` sendiri pun boleh lihat App Info-nya.
+- **Bukan otomatis** — VoltCare TIDAK memanggil API apa pun utk cegah auto-launch, murni antar user ke UI Android bawaan tempat USER SENDIRI yang set battery restriction/manage-background manual per app. Jujur sesuai definisi gap #13 sejak awal (Batch 18), tidak diklaim lebih dari itu.
+
+### Sengaja TIDAK diubah
+- `killBackgroundApp()`, `topAppsByForegroundUsage()` — 100% apa adanya, tidak disentuh batch ini.
+- `AndroidManifest.xml` — tidak perlu entri baru, `Settings.ACTION_APPLICATION_DETAILS_SETTINGS` adalah Intent sistem publik standar (sama seperti `ACTION_USAGE_ACCESS_SETTINGS` yang sudah dipakai sejak Batch 1 tanpa entri manifest).
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`app/build.gradle.kts` — brace balance 23/23 curly, 65/65 paren, hanya 2 baris versi diganti.
+
+### Catatan
+Tidak ada compile Gradle/device fisik sungguhan di lingkungan pembuatan ZIP ini (network disabled) — verifikasi terbatas brace/paren balance + audit manual (Intent + Uri.fromParts adalah API stabil AOSP sejak API 1, tidak ada risiko kompatibilitas). Confidence 93% (bukan lebih tinggi) murni krn perubahan layout `DrainAppRow` dari `Row` datar ke `Column` cukup signifikan secara visual (belum diverifikasi rendering nyata di device, walau API Compose yang dipakai — `Column`/`Row` bersarang — bukan hal baru/asing di codebase ini). Rekomendasi: build + buka tab Penguras, konfirmasi tombol "Pengaturan App" muncul di semua row (termasuk 4 package kritis kalau kebetulan lolos ke daftar top-15) dan benar membuka halaman App Info yang sesuai.
+
+### Pending Queue
+19. Tidak berubah. 13 ✅ selesai (Batch 48, ini).
+
+---
+
 ## [Batch 47] Cleanup - Hapus 4 File Dokumentasi Orphan "PromptVault" (Manifest Desync) — 2026-08-20
 
 **Confidence Rating: 98%**

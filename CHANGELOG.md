@@ -1,6 +1,13 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.13-batch48] - 2026-08-20
+### Added
+- **Shortcut "Pengaturan App" di Drain Analyzer** (Pending #13): tombol baru per-app buka dialog App Info bawaan Android (`UsageStatsHelper.openAppDetailsSettings`) — best-effort, user set battery restriction/manage-background manual sendiri (tidak ada API generik non-root utk cegah auto-launch otomatis). Tampil utk semua app (beda dgn Force Stop yg tetap digate 4 package sistem kritis).
+### Changed
+- Layout `DrainAppRow` (Drain Analyzer): dari 1 baris datar jadi 2 baris (info+checkbox di atas, tombol aksi di bawah) supaya tombol baru tidak sesak.
+- Bump versi `1.0.12` -> `1.0.13` (`versionCode` 13->14) sesuai RULE WAJIB Batch 37.
+
 ## [v1.0.12-batch47] - 2026-08-20
 ### Removed
 - **4 file dokumentasi orphan project lain "PromptVault"** (manifest desync, terdeteksi saat audit awal sesi): `ROADMAP.md`, `TROUBLESHOOTING.md`, `MAINTENANCE.md`, `scripts/preflight_check.sh` — bukan milik VoltCare, 0 referensi silang, tidak tercatat `FILE_MANIFEST.txt`, tidak dipanggil `release.yml`. Izin hapus dikonfirmasi eksplisit user. Pola sama dgn insiden Batch 25 (source `.kt` orphan), kali ini dokumentasi.

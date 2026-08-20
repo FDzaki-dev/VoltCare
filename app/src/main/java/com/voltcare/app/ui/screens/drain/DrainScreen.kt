@@ -149,6 +149,9 @@ fun DrainScreen() {
                                     )
                                 }
                                 refreshTrigger++
+                            },
+                            onOpenSettings = {
+                                UsageStatsHelper.openAppDetailsSettings(context, app.packageName)
                             }
                         )
                     }
@@ -163,27 +166,43 @@ private fun DrainAppRow(
     app: AppUsageInfo,
     isWhitelisted: Boolean,
     onToggleWhitelist: () -> Unit,
-    onForceStop: () -> Unit
+    onForceStop: () -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(app.appLabel, fontWeight = FontWeight.Bold)
-                Text(
-                    UsageStatsHelper.formatDuration(app.totalForegroundMs),
-                    style = MaterialTheme.typography.bodySmall
-                )
+        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(app.appLabel, fontWeight = FontWeight.Bold)
+                    Text(
+                        UsageStatsHelper.formatDuration(app.totalForegroundMs),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                if (isActionable(app.packageName)) {
+                    Checkbox(checked = isWhitelisted, onCheckedChange = { onToggleWhitelist() })
+                }
             }
-            if (isActionable(app.packageName)) {
-                Checkbox(checked = isWhitelisted, onCheckedChange = { onToggleWhitelist() })
-                OutlinedButton(onClick = onForceStop) {
-                    Text("Force Stop")
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (isActionable(app.packageName)) {
+                    OutlinedButton(onClick = onForceStop) {
+                        Text("Force Stop")
+                    }
+                }
+                // Pending #13 (FEATURE_PARITY_GOALS.md): best-effort shortcut - buka dialog
+                // App Info bawaan Android per app, TIDAK otomatis (lihat komentar
+                // UsageStatsHelper.openAppDetailsSettings). Selalu tampil utk SEMUA app
+                // (TIDAK digate isActionable) karena murni navigasi ke Settings sistem,
+                // beda dgn Force Stop yang benar-benar mengeksekusi aksi berisiko.
+                OutlinedButton(onClick = onOpenSettings) {
+                    Text("Pengaturan App")
                 }
             }
         }

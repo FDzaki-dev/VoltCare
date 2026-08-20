@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Process
 import android.provider.Settings
 
@@ -43,6 +44,24 @@ object UsageStatsHelper {
 
     fun openUsageAccessSettings(context: Context) {
         val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    }
+
+    /**
+     * Pending #13 (`FEATURE_PARITY_GOALS.md`, gap Greenify "cegah app berjalan sendiri tanpa
+     * izin"): Android TIDAK punya API generik non-root untuk 3rd-party app mengontrol App
+     * Standby Bucket/auto-launch app LAIN (`UsageStatsManager.setAppStandbyBucket` dibatasi
+     * hanya utk app sistem sejak API 30) — best-effort satu-satunya yang realistis adalah
+     * arahkan USER SENDIRI ke dialog "App Info" bawaan Android utk app target, tempat user
+     * bisa atur battery restriction/manage-background manual. Ini BUKAN otomatis dari
+     * VoltCare — murni shortcut navigasi, sama pola honesty seperti catatan `killBackgroundApp`
+     * di atas & `topAppsByForegroundUsage` (proxy, bukan data sebenarnya).
+     */
+    fun openAppDetailsSettings(context: Context, packageName: String) {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.fromParts("package", packageName, null)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         context.startActivity(intent)
