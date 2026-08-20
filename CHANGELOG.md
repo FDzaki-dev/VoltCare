@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.24-batch61] - 2026-08-20
+### Fixed
+- Tombol nada alarm cuma nampilin "Custom terpilih ✓" generik, judul sound asli gak kebaca. Sekarang `RuleFormDialog` resolve judul via `RingtoneManager.getRingtone(context, uri).getTitle(context)` (LaunchedEffect, fallback "Custom" kalau gagal resolve). Lihat `PROJECT_STATE.md` Batch 61.
+
 ## [v1.0.23-batch60] - 2026-08-20
 ### Added
 - UI pilih nada alarm custom (Pending Queue #26): tombol di `RuleFormDialog` (`RulesScreen.kt`) buka `RingtoneManager.ACTION_RINGTONE_PICKER`, tersimpan via `RulesViewModel.saveRule()` ke `RuleEntity.alarmSoundUri`. Lihat `PROJECT_STATE.md` Batch 60.

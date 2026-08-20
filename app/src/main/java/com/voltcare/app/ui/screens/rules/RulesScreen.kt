@@ -34,11 +34,13 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -249,6 +251,16 @@ private fun RuleFormDialog(
     var alarmSoundUri by remember { mutableStateOf(existing?.alarmSoundUri) }
     var conditionMenuOpen by remember { mutableStateOf(false) }
     var actionMenuOpen by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    // Batch #60 (RESOLVED): tampilkan judul nada alarm asli, bukan generik "Custom terpilih".
+    var alarmSoundTitle by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(alarmSoundUri) {
+        alarmSoundTitle = alarmSoundUri?.let { uriStr ->
+            runCatching {
+                RingtoneManager.getRingtone(context, Uri.parse(uriStr))?.getTitle(context)
+            }.getOrNull()
+        }
+    }
     val ringtonePickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -350,7 +362,10 @@ private fun RuleFormDialog(
                         }
                         ringtonePickerLauncher.launch(intent)
                     }) {
-                        Text(if (alarmSoundUri == null) "Pilih Nada Alarm (default sistem)" else "Nada Alarm: Custom terpilih ✓")
+                        Text(
+                            if (alarmSoundUri == null) "Pilih Nada Alarm (default sistem)"
+                            else "Nada Alarm: ${alarmSoundTitle ?: "Custom"} ✓"
+                        )
                     }
                 }
             }

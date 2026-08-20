@@ -24,6 +24,22 @@
 
 ---
 
+## [Batch 61] Fix - Judul Nada Alarm Custom Gak Kebaca (RESOLVED) — 2026-08-20
+
+**Konteks:** Setelah Batch 60, tombol nada alarm cuma nampilin teks generik "Nada Alarm: Custom terpilih ✓" — user gak tau file sound apa yang kepilih (screenshot user).
+
+**Implementasi:**
+- `RulesScreen.kt` (`RuleFormDialog`): tambah `alarmSoundTitle` state + `LaunchedEffect(alarmSoundUri)` resolve judul asli via `RingtoneManager.getRingtone(context, Uri.parse(uriStr))?.getTitle(context)`, dibungkus `runCatching` (fallback teks "Custom" kalau resolve gagal/null/uri sistem tanpa title readable).
+- Tombol sekarang: `"Nada Alarm: ${judulAsli} ✓"`.
+- Tambah import `LaunchedEffect` + `LocalContext`.
+- 1 file, sesuai batch cap.
+- Bump wajib: versionCode 24→25, versionName 1.0.23→1.0.24 (`app/build.gradle.kts`).
+
+**Pending Queue (belum berubah, masih carry-over):**
+- #27: `saveRule` masih hardcode `isEnabled = true` saat edit rule (dari Batch 60, belum digarap).
+
+---
+
 ## [Batch 60] Fitur - UI Pilih Nada Alarm Custom (Pending Queue #26, RESOLVED) — 2026-08-20
 
 **Konteks:** Lanjutan Batch 59 — engine+wiring alarm sudah bunyi, tapi user tidak bisa pilih nada sendiri (selalu default sistem).
