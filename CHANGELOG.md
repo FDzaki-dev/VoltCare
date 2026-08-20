@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.6-batch41] - 2026-08-20
+### Added
+- Pending #20: `ShizukuManager.autoGrantUsageAccess()` — auto-grant Akses Penggunaan via `appops set <pkg> GET_USAGE_STATS allow` (Shizuku), diverifikasi ulang lewat `AppOpsManager` sebelum dianggap sukses. Tombol "Izinkan Otomatis via Shizuku" muncul di Drain Analyzer kalau Shizuku aktif — jalur manual buka Settings tetap ada sbg fallback.
+### Changed
+- Bump versi `1.0.5` -> `1.0.6` (`versionCode` 6->7) sesuai RULE WAJIB Batch 37.
+
 ## [v1.0.5-batch40] - 2026-08-20
 ### Fixed
 - Body release GitHub cuma nampilin `**Full Changelog**: <link compare>` tanpa isi (root cause: `generate_release_notes: true` GitHub butuh alur PR+label, repo ini push langsung ke main) — diganti body custom dari `git log` (bullet list pesan commit riil sejak tag sebelumnya) via `body_path` di `release.yml`.

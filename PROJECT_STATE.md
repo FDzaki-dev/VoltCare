@@ -18,6 +18,35 @@
 
 ---
 
+## [Batch 41] Fitur - Pending #20: Auto-Grant Usage Access via Shizuku (Drain Analyzer) — 2026-08-20
+
+**Confidence Rating: 91%**
+**File sebelum -> sesudah:** 59 -> 59 file (2 file kode diedit: `ShizukuManager.kt`, `DrainScreen.kt` — bukan protected; 1 file protected edit parsial: `app/build.gradle.kts` — bump versi wajib per RULE Batch 37)
+
+### Konteks
+Lanjutan roadmap Shizuku (engine Batch 23, UI wiring Batch 26, Force Stop Batch 39) — Pending #20. Drain Analyzer sebelumnya SELALU minta user buka Settings > Akses Penggunaan manual, walau Shizuku sudah aktif & bisa melakukannya otomatis lewat `appops set`.
+
+### Selesai
+- **`ShizukuManager.kt`**: fungsi baru `autoGrantUsageAccess(context: Context): Boolean` — jalankan `appops set <pkg> GET_USAGE_STATS allow` via `execShellCommand()` yang sudah ada (Batch 23, tidak diubah). **Defense in depth**: tidak percaya buta exit code sukses — setelah command jalan, verifikasi ulang lewat `UsageStatsHelper.hasUsageAccessPermission()` (AppOpsManager check riil) sebelum return true, karena `appops set` bisa "sukses" secara exit code tapi tidak selalu berefek nyata di semua ROM/device. +1 import `android.content.Context`. Brace 30/30 curly, 83/83 paren.
+- **`DrainScreen.kt`**: di blok permission-gate (`!hasPermission`), tombol baru "Izinkan Otomatis via Shizuku" muncul KALAU `ShizukuManager.hasPermission()` true (Shizuku aktif & diizinkan) — panggil `autoGrantUsageAccess()` lalu `refreshTrigger++` (re-check state, pola sama seperti tombol "Sudah diizinkan, muat ulang" yang sudah ada). Tombol "Buka Pengaturan Akses Penggunaan" manual TETAP ada persis seperti sebelumnya — jalur lama 100% dipertahankan untuk user yang tidak/belum pakai Shizuku. Brace 27/27 curly, 61/61 paren.
+- **`app/build.gradle.kts`** (protected, edit parsial, RULE WAJIB Batch 37): `versionCode` 6->7, `versionName` "1.0.5"->"1.0.6". Brace 23/23 curly, 65/65 paren.
+- Dicek: `ShizukuManager.kt` & `UsageStatsHelper.kt` sepaket (`com.voltcare.app.util`) — pemanggilan `UsageStatsHelper.hasUsageAccessPermission()` dari `ShizukuManager` valid tanpa import tambahan.
+
+### Sengaja TIDAK diubah
+- `UsageStatsHelper.hasUsageAccessPermission()`/`openUsageAccessSettings()` — dipakai apa adanya, tidak ada perubahan API.
+- `AndroidManifest.xml` — tidak ada permission baru; `appops set` dieksekusi lewat privilege binder Shizuku (shell UID), bukan lewat permission Android biasa, jadi tidak butuh entri manifest tambahan.
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`app/build.gradle.kts` — brace balance 23/23 curly, 65/65 paren, hanya 2 baris versi diganti.
+
+### Catatan
+Tidak ada compile Gradle/device fisik sungguhan di lingkungan pembuatan ZIP ini (network disabled) — verifikasi terbatas brace/paren balance + audit manual pola `execShellCommand()` (dipakai persis sesuai kontrak Batch 23, 0 perubahan API di sisi itu). Command `appops set <pkg> GET_USAGE_STATS allow` adalah perintah shell standar Android (bukan API tersembunyi/reflection tambahan di luar `execShellCommand` yang sudah ada), tapi efektivitasnya di device nyata dgn Shizuku aktif BELUM diverifikasi runtime (sama seperti seluruh fitur Shizuku lain di project ini). Confidence 91% (bukan 95%+) karena alasan yang sama seperti Batch 23/39: belum ada bukti compile+run nyata di device dgn Shizuku aktif. Rekomendasi: build + test manual (Shizuku aktif & diizinkan) sebelum lanjut Pending #19 (parsing `dumpsys batterystats`, kompleksitas lebih tinggi).
+
+### Pending Queue
+10, 11, 12, 13, 19. Tidak berubah. 20 ✅ selesai (Batch 41, ini).
+
+---
+
 ## [Batch 40] Fix - Info Update Kurang Jelas: Body Release Cuma Link Compare — 2026-08-20
 
 **Confidence Rating: 90%**

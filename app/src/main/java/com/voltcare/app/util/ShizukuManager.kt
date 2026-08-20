@@ -1,5 +1,6 @@
 package com.voltcare.app.util
 
+import android.content.Context
 import android.content.pm.PackageManager
 import rikka.shizuku.Shizuku
 import java.io.BufferedReader
@@ -136,5 +137,22 @@ object ShizukuManager {
         } catch (e: Throwable) {
             ShellResult(-1, "", "Shizuku exec gagal: ${e.message}")
         }
+    }
+
+    /**
+     * Batch 41 (Pending #20): auto-grant `PACKAGE_USAGE_STATS` untuk VoltCare via
+     * `appops set <pkg> GET_USAGE_STATS allow` — menghilangkan langkah manual buka
+     * Settings > Akses Penggunaan di Drain Analyzer SAAT Shizuku aktif & diizinkan.
+     * Return true HANYA jika command shell benar-benar sukses (exit code 0) DAN
+     * verifikasi ulang [UsageStatsHelper.hasUsageAccessPermission] mengonfirmasi izin
+     * sudah aktif (defense in depth - `appops set` bisa "sukses" secara exit code tapi
+     * tidak benar-benar berefek di device/ROM tertentu, jadi tidak dipercaya buta).
+     */
+    fun autoGrantUsageAccess(context: Context): Boolean {
+        val result = execShellCommand(
+            arrayOf("appops", "set", context.packageName, "GET_USAGE_STATS", "allow")
+        )
+        if (!result.isSuccess) return false
+        return UsageStatsHelper.hasUsageAccessPermission(context)
     }
 }

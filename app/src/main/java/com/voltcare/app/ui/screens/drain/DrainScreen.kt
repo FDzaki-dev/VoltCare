@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.voltcare.app.util.AppUsageInfo
+import com.voltcare.app.util.ShizukuManager
 import com.voltcare.app.util.UsageStatsHelper
 
 /**
@@ -63,6 +64,19 @@ fun DrainScreen() {
                 )
                 Button(onClick = { UsageStatsHelper.openUsageAccessSettings(context) }) {
                     Text("Buka Pengaturan Akses Penggunaan")
+                }
+                // Batch 41 (Pending #20): shortcut kalau Shizuku sudah aktif & diizinkan -
+                // langsung "appops set ... allow" tanpa perlu buka Settings manual sama sekali.
+                // Tombol cuma muncul kalau Shizuku Ready (hasPermission()), TIDAK mengubah
+                // alur existing untuk user yang belum/tidak pakai Shizuku (tetap harus buka
+                // Settings manual via tombol di atas, jalur lama 100% dipertahankan).
+                if (ShizukuManager.hasPermission()) {
+                    OutlinedButton(onClick = {
+                        ShizukuManager.autoGrantUsageAccess(context)
+                        refreshTrigger++
+                    }) {
+                        Text("Izinkan Otomatis via Shizuku")
+                    }
                 }
                 OutlinedButton(onClick = { refreshTrigger++ }) {
                     Text("Sudah diizinkan, muat ulang")
