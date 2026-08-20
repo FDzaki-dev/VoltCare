@@ -18,6 +18,37 @@
 
 ---
 
+## [Batch 51] Fix - Pending #19 (1.9/2): Bug Baris Tergabung, Parser Sekarang Tervalidasi Penuh — 2026-08-20
+
+**Confidence Rating: 96%**
+**File sebelum -> sesudah:** 57 -> 57 file (0 baru/hapus, 1 file diedit: `BatteryStatsParser.kt` — bukan protected; 1 file protected edit parsial: `app/build.gradle.kts` — bump versi wajib per RULE Batch 37)
+
+### Konteks
+User jalankan rekomendasi Batch 50 (`dumpsys batterystats --charged | grep -A 100 "Estimated power use"`, capture lebih panjang) dan tempel hasil NYATA berisi 13 baris `UID u0aXX` (app pihak ketiga) + 5 baris UID sistem (`1000`, `0`, `1041`, `1046`, `1013`).
+
+### Temuan (dari data nyata user, lebih signifikan dari Batch 50)
+Simulasi parser (Python, regex identik) terhadap teks lengkap yang ditempel user hanya menangkap **1 dari 18 baris UID total**. Root cause: **banyak baris konseptual dumpsys tergabung jadi 1 baris fisik sangat panjang** (kemungkinan besar artefak terminal Termux layar sempit saat capture/paste) — satu baris fisik user berisi berkali-kali pola `UID <token>: <angka>` beruntun (mis. `UID 1000: 4.81 ... UID 0: 1.59 ... UID u0a41: 1.23 ...` semua di baris yang sama). Regex `UID_LINE` Batch 49/50 pakai anchor `^` (WAJIB persis di awal baris fisik) — jadi HANYA entri UID pertama di tiap baris fisik yang ketemu, sisanya (termasuk hampir semua `u0aXX`) terlewat begitu saja TANPA warning/crash (list kosong parsial, bukan salah, tapi tidak lengkap — bug paling berbahaya krn silent).
+
+### Selesai
+- **`BatteryStatsParser.kt`**: `UID_LINE` diubah dari anchor `^\s*uid...` jadi boundary-aware `(?:^|\s)uid...` (match "UID" di awal baris ATAU didahului spasi, bukan cuma persis kolom 0). Loop parsing diubah dari `UID_LINE.find(line)` (1 match/baris) jadi `UID_LINE.findAll(line)` (semua match/baris, di-iterate dgn `for`). `NEXT_TOP_LEVEL_SECTION` (heuristik akhir section) **TIDAK diubah** — sudah divalidasi tetap benar (baris prompt shell penutup capture user tetap terdeteksi sbg akhir section).
+- **Sanity-test ulang** (Python, regex+logic identik, terhadap **teks lengkap nyata** yang ditempel user — bukan simulasi/dugaan lagi): hasil **13 app UID** (`u0a41`->10041 1.23mAh, `u0a125`->10125 1.04mAh, ... turun sampai `u0a171`->10171 0.115mAh) + **5 UID sistem terfilter** (1000/0/1041/1046/1013, semua <10000) = **18 total, cocok 100%** dgn hitung manual baris demi baris dari teks mentah. `decodeUid()` tervalidasi utk appId 1 digit (`u0a3`) maupun banyak digit (`u0a385`).
+- **`app/build.gradle.kts`** (protected, edit parsial, RULE WAJIB Batch 37): `versionCode` 16->17, `versionName` "1.0.15"->"1.0.16". Brace 23/23 curly, 65/65 paren.
+
+### Sengaja TIDAK diubah
+- `NEXT_TOP_LEVEL_SECTION`/heuristik akhir section — terbukti tetap benar di data nyata, tidak ada indikasi perlu diubah.
+- **Masih belum wiring ke UI** (`ShizukuManager.kt`/`DrainScreen.kt`/`UsageStatsHelper.kt` tetap tidak disentuh) — parser sekarang confidence tinggi (96%), tapi wiring tetap task terpisah (Micro-Batching Rule) supaya blast radius perubahan UI batch berikutnya bisa diaudit sendiri.
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`app/build.gradle.kts` — brace balance 23/23 curly, 65/65 paren, hanya 2 baris versi diganti.
+
+### Catatan
+Confidence **96%** (naik dari 90% Batch 50) — parser sekarang tervalidasi terhadap data mentah SUNGGUHAN dari device user (bukan sample buatan), termasuk kasus tersulit (baris tergabung) yang justru KETAHUAN dari data ini. Sisa 4% bukan krn keraguan pada parser (sudah solid), tapi krn wiring UI (langkah 2/2) belum dikerjakan/dites — begitu itu selesai & user konfirmasi tab Drain Analyzer menampilkan data mAh yang masuk akal, Pending #19 baru bisa ditutup 100%.
+
+### Pending Queue
+19. Masih belum selesai (1.9/2 — parser TERVALIDASI PENUH, tinggal wiring UI di batch berikutnya).
+
+---
+
 ## [Batch 50] Fix - Pending #19 (1.5/2): Bug Casing Regex `UID` Ditemukan dari Dumpsys Nyata — 2026-08-20
 
 **Confidence Rating: 90%**

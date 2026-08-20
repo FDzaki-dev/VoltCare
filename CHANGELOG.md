@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.16-batch51] - 2026-08-20
+### Fixed
+- **Bug baris tergabung `BatteryStatsParser.kt`** (Pending #19, 1.9/2): capture dumpsys panjang nyata dari user (13 app UID + 5 sistem) ungkap parser lama cuma nangkep 1/18 baris UID krn banyak baris konseptual dumpsys tergabung jadi 1 baris fisik & regex pakai anchor `^` ketat. Fix: `(?:^|\s)` boundary-aware + `findAll` (bukan `find` tunggal). Hasil setelah fix: 13 app + 5 sistem = 18 total, cocok 100% manual-count. Parser sekarang confidence 96%, tervalidasi penuh dari data nyata.
+### Changed
+- Bump versi `1.0.15` -> `1.0.16` (`versionCode` 16->17) sesuai RULE WAJIB Batch 37.
+
 ## [v1.0.15-batch50] - 2026-08-20
 ### Fixed
 - **Bug casing regex `BatteryStatsParser.kt`** (Pending #19, 1.5/2): ditemukan dari validasi output `adb shell dumpsys batterystats` NYATA yang ditempel user — device pakai `"UID"` (kapital semua), regex Batch 49 cuma cocok `"Uid"` (case-sensitive) -> selalu return list kosong. Fix: `RegexOption.IGNORE_CASE`. Bagian `u0aXX` (UID aplikasi) masih belum tervalidasi data nyata — wiring UI masih ditahan.

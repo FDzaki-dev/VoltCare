@@ -12,8 +12,8 @@ android {
         applicationId = "com.voltcare.app"
         minSdk = 29
         targetSdk = 34
-        versionCode = 16
-        versionName = "1.0.15"
+        versionCode = 17
+        versionName = "1.0.16"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Batch 36: dibaca UpdateManager.kt buat bedain build CI mana yang lebih baru walau

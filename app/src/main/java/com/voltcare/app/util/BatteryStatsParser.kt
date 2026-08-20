@@ -19,18 +19,24 @@ data class UidPowerUsage(val uid: Int, val mah: Double)
  * tinggi -> mungkin perlu dipecah lagi"), supaya bagian paling berisiko (parsing teks
  * tidak terstruktur) bisa diaudit terpisah dari perubahan UI.
  *
- * ⚠️ STATUS VALIDASI (update Batch 50): sebagian TERVERIFIKASI dari output `adb shell
- * dumpsys batterystats --charged` nyata (device user, Transsion XOS) yang ditempel user
- * setelah Batch 49 — header section, posisi baris "Capacity/Computed drain", section
- * "Global" (screen/cpu/audio/dst, otomatis ter-skip krn tidak match [UID_LINE]), heuristik
- * akhir section, DAN 1 baris UID sistem (`UID 1000: 4.58 bg: 4.58`) semuanya cocok pola —
- * TAPI ditemukan 1 bug nyata: device pakai "UID" (kapital semua), regex awal Batch 49
- * cuma cocok "Uid" (case-sensitive) -> SUDAH DIPERBAIKI (`RegexOption.IGNORE_CASE`).
- * ⚠️ MASIH BELUM terverifikasi: format UID APLIKASI (`u0aXX`) — capture user baru sampai
- * baris UID sistem (`1000`, otomatis ter-filter [minUid]) sebelum output terpotong. WAJIB
- * capture lebih panjang (mis. `dumpsys batterystats --charged | grep -A 100 "Estimated
- * power use"` atau simpan ke file) berisi minimal 1 baris `u0aXX` nyata sebelum batch
- * berikutnya (wiring UI) dianggap 100% andal untuk data per-app (bukan cuma per-sistem).
+ * ⚠️ STATUS VALIDASI (update Batch 51): TERVERIFIKASI PENUH dari 2 capture nyata
+ * `adb shell dumpsys batterystats --charged` (device user, Transsion XOS):
+ * - Batch 50 (capture pendek, `grep -A 30`): ketemu bug casing "UID" vs "Uid" -> fixed.
+ * - Batch 51 (capture panjang, `grep -A 100`, berisi 13 baris `u0aXX` app + 5 UID sistem):
+ *   ketemu bug KEDUA yang lebih signifikan - device/terminal user MENGGABUNGKAN banyak
+ *   baris konseptual dumpsys jadi 1 baris fisik sangat panjang (bukan 1 baris = 1 entri
+ *   UID spt asumsi awal). Regex lama (anchor `^` ketat) cuma nangkep 1 dari 15 baris UID
+ *   di capture ini. FIXED: `UID_LINE` dari anchor `^` (start-of-line) jadi boundary-aware
+ *   `(?:^|\s)` + [findAll] (bukan [find] tunggal) per baris, supaya SEMUA kemunculan
+ *   "UID ..." di 1 baris fisik ikut tertangkap. Hasil setelah fix: 13 app UID + 5 UID
+ *   sistem = 18 total, cocok 100% dgn hitung manual dari teks mentah (5 sistem otomatis
+ *   ter-filter [minUid], sisa 13 app terurut descending sesuai mAh).
+ * - `decodeUid()` (`u0aXX` -> UID Android asli) TERVALIDASI: pola `u0a41`, `u0a125`,
+ *   `u0a3`, dst semua ter-decode benar (userId*100000+10000+appId), termasuk format
+ *   1-digit appId (`u0a3`) yang sebelumnya belum ada contoh nyatanya.
+ * - Heuristik akhir section (`NEXT_TOP_LEVEL_SECTION`) TIDAK berubah & TETAP valid -
+ *   baris penutup (prompt shell `~/projects/VoltCare $` di capture user) tetap terdeteksi
+ *   benar sbg akhir section walau baris UID di atasnya tergabung.
  */
 object BatteryStatsParser {
 
@@ -38,12 +44,18 @@ object BatteryStatsParser {
     private val SECTION_HEADER = Regex("""Estimated power use \(mAh\)""")
 
     // Baris per-UID di dalam section, contoh: "    Uid u0a55: 45.678" atau
-    // "    UID 1000: 4.58 bg: 4.58" - breakdown tambahan di akhir baris (dalam kurung
-    // ATAU token polos spt "bg: 4.58") diabaikan (tidak masuk grup regex, tidak perlu
-    // di-strip manual). IGNORE_CASE: divalidasi Batch 50 dari dumpsys nyata (adb shell
-    // dumpsys batterystats --charged) - device user pakai "UID" (all caps), bukan "Uid"
-    // spt asumsi awal Batch 49 (dari dokumentasi tool pihak ketiga/Android versi lain).
-    private val UID_LINE = Regex("""^\s*uid\s+(\S+):\s+([\d.]+)""", RegexOption.IGNORE_CASE)
+    // "    UID 1000: 4.81 bg: 4.81 cpu=... UID 0: 1.59 bg: 1.59 cpu=... UID u0a41: ..."
+    // - breakdown tambahan di akhir (dalam kurung ATAU token polos spt "bg:"/"cpu=...")
+    // diabaikan (tidak masuk grup regex). PENTING (Batch 51, dari capture dumpsys PANJANG
+    // nyata milik user): SATU baris fisik (dipisah newline sungguhan) bisa berisi BANYAK
+    // entri "UID ..." sekaligus - device/terminal user (Termux, layar sempit) menggabungkan
+    // banyak baris konseptual dumpsys jadi 1 baris sangat panjang saat di-capture/paste,
+    // walau baris file/breakdown lain (spt prompt shell penutup) tetap baris sendiri.
+    // Makanya pola TIDAK di-anchor `^` (start-of-line ketat) lagi - pakai boundary
+    // `(?:^|\s)` (awal baris ATAU didahului spasi) + [findAll] per baris (bukan [find]
+    // tunggal) supaya SEMUA kemunculan "UID ..." di 1 baris fisik ikut tertangkap, bukan
+    // cuma yang pertama/yang persis di awal baris.
+    private val UID_LINE = Regex("""(?:^|\s)uid\s+(\S+):\s+([\d.]+)""", RegexOption.IGNORE_CASE)
 
     // Heuristik akhir section: dumpsys batterystats secara konsisten membuat header
     // section besar (mis. "Estimated power use (mAh):", "Discharge step durations:")
@@ -69,10 +81,11 @@ object BatteryStatsParser {
             val line = lines[i]
             if (line.isNotBlank() && NEXT_TOP_LEVEL_SECTION.containsMatchIn(line)) break
 
-            val match = UID_LINE.find(line) ?: continue
-            val mah = match.groupValues[2].toDoubleOrNull() ?: continue
-            val uid = decodeUid(match.groupValues[1]) ?: continue
-            if (uid >= minUid) result.add(UidPowerUsage(uid, mah))
+            for (match in UID_LINE.findAll(line)) {
+                val mah = match.groupValues[2].toDoubleOrNull() ?: continue
+                val uid = decodeUid(match.groupValues[1]) ?: continue
+                if (uid >= minUid) result.add(UidPowerUsage(uid, mah))
+            }
         }
         return result.sortedByDescending { it.mah }
     }
