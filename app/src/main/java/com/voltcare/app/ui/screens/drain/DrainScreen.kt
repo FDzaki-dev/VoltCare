@@ -169,7 +169,7 @@ private fun DrainAppRow(
                     style = MaterialTheme.typography.bodySmall
                 )
             }
-            if (!app.isSystemApp) {
+            if (isActionable(app.packageName)) {
                 Checkbox(checked = isWhitelisted, onCheckedChange = { onToggleWhitelist() })
                 OutlinedButton(onClick = onForceStop) {
                     Text("Force Stop")
@@ -178,3 +178,25 @@ private fun DrainAppRow(
         }
     }
 }
+
+/**
+ * Fix bug (dilaporkan user via screenshot): `AppUsageInfo.isSystemApp` (dari `FLAG_SYSTEM`)
+ * menandai HAMPIR SEMUA app bawaan OEM sebagai "system" - termasuk app yang user pakai
+ * sehari-hari & aman di-force-stop (Launcher/"Peluncur XOS", "Jam", komponen Transsion
+ * "TranResolver"), khususnya di ROM custom (mis. Transsion XOS) yang menandai banyak app
+ * preinstall sbg system partition walau fungsinya persis app biasa. Akibatnya SELURUH baris
+ * kehilangan checkbox+tombol Force Stop di device seperti itu - bukan bug render, blanket
+ * filter yang kelewat luas.
+ *
+ * Diganti jadi blocklist EKSPLISIT hanya untuk komponen sistem yang benar-benar kritis kalau
+ * di-force-stop (bisa bikin UI sistem crash/reboot loop) - selain itu, SEMUA app (termasuk
+ * yang FLAG_SYSTEM) tetap actionable, sesuai maksud awal fitur.
+ */
+private val CRITICAL_SYSTEM_PACKAGES = setOf(
+    "android",
+    "com.android.systemui",
+    "com.android.settings",
+    "com.android.phone"
+)
+
+private fun isActionable(packageName: String): Boolean = packageName !in CRITICAL_SYSTEM_PACKAGES

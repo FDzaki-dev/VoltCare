@@ -18,6 +18,41 @@
 
 ---
 
+## [Batch 45] Fix - Drain Analyzer: Filter `isSystemApp` Kelewat Luas (Semua Row Tidak Clickable) — 2026-08-20
+
+**Confidence Rating: 92%**
+**File sebelum -> sesudah:** 60 -> 60 file (1 diedit: `DrainScreen.kt` — bukan protected; 1 file protected edit parsial: `app/build.gradle.kts` — bump versi wajib per RULE Batch 37)
+
+### Konteks
+User kirim screenshot Drain Analyzer: 3 app teratas ("Jam", "Peluncur XOS", "TranResolver") SEMUA tanpa checkbox/tombol Force Stop — tanya "kenapa bagian tab ini gak ada yang clickable?!!".
+
+### Root Cause
+BUKAN bug render/state Compose. `DrainAppRow` sejak Batch 10 (diwarisi Batch 44) pakai gate `if (!app.isSystemApp)` untuk menyembunyikan Force Stop/checkbox whitelist — `isSystemApp` dihitung dari `ApplicationInfo.FLAG_SYSTEM` (`UsageStatsHelper.kt`, tidak diubah batch ini). Di device user (ROM Transsion **XOS** — terlihat dari nama app "Peluncur **XOS**"), OEM menandai HAMPIR SEMUA app preinstall sbg `FLAG_SYSTEM`, termasuk Launcher, Jam/Clock, dan komponen custom "TranResolver" — bukan cuma komponen inti Android murni. Karena 3 app dgn waktu pemakaian tertinggi di device ini SEMUA kena flag itu, seluruh list yang user lihat kebetulan 100% ter-filter — user (sah) mengira fitur rusak.
+
+### Selesai
+- **`DrainScreen.kt`**: gate `!app.isSystemApp` diganti fungsi privat baru `isActionable(packageName)` — blocklist EKSPLISIT hanya 4 package benar-benar kritis (`android`, `com.android.systemui`, `com.android.settings`, `com.android.phone`) yang berisiko crash/reboot-loop UI kalau di-force-stop. SEMUA app lain — termasuk yang `FLAG_SYSTEM` seperti Launcher/Jam/komponen OEM — sekarang actionable (checkbox whitelist + tombol Force Stop tampil), sesuai maksud awal fitur (bukan literally "sembunyikan semua yang FLAG_SYSTEM"). Brace 36/36 curly, 98/98 paren.
+- **`app/build.gradle.kts`** (protected, edit parsial, RULE WAJIB Batch 37): `versionCode` 10->11, `versionName` "1.0.9"->"1.0.10". Brace 23/23 curly, 65/65 paren.
+
+### Keputusan Desain Penting
+- **Blocklist 4 package, bukan whitelist/heuristik kompleks** — sengaja minimal & predictable. Menambah heuristik (mis. cek `ApplicationInfo.FLAG_UPDATED_SYSTEM_APP`, kategori app, dll) berisiko exclude/include salah lagi di ROM OEM lain yang punya konvensi flag beda-beda (persis akar masalah batch ini). Blocklist eksplisit lebih predictable & gampang di-audit/ditambah manual kalau nanti ada laporan package kritis lain yang lolos.
+- **`AppUsageInfo.isSystemApp` (field di `UsageStatsHelper.kt`) TIDAK dihapus** — field masih valid/dihitung dgn benar (`FLAG_SYSTEM` tetap makna aslinya), cuma TIDAK dipakai lagi sbg gate actionability di `DrainScreen.kt`. Tidak breaking apa pun, tidak perlu edit `UsageStatsHelper.kt`.
+- **Dampak ke Pending #12 (whitelist Auto-Hibernate, Batch 44)**: fix ini juga otomatis membuka whitelist utk lebih banyak app (termasuk app OEM yang sebelumnya tersembunyi) — konsisten & DIINGINKAN, bukan efek samping tak disengaja, karena tujuan whitelist memang "app yang mau user approve", bukan dibatasi diam-diam oleh flag OEM yang tidak related.
+
+### Sengaja TIDAK diubah
+- `UsageStatsHelper.kt`, `AppUsageInfo` data class — lihat Keputusan Desain di atas.
+- `HibernateWorker.kt`/`HibernateWhitelistStore` (Batch 44) — tidak ada perubahan, whitelist tetap murni berdasar pilihan checkbox user, cuma sekarang lebih banyak app yang BISA dipilih.
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`app/build.gradle.kts` — brace balance 23/23 curly, 65/65 paren, hanya 2 baris versi diganti.
+
+### Catatan
+Tidak ada compile Gradle/device fisik sungguhan di lingkungan pembuatan ZIP ini (network disabled) — verifikasi terbatas brace/paren balance + audit manual (perubahan murni kondisi boolean, tidak ada API/import baru). Confidence 92% (bukan 95%+): daftar 4 package kritis disusun dari pengetahuan umum AOSP (`com.android.systemui`/`com.android.phone`/`com.android.settings`/`android` adalah nama package standar lintas ROM), TAPI belum ada jaminan tidak ada package OEM lain yang SAMA kritisnya tapi nama beda per-vendor (mis. SystemUI custom Transsion mungkin punya package name berbeda dari AOSP standar) — best-effort, bukan proteksi lengkap. Rekomendasi: build + install ulang di device Transsion XOS user, konfirmasi checkbox+Force Stop sekarang muncul di "Jam"/"Peluncur XOS"/"TranResolver", DAN pastikan tidak ada crash sistem kalau user coba Force Stop app OEM tsb (test hati-hati, mulai dari app yang paling tidak kritis dulu mis. "Jam").
+
+### Pending Queue
+13, 19. Tidak berubah.
+
+---
+
 ## [Batch 44] Fitur - Pending #12: Auto-Hibernate Terjadwal (WorkManager) — 2026-08-20
 
 **Confidence Rating: 90%**

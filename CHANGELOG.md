@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.10-batch45] - 2026-08-20
+### Fixed
+- **Drain Analyzer: semua row tidak clickable di ROM OEM tertentu** (dilaporkan user via screenshot, device Transsion XOS) — gate `!app.isSystemApp` kelewat luas (nyembunyiin app OEM biasa spt Launcher/Jam yg ditandai `FLAG_SYSTEM`). Diganti blocklist eksplisit 4 package sistem kritis (`android`, `systemui`, `settings`, `phone`) — app lain (termasuk `FLAG_SYSTEM`) sekarang actionable (checkbox whitelist + Force Stop tampil).
+### Changed
+- Bump versi `1.0.9` -> `1.0.10` (`versionCode` 10->11) sesuai RULE WAJIB Batch 37.
+
 ## [v1.0.9-batch44] - 2026-08-20
 ### Added
 - Pending #12: Auto-Hibernate Terjadwal — `HibernateWorker.kt` (baru, WorkManager pemakaian PERTAMA sejak dependency ditambahkan Batch 1) force-stop app whitelist tiap 30 menit. `DrainScreen.kt`: Switch master + checkbox whitelist per app (hanya app yang di-approve eksplisit user, bukan semua app).
