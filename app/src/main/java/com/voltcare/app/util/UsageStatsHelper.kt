@@ -197,6 +197,75 @@ object UsageStatsHelper {
             )
     }
 
+    /**
+     * Varian "Tampilkan Semua App" (Batch 54, permintaan eksplisit user setelah screenshot
+     * Batch 53 hanya menampilkan 3 app) - BEDA dari [topAppsByForegroundUsage] +
+     * [mergeDrainData] (yang membatasi ke 15 app dgn foreground time TERTINGGI dulu, baru
+     * diisi mAh kalau match). Fungsi ini membangun daftar LANGSUNG dari [mahByPackage] - jadi
+     * app yang tercatat `dumpsys batterystats` TAPI foreground time-nya rendah/0 dalam 24 jam
+     * terakhir (app jarang dibuka user tapi tetap aktif di background/wake lock, JUSTRU
+     * kandidat penguras paling relevan) ikut tampil, bukan cuma yang sering dibuka manual.
+     *
+     * HANYA berguna kalau [mahByPackage] tidak kosong - caller (DrainScreen) menggating lewat
+     * `hasRealDrainData`, TIDAK dipanggil sama sekali kalau Shizuku tidak aktif.
+     */
+    fun fullDrainAppList(
+        context: Context,
+        mahByPackage: Map<String, Double>,
+        hours: Int = 24,
+        limit: Int = 50
+    ): List<AppUsageInfo> {
+        if (mahByPackage.isEmpty()) return emptyList()
+        val foregroundMap = rawForegroundMsByPackage(context, hours)
+        val pm = context.packageManager
+        val selfPackage = context.packageName
+
+        return mahByPackage.keys
+            .filter { it != selfPackage }
+            .mapNotNull { pkg ->
+                val appInfo = try {
+                    pm.getApplicationInfo(pkg, 0)
+                } catch (e: PackageManager.NameNotFoundException) {
+                    null
+                } ?: return@mapNotNull null
+
+                AppUsageInfo(
+                    packageName = pkg,
+                    appLabel = pm.getApplicationLabel(appInfo).toString(),
+                    totalForegroundMs = foregroundMap[pkg] ?: 0L,
+                    isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
+                    mahEstimate = mahByPackage[pkg]
+                )
+            }
+            .sortedWith(
+                compareByDescending<AppUsageInfo> { it.mahEstimate ?: -1.0 }
+                    .thenByDescending { it.totalForegroundMs }
+            )
+            .take(limit)
+    }
+
+    /**
+     * Map mentah packageName -> total foreground ms, TANPA batas [limit] 15 spt
+     * [topAppsByForegroundUsage] (fungsi itu TIDAK diubah/disentuh - dipertahankan apa adanya
+     * utk jalur proxy lama). Dibuat terpisah (bukan refactor fungsi existing) supaya blast
+     * radius perubahan Batch 54 tidak menyentuh perilaku [topAppsByForegroundUsage] yang sudah
+     * jalan sejak Batch 1. Return map kosong (bukan exception) kalau izin Usage Access belum
+     * ada - [fullDrainAppList] tetap jalan, foreground time-nya cuma tampil 0m per app.
+     */
+    private fun rawForegroundMsByPackage(context: Context, hours: Int): Map<String, Long> {
+        if (!hasUsageAccessPermission(context)) return emptyMap()
+        val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+            ?: return emptyMap()
+        val end = System.currentTimeMillis()
+        val start = end - hours * 60 * 60 * 1000L
+        val stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_BEST, start, end) ?: emptyList()
+
+        return stats
+            .filter { it.totalTimeInForeground > 0 }
+            .groupBy { it.packageName }
+            .mapValues { (_, list) -> list.sumOf { it.totalTimeInForeground } }
+    }
+
     fun formatDuration(ms: Long): String {
         val totalMinutes = ms / 60000
         val h = totalMinutes / 60

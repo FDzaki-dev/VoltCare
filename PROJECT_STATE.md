@@ -22,6 +22,40 @@
 
 ---
 
+---
+
+## [Batch 54] Fitur - Mode "Tampilkan Semua App" di Drain Analyzer (Permintaan User) — 2026-08-20
+
+**Confidence Rating: 93%**
+**File sebelum -> sesudah:** 57 -> 57 file (0 baru/hapus, 2 file diedit: `UsageStatsHelper.kt`, `DrainScreen.kt` — bukan protected; 1 file protected edit parsial: `app/build.gradle.kts` — bump versi wajib per RULE Batch 37)
+
+### Konteks
+User tanya kenapa screenshot Batch 53 cuma nampilin 3 app. Jawaban: desain `mergeDrainData()` (Batch 52) SENGAJA membatasi ke daftar `topAppsByForegroundUsage()` (top-15 berdasar waktu pemakaian 24 jam) — app dgn mAh riil tinggi tapi jarang dibuka manual (JUSTRU kandidat paling relevan buat "penguras baterai") tidak akan pernah muncul. User minta opsi baru utk menampilkan semua app dari data dumpsys.
+
+### Selesai
+- **`UsageStatsHelper.kt`**: fungsi baru `fullDrainAppList(context, mahByPackage, hours=24, limit=50)` — membangun `List<AppUsageInfo>` LANGSUNG dari key `mahByPackage` (bukan dari `topAppsByForegroundUsage()`), diperkaya foreground time (kalau ada) via helper baru `rawForegroundMsByPackage()` (private, map mentah packageName->ms TANPA batas 15 — dibuat terpisah, BUKAN refactor `topAppsByForegroundUsage()`, supaya jalur proxy lama 0% berubah). Urutan hasil: mAh descending, limit default 50 (dumpsys UID app pihak ketiga biasanya jauh di bawah itu, cukup generos tanpa bikin list kebablasan).
+- **`DrainScreen.kt`**: Card toggle baru "Tampilkan Semua App (dumpsys)" (`Switch`, `enabled = hasRealDrainData` — disabled sampai ada data mAh riil, konsisten pola gating `Auto-Hibernate` yang sudah ada). `LaunchedEffect` key ditambah `showAllDrainApps` supaya toggle langsung memicu refetch. Alur baru: kalau toggle ON & `hasRealDrainData` true -> pakai `fullDrainAppList()`; selain itu -> jalur lama (`topAppsByForegroundUsage` + `mergeDrainData`, 100% tidak berubah). Gating "Butuh izin Akses Penggunaan" disesuaikan (`!showAllDrainApps && !hasPermission`) — mode Semua App TIDAK butuh izin Usage Access sama sekali (sumber datanya dumpsys via Shizuku, bukan `UsageStatsManager`), foreground time optional/boleh 0m. Hint teks & pesan list-kosong disesuaikan 3-cabang (Semua App / proxy+mAh / proxy murni).
+
+### Keputusan Desain Penting
+- **Tidak refactor `topAppsByForegroundUsage()`** — sengaja bikin `rawForegroundMsByPackage()` terpisah walau logic-nya mirip, supaya perubahan batch ini 0% berisiko ke jalur lama yang sudah terverifikasi device nyata (Batch 53). Trade-off: sedikit duplikasi kode, tapi blast radius audit lebih kecil (sesuai pola project sejak Batch 49).
+- **`limit=50` (bukan unlimited)** — parser sudah memfilter UID sistem (`minUid=10000`), tapi tetap dikasih batas atas jaga-jaga (device dgn sangat banyak app terinstall) supaya `LazyColumn` tidak lag & `PackageManager.getApplicationInfo()` (dipanggil per key) tidak jadi bottleneck berlebihan.
+- **Toggle di-reset ke OFF tiap buka layar** (`remember` biasa, bukan persisted) — sengaja, mode "Semua App" sifatnya eksploratif/sesekali, bukan preferensi permanen; kalau user mau permanen, bisa diangkat jadi item Pending Queue terpisah nanti.
+
+### Sengaja TIDAK diubah
+- `topAppsByForegroundUsage()`, `mergeDrainData()`, `fetchDrainMahByPackage()`, `BatteryStatsParser.kt`, `ShizukuManager.kt` — 0 perubahan, jalur lama (Batch 52-53, sudah terverifikasi device nyata) dipertahankan 100% apa adanya sbg fallback default.
+- `AndroidManifest.xml` — tidak perlu entri baru, sumber data sama persis (Shizuku shell) dgn Batch 52.
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`app/build.gradle.kts` — `versionCode` 19->20, `versionName` "1.0.18"->"1.0.19" (RULE WAJIB Batch 37).
+
+### Catatan
+Confidence **93%** — logic baru straightforward (union dari map keys + resolve PackageManager, pola sama persis dgn `mapNotNull` yg sudah ada di `topAppsByForegroundUsage`), TAPI belum ada verifikasi device nyata utk mode baru ini (Batch 53 cuma verifikasi jalur DEFAULT, bukan toggle "Semua App"). Rekomendasi: build, aktifkan toggle "Tampilkan Semua App" saat Shizuku aktif, konfirmasi jumlah app yang muncul lebih banyak dari 3 (idealnya mendekati 13 app dari validasi data mentah Batch 51) & foreground time tampil wajar (0m utk app yg jarang dibuka manual, bukan crash/blank).
+
+### Pending Queue
+Tidak ada nomor baru ditambahkan — ini penyempurnaan atas Pending #19 yang sudah closed (Batch 53), bukan item baru.
+
+---
+
 ## [Batch 53] Konfirmasi - Pending #19 Ditutup 100% (Verifikasi Device Nyata via Screenshot) — 2026-08-20
 
 **Confidence Rating: 98%**

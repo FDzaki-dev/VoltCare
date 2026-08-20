@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.19-batch54] - 2026-08-20
+### Added
+- Mode "Tampilkan Semua App" di Drain Analyzer (permintaan user): toggle baru menampilkan SEMUA app dgn data mAh riil dari dumpsys, tidak dibatasi top-15 waktu pemakaian. `UsageStatsHelper.fullDrainAppList()` + `rawForegroundMsByPackage()` (baru), `DrainScreen.kt` dapat Card toggle + gating izin disesuaikan.
+
 ## [v1.0.18-batch53] - 2026-08-20
 ### Confirmed
 - Pending #19 ditutup 100%: screenshot device nyata (Shizuku aktif) konfirmasi kolom mAh riil tampil benar di Drain Analyzer, UI tidak freeze, hint teks sesuai.

@@ -55,12 +55,14 @@ fun DrainScreen() {
     // Pending #19 (2/2): true hanya kalau Shizuku aktif DAN dumpsys batterystats berhasil
     // di-parse jadi minimal 1 baris mAh riil - menentukan apakah hint "data riil" ditampilkan.
     var hasRealDrainData by remember { mutableStateOf(false) }
+    // Batch 54 (permintaan user): toggle "Tampilkan Semua App" - hanya efektif kalau
+    // hasRealDrainData true (lihat gating `enabled` di Switch-nya di bawah).
+    var showAllDrainApps by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(refreshTrigger) {
+    LaunchedEffect(refreshTrigger, showAllDrainApps) {
         hasPermission = UsageStatsHelper.hasUsageAccessPermission(context)
-        var proxyApps = if (hasPermission) UsageStatsHelper.topAppsByForegroundUsage(context) else emptyList()
 
         // Wiring Pending #19 (2/2): dumpsys via Shizuku = shell process blocking (Process.waitFor),
         // WAJIB dijalankan di luar Main dispatcher - LaunchedEffect defaultnya Main, jadi dibungkus
@@ -69,8 +71,17 @@ fun DrainScreen() {
             UsageStatsHelper.fetchDrainMahByPackage(context)
         }
         hasRealDrainData = !mahByPackage.isNullOrEmpty()
-        proxyApps = UsageStatsHelper.mergeDrainData(proxyApps, mahByPackage)
-        apps = proxyApps
+
+        apps = if (showAllDrainApps && hasRealDrainData) {
+            // Batch 54: mode "Semua App" - dibangun langsung dari mahByPackage, TIDAK dibatasi
+            // top-15 waktu pemakaian spt jalur default di bawah.
+            withContext(Dispatchers.IO) {
+                UsageStatsHelper.fullDrainAppList(context, mahByPackage.orEmpty())
+            }
+        } else {
+            val proxyApps = if (hasPermission) UsageStatsHelper.topAppsByForegroundUsage(context) else emptyList()
+            UsageStatsHelper.mergeDrainData(proxyApps, mahByPackage)
+        }
     }
 
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
@@ -111,7 +122,35 @@ fun DrainScreen() {
                 }
             }
 
-            if (!hasPermission) {
+            // Batch 54 (permintaan user): toggle tampilkan SEMUA app dari dumpsys (bukan cuma
+            // yang masuk 15 besar waktu pemakaian). Disabled sampai hasRealDrainData true -
+            // tanpa data mAh riil, tidak ada apa pun tambahan yang bisa ditampilkan mode ini.
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Tampilkan Semua App (dumpsys)", fontWeight = FontWeight.Bold)
+                        Text(
+                            if (hasRealDrainData) {
+                                "Termasuk app dgn waktu pemakaian rendah/0 dalam 24 jam, asal tercatat mAh riil"
+                            } else {
+                                "Butuh Shizuku aktif & data mAh riil dulu"
+                            },
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Switch(
+                        checked = showAllDrainApps,
+                        enabled = hasRealDrainData,
+                        onCheckedChange = { showAllDrainApps = it }
+                    )
+                }
+            }
+
+            if (!showAllDrainApps && !hasPermission) {
                 Text(
                     "Butuh izin \"Akses Penggunaan\" untuk melihat app paling banyak menyita waktu " +
                         "layar 24 jam terakhir (indikator kandidat penguras baterai).",
@@ -138,18 +177,27 @@ fun DrainScreen() {
                 }
             } else if (apps.isEmpty()) {
                 Text(
-                    "Belum ada data pemakaian signifikan dalam 24 jam terakhir.",
+                    if (showAllDrainApps) {
+                        "Tidak ada app dgn data mAh riil yang cocok ke package terinstall."
+                    } else {
+                        "Belum ada data pemakaian signifikan dalam 24 jam terakhir."
+                    },
                     style = MaterialTheme.typography.bodyMedium
                 )
             } else {
                 Text(
-                    if (hasRealDrainData) {
-                        "Kolom mAh dari dumpsys batterystats (Shizuku, sejak charge penuh terakhir) - " +
-                            "app tanpa data mAh riil tetap diurutkan berdasar waktu pemakaian. " +
-                            "\"Force Stop\" bersifat best-effort."
-                    } else {
-                        "Diurutkan dari waktu pemakaian tertinggi (proxy - lihat catatan di UsageStatsHelper.kt). " +
-                            "\"Force Stop\" bersifat best-effort."
+                    when {
+                        showAllDrainApps && hasRealDrainData ->
+                            "Menampilkan SEMUA app dari dumpsys batterystats (Shizuku, sejak charge penuh " +
+                                "terakhir), diurutkan mAh tertinggi - termasuk app dgn waktu pemakaian " +
+                                "rendah/0 dalam 24 jam. \"Force Stop\" bersifat best-effort."
+                        hasRealDrainData ->
+                            "Kolom mAh dari dumpsys batterystats (Shizuku, sejak charge penuh terakhir) - " +
+                                "app tanpa data mAh riil tetap diurutkan berdasar waktu pemakaian. " +
+                                "\"Force Stop\" bersifat best-effort."
+                        else ->
+                            "Diurutkan dari waktu pemakaian tertinggi (proxy - lihat catatan di UsageStatsHelper.kt). " +
+                                "\"Force Stop\" bersifat best-effort."
                     },
                     style = MaterialTheme.typography.bodySmall
                 )
