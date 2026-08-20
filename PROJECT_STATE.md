@@ -18,6 +18,38 @@
 
 ---
 
+## [Batch 49] Fitur - Pending #19 (1/2): Parser "Estimated Power Use" dari dumpsys batterystats — 2026-08-20
+
+**Confidence Rating: 85%**
+**File sebelum -> sesudah:** 56 -> 57 file (1 baru: `BatteryStatsParser.kt` — bukan protected; 1 file protected edit parsial: `app/build.gradle.kts` — bump versi wajib per RULE Batch 37)
+
+### Konteks
+Pending #19 dari `FEATURE_PARITY_GOALS.md` (Batch 18) — upgrade Drain Analyzer dari proxy waktu pemakaian (`UsageStatsHelper.topAppsByForegroundUsage`, tetap tidak diubah) ke data **mAh riil per app** via `dumpsys batterystats` (butuh Shizuku, sudah ada `ShizukuManager.execShellCommand` sejak Batch 23/39). Item ini dari awal ditandai "kompleksitas parsing tinggi -> mungkin perlu dipecah lagi" (catatan Batch 18/43) — dipecah jadi 2 langkah: **(1/2) batch ini** = logic parsing MURNI, belum nyentuh UI/ShizukuManager sama sekali; **(2/2)** wiring ke `DrainScreen.kt`/`UsageStatsHelper.kt` di batch berikutnya, setelah parser ini diverifikasi.
+
+### Selesai
+- **`BatteryStatsParser.kt`** (baru, `util/`): `parseEstimatedPowerUse(dumpsysOutput, minUid=10000)` — cari section `"Estimated power use (mAh):"`, iterasi baris berikutnya sampai heuristik akhir section (baris rata kolom 0 = section besar baru dumpsys berikutnya), regex `^\s*Uid\s+(\S+):\s+([\d.]+)` tangkap tiap baris per-UID, `decodeUid()` translate format `"u0a55"` (userId*100000+10000+appId, konvensi `UserHandle.PER_USER_RANGE`/`Process.FIRST_APPLICATION_UID` AOSP) atau angka polos (UID sistem, otomatis ter-filter `minUid`). 100% pure function — TIDAK ada Android API/I/O, TIDAK ada exception ke caller (list kosong kalau section tidak ketemu/parsing gagal). Brace 7/7 curly, 62/62 paren.
+- **Sanity-test manual** (di lingkungan pembuatan ZIP, Python — regex identik, BUKAN unit test Kotlin di repo): sample teks meniru format dumpsys terdokumentasi (termasuk section lanjutan setelahnya, baris kosong di tengah section, UID sistem `1000`, breakdown `( cpu=... )` di akhir baris) → hasil parse benar: 2 app UID terdeteksi (`u0a55`->10055, `u0a123`->10123), UID sistem `1000` ter-filter, berhenti tepat di section berikutnya, urutan descending benar.
+- **`app/build.gradle.kts`** (protected, edit parsial, RULE WAJIB Batch 37): `versionCode` 14->15, `versionName` "1.0.13"->"1.0.14". Brace 23/23 curly, 65/65 paren.
+
+### Keputusan Desain Penting
+- **Batch ini SENGAJA tidak menyentuh UI/`ShizukuManager.kt`/`DrainScreen.kt` sama sekali** — memisahkan bagian paling berisiko (parsing teks tak terstruktur, tidak ada dokumentasi resmi Android) dari bagian yang low-risk (wiring UI, pola sudah berulang kali terbukti di batch lain). Kalau format parsing ternyata salah di device user, blast radius batch ini = 0 (file baru, tidak dipanggil dari mana pun).
+- **`minUid` default 10000** (bukan hardcode) — sengaja dibuat parameter, bukan konstanta internal, supaya bisa disesuaikan/di-override di unit test/wiring batch depan tanpa edit ulang file ini.
+
+### Sengaja TIDAK diubah
+- `ShizukuManager.kt`, `UsageStatsHelper.kt`, `DrainScreen.kt` — TIDAK ada pemanggilan `BatteryStatsParser` dari mana pun batch ini (lihat Keputusan Desain). File baru ini murni "menganggur" sampai batch berikutnya, sesuai rencana pemecahan 2 langkah.
+- Tidak ada dependency baru — 100% Kotlin stdlib (`Regex`, `String.lines()`), tidak butuh library parsing tambahan.
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`app/build.gradle.kts` — brace balance 23/23 curly, 65/65 paren, hanya 2 baris versi diganti.
+
+### Catatan
+⚠️ Confidence **85%** (lebih rendah dari batch-batch lain baru-baru ini) — JUJUR, ini bukan sekadar "belum compile digan Gradle" (limitasi rutin project ini), tapi **format `dumpsys batterystats` sendiri tidak didokumentasikan resmi oleh Android** (bagian dari tooling debug internal, bukan API publik), jadi walau pola regex disusun dari format yang dipakai luas oleh tool open-source (Battery Historian dkk) & lolos sanity-test simulasi, TIDAK ADA jaminan format device user (Transsion XOS, dari laporan bug Batch 45) 100% identik — bisa saja section judul beda kapitalisasi/spasi, atau breakdown `( ... )` di posisi beda, dll. Rekomendasi WAJIB sebelum lanjut ke batch (2/2): jalankan manual `adb shell dumpsys batterystats --charged` (atau via Shizuku shell) di device user, tempel hasilnya, supaya parser bisa divalidasi/disesuaikan terhadap output NYATA sebelum di-wiring ke UI — jangan lanjut wiring dgn asumsi parser ini sudah pasti benar.
+
+### Pending Queue
+19. Belum selesai (langkah 1/2 selesai batch ini — lanjut wiring UI di batch berikutnya, idealnya SETELAH verifikasi output dumpsys nyata dari user).
+
+---
+
 ## [Batch 48] Fitur - Pending #13: Shortcut Settings Per-App (Best-Effort) — 2026-08-20
 
 **Confidence Rating: 93%**

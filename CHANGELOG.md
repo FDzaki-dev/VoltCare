@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.14-batch49] - 2026-08-20
+### Added
+- **`BatteryStatsParser.kt`** (Pending #19, langkah 1/2): parser murni utk section "Estimated power use (mAh):" dari `dumpsys batterystats`. Belum di-wiring ke UI — lihat catatan confidence 85% di `PROJECT_STATE.md`, WAJIB verifikasi output dumpsys nyata sebelum langkah 2/2 (wiring).
+### Changed
+- Bump versi `1.0.13` -> `1.0.14` (`versionCode` 14->15) sesuai RULE WAJIB Batch 37.
+
 ## [v1.0.13-batch48] - 2026-08-20
 ### Added
 - **Shortcut "Pengaturan App" di Drain Analyzer** (Pending #13): tombol baru per-app buka dialog App Info bawaan Android (`UsageStatsHelper.openAppDetailsSettings`) — best-effort, user set battery restriction/manage-background manual sendiri (tidak ada API generik non-root utk cegah auto-launch otomatis). Tampil utk semua app (beda dgn Force Stop yg tetap digate 4 package sistem kritis).
