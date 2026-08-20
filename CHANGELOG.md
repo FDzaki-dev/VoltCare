@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.8-batch43] - 2026-08-20
+### Added
+- Pending #10: Estimasi sisa waktu pakai (discharge) di Dashboard — `DashboardViewModel` hitung drain rate rata-rata 24 jam terakhir dari `battery_log` existing (tanpa DB baru), tampil di kartu "Sisa Pakai" (reuse slot "Estimasi" existing, label dinamis sesuai status charging).
+### Changed
+- Bump versi `1.0.7` -> `1.0.8` (`versionCode` 8->9) sesuai RULE WAJIB Batch 37.
+
 ## [v1.0.7-batch42] - 2026-08-20
 ### Added
 - Pending #11: Preset Cepat "Alarm Batas Charge" di tab Aturan — dialog 1-field (persen ambang) auto-create `RuleEntity(PERCENT_ABOVE, requireCharging=true, ALARM)` lewat `RulesViewModel.saveChargeLimitPreset()`, tanpa perlu isi form 5 field manual. Engine evaluasi & skema DB tidak berubah.

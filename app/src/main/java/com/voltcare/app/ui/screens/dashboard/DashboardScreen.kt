@@ -95,7 +95,7 @@ fun DashboardScreen(
             ) {
                 MetricCard(
                     modifier = Modifier.weight(1f),
-                    label = "Estimasi",
+                    label = state.estimateLabel,
                     value = formatEstimate(state.estimateMinutes)
                 )
                 MetricCard(

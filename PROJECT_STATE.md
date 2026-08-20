@@ -18,6 +18,40 @@
 
 ---
 
+## [Batch 43] Fitur - Pending #10: Estimasi Sisa Waktu Pakai (Discharge) — 2026-08-20
+
+**Confidence Rating: 93%**
+**File sebelum -> sesudah:** 59 -> 59 file (2 file kode diedit: `DashboardViewModel.kt`, `DashboardScreen.kt` — bukan protected; 1 file protected edit parsial: `app/build.gradle.kts` — bump versi wajib per RULE Batch 37)
+
+### Konteks
+Pending #10 dari `FEATURE_PARITY_GOALS.md` (Batch 18) — gap #3: `DashboardViewModel` sebelumnya HANYA hitung estimasi waktu ke penuh (`estimateMinutesToFull`) saat charging; saat discharge, kartu "Estimasi" selalu tampil "-". Item ini dipilih duluan dari 4 sisa Pending Queue (10, 12, 13, 19) karena paling buildable & scope-nya paling kecil — #13 butuh keputusan/izin eksplisit user dulu (belum diminta), #19 kompleksitas tinggi (parsing `dumpsys batterystats`), #12 butuh WorkManager first-use + UI whitelist (lebih besar dari 3-file cap).
+
+### Selesai
+- **`DashboardViewModel.kt`**: fungsi privat baru `estimateRemainingMinutes(logs, currentPercent)` — hitung rata-rata drain rate (%/menit) dari pasangan sample **discharge-only** (`isCharging=false` di kedua sisi & `percent` menurun) dalam 24 jam terakhir, lompati jeda charging supaya rate tidak bias, lalu proyeksikan `currentPercent / ratePerMinute`. Return `-1` kalau data kurang (HP baru/baru charge penuh) — konsisten konvensi existing `estimateMinutes=-1` = "tidak tersedia". Dipanggil di `collect{}` saat `!log.isCharging`, pakai `db.batteryLogDao().sinceOnce(since)` (DAO **existing sejak Batch 1, TIDAK diubah** — protected, tidak disentuh). Field baru `estimateLabel: String` di `DashboardUiState` ("Estimasi Penuh" saat charging / "Sisa Pakai" saat discharge dgn data valid / "Estimasi" kalau `-1`) — REUSE 1 slot MetricCard existing, bukan bikin kartu baru (jaga diff kecil, sesuai cap 3 file). Brace 10/10 curly, 56/56 paren.
+- **`DashboardScreen.kt`**: 1 baris diganti — label MetricCard "Estimasi" (hardcoded) -> `state.estimateLabel` (dinamis). `formatEstimate()` (existing, tidak diubah) tetap dipakai apa adanya krn format menit->jam+menit sama persis utk kedua kasus (ke-penuh vs sisa-pakai). Brace 23/23 curly, 56/56 paren.
+- **`app/build.gradle.kts`** (protected, edit parsial, RULE WAJIB Batch 37): `versionCode` 8->9, `versionName` "1.0.7"->"1.0.8". Brace 23/23 curly, 65/65 paren.
+
+### Keputusan Desain Penting
+- **Logika drain-rate ditaruh di `DashboardViewModel.kt`, BUKAN `BatteryUtils.kt`** — deviasi dari pola biasa (fungsi kalkulasi baterai biasanya di `BatteryUtils`, mis. `estimateMinutesToFull`). Alasan murni Micro-Batching Cap: `BatteryUtils.kt` + `DashboardViewModel.kt` + `DashboardScreen.kt` + `build.gradle.kts` = 4 file, lewat cap. Trade-off disengaja & terdokumentasi, bukan lupa.
+- **Tidak ada tabel/kolom/migration DB baru** — 100% agregasi Kotlin dari `BatteryLogEntity` existing via `sinceOnce()` yang sudah ada.
+- **Window 24 jam** (bukan 30 hari seperti disebut opsional di deskripsi Pending #10) — dipilih supaya estimasi representasi pola pakai TERKINI (kebiasaan user bisa berubah), bukan rata-rata jangka panjang yang bisa basi. Bisa dijadikan konfigurasi di batch depan kalau user minta.
+
+### Sengaja TIDAK diubah
+- `BatteryLogDao.kt`/`BatteryLogEntity.kt` (DB Schema/DAO, protected) — dipakai 100% apa adanya (`sinceOnce()` sudah cukup, tidak perlu query baru).
+- `BatteryUtils.kt` — lihat Keputusan Desain di atas.
+- `formatEstimate()` di `DashboardScreen.kt` — format sama persis utk kedua jenis estimasi, tidak perlu duplikasi/fungsi baru.
+
+### Protected Assets tersentuh (edit parsial, sesuai rule)
+`app/build.gradle.kts` — brace balance 23/23 curly, 65/65 paren, hanya 2 baris versi diganti.
+
+### Catatan
+Tidak ada compile Gradle sungguhan di lingkungan pembuatan ZIP ini (network disabled) — verifikasi terbatas brace/paren balance + audit manual (query `sinceOnce()` & tipe `BatteryLogEntity` dipakai persis sesuai signature existing, tidak ada API Room/Compose baru). Confidence 93% (bukan 95%+) karena logika drain-rate BARU (bukan reuse pola batch lain persis seperti Batch 42) — akurasi/masuk-akal-nya nilai "Sisa Pakai" di device nyata dengan histori data riil belum terverifikasi runtime. Rekomendasi: build + pakai HP beberapa jam discharge normal, cek apakah angka "Sisa Pakai" masuk akal (mis. drain 1%/6menit -> ~40% baterai harusnya estimasi ~4 jam, bukan angka ekstrem/negatif).
+
+### Pending Queue
+12, 13, 19. Tidak berubah. 10 ✅ selesai (Batch 43, ini).
+
+---
+
 ## [Batch 42] Fitur - Pending #11: Preset Cepat "Alarm Batas Charge" — 2026-08-20
 
 **Confidence Rating: 95%**
