@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.36-batch73] - 2026-08-21
+### Added
+- Jadwal hari aktif rule mirip Google Clock (core engine): `RuleEntity.kt` +kolom `activeDays` (Migration 3->4, non-destruktif, default semua hari). `BatteryMonitorService.kt` `checkRule()` skip hari tidak aktif. Belum diwiring ke UI/safety net (default = perilaku lama tidak berubah). Lihat `PROJECT_STATE.md` Batch 73.
+### Queued
+- #30: UI toggle 7 hari di `RuleFormDialog` + `RulesViewModel.saveRule()` + `AlarmCheckReceiver.kt` (safety net) - wajib tuntas sekaligus.
+
 ## [v1.0.35-batch72] - 2026-08-21
 ### Added
 - Prompt eksplisit izin exact alarm (Pending Queue #29): `MainActivity.kt` `requestExactAlarmPermission()` buka `Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM` kalau belum granted. Re-prompt tiap launch (bukan sekali saja) - jaga kalau user cabut izin manual. Lihat `PROJECT_STATE.md` Batch 72.

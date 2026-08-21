@@ -27,6 +27,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 /**
  * Foreground service inti: membaca kondisi baterai berkala, menyimpan ke Room,
@@ -228,6 +229,12 @@ class BatteryMonitorService : Service() {
     }
 
     private fun checkRule(rule: RuleEntity, temperatureC: Float, percent: Int, isCharging: Boolean) {
+        // Batch 73: jadwal hari aktif mirip Google Clock. Hari ini tidak termasuk -> skip
+        // total (bukan re-arm firedRuleIds - biar pas hari aktif berikutnya tiba, edge-triggered
+        // tetap kerja normal dari kondisi apa pun saat itu, bukan ke-skip krn "sudah pernah fired").
+        val today = Calendar.getInstance().get(Calendar.DAY_OF_WEEK).toString()
+        if (!rule.activeDays.split(",").map { it.trim() }.contains(today)) return
+
         if (rule.requireCharging && !isCharging) {
             firedRuleIds.remove(rule.id) // charger dicopot = kondisi jelas gagal, re-arm langsung
             return

@@ -25,6 +25,23 @@
 
 ---
 
+## [Batch 73] Fitur - Jadwal Hari Aktif Rule mirip Google Clock (Core Engine, belum diwiring UI) — 2026-08-21
+
+**Konteks**: User mau tiap Aturan bisa dijadwalkan aktif di hari tertentu saja (M S S R K J S toggle circle, persis mekanisme repeat Google Clock). Scope full (schema+evaluasi service+evaluasi safety net+UI picker) > 3 file -> dipecah, pola identik Custom Alarm Batch 58/Alarm Loop Batch 66 (core dulu, UI wiring batch terpisah).
+
+**Selesai (3 file)**:
+- **`RuleEntity.kt`** (edit parsial, protected - DB Schema): +kolom `activeDays: String = "1,2,3,4,5,6,7"` (comma-separated `Calendar.DAY_OF_WEEK`, 1=Minggu..7=Sabtu, default SEMUA hari).
+- **`AppDatabase.kt`** (edit parsial, protected - DB Schema): `version` 3->4, `MIGRATION_3_4` (`ALTER TABLE smart_rule ADD COLUMN activeDays TEXT NOT NULL DEFAULT '1,2,3,4,5,6,7'`, non-destruktif, default "semua hari" = perilaku lama tidak berubah).
+- **`BatteryMonitorService.kt`**: `checkRule()` skip total (return awal, BUKAN reset `firedRuleIds`) kalau hari ini tidak ada di `rule.activeDays` - sengaja tidak re-arm supaya begitu hari aktif berikutnya tiba, edge-triggered tetap evaluasi normal dari kondisi apa pun saat itu.
+
+**Sengaja TIDAK diubah**: `AlarmCheckReceiver.kt` (safety net independen proses, Batch 71) masih evaluasi TANPA cek `activeDays` - karena default value semua rule existing = "semua hari", TIDAK ADA perubahan perilaku sampai user benar2 custom hari via UI (belum ada). `RulesViewModel.saveRule()`/`RuleFormDialog` (`RulesScreen.kt`) belum ada toggle hari (UI lingkaran M/S/S/R/K/J/S spt referensi screenshot Google Clock).
+
+**Bump**: versionName 1.0.35 -> 1.0.36.
+
+**Pending Queue (batch berikutnya, WAJIB tuntas SEKALIGUS biar gak ada window inkonsistensi)**: #30 wiring `activeDays` end-to-end - UI toggle 7 lingkaran hari (locale Indonesia: Minggu/Senin/Selasa/Rabu/Kamis/Jumat/Sabtu) di `RuleFormDialog` + `RulesViewModel.saveRule()` param baru + `AlarmCheckReceiver.kt` tambah cek hari yang sama persis dgn `BatteryMonitorService.checkRule()` (safety net WAJIB konsisten, jangan sampai UI selesai duluan tapi safety net masih fire di hari yang di-exclude user). Estimasi 3 file, pas cap.
+
+---
+
 ## [Batch 72] Fitur - Prompt Eksplisit Izin Exact Alarm (Pending Queue #29, RESOLVED) — 2026-08-21
 
 **Selesai (1 file)**:
