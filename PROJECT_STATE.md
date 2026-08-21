@@ -25,6 +25,21 @@
 
 ---
 
+## [Batch 77] Fitur - Feedback Ringkasan Hari Aktif (RESOLVED) — 2026-08-21
+
+**Konteks:** User: circle Hari Aktif "kurang informatif, gak ada feedback sama sekali" - habis toggle, gak ada konfirmasi visual apa yang beneran disetting, khususnya kalau user gak sadar semua hari ke-nonaktif (bakal silently fallback ke "semua hari" pas Simpan, tanpa peringatan).
+
+**Fix (1 file, sama file batch2 sebelumnya)**: Tambah `Text` ringkasan di bawah Row circle:
+- Semua 7 hari dipilih -> "Aktif setiap hari".
+- 0 hari dipilih -> "⚠️ Belum ada hari dipilih - otomatis di-set ke SEMUA hari saat disimpan" (warna `error`, biar user sadar sebelum nge-tap Simpan).
+- Sebagian -> "Aktif: Senin, Selasa, ..." (nama hari lengkap Indonesia, urut Minggu->Sabtu).
+
+**Bump**: versionName 1.0.39 -> 1.0.40.
+
+**Pending Queue tetap**: #27 (isEnabled ke-reset saat edit rule, belum diverifikasi ulang).
+
+---
+
 ## [Batch 76] Fix - Switch Overflow Border Masih Terjadi Setelah Batch 75 (RESOLVED) — 2026-08-21
 
 **Konteks:** Screenshot user (setelah Batch 75) - Switch di row "Ulangi terus sampai dimatikan manual" masih nyembul lewat rounded-corner border kanan dialog.

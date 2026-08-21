@@ -456,6 +456,24 @@ private fun RuleFormDialog(
                             }
                         }
                     }
+                    // Batch 77: circle hari doang gak ada feedback rangkuman -> user bingung
+                    // status "beneran kesimpen" apa belum, apalagi kalau semua di-nonaktifin
+                    // (silently fallback ke semua hari pas save, tanpa user sadar).
+                    val dayNameMap = mapOf(
+                        "1" to "Minggu", "2" to "Senin", "3" to "Selasa", "4" to "Rabu",
+                        "5" to "Kamis", "6" to "Jumat", "7" to "Sabtu"
+                    )
+                    val activeDaysSummary = when {
+                        activeDaySet.size == 7 -> "Aktif setiap hari"
+                        activeDaySet.isEmpty() -> "⚠️ Belum ada hari dipilih - otomatis di-set ke SEMUA hari saat disimpan"
+                        else -> "Aktif: " + activeDaySet.sorted().joinToString(", ") { dayNameMap[it] ?: it }
+                    }
+                    Text(
+                        activeDaysSummary,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (activeDaySet.isEmpty()) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         },

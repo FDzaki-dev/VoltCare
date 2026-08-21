@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.40-batch77] - 2026-08-21
+### Added
+- Row "Hari Aktif" kini nampilin ringkasan teks di bawah circle toggle: "Aktif setiap hari" / "Aktif: Senin, Selasa, ..." / warning merah kalau 0 hari dipilih (bakal auto-fallback ke semua hari saat disimpan). Sebelumnya circle doang tanpa feedback teks, user gak yakin status tersimpan.
+
 ## [v1.0.39-batch76] - 2026-08-21
 ### Fixed
 - Regresi Batch 75 belum tuntas (screenshot user): Switch di row "Ulangi terus..." masih overflow lewat border kanan dialog krn Text row itu gak punya `weight(1f)` (diukur lebar penuh duluan saat wrap 2 baris, dorong Switch keluar). Fix: `weight(1f)` di Text + `fillMaxWidth()` defensif di TextButton "Nada Alarm" & Column pembungkus.
