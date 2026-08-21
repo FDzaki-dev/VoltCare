@@ -52,7 +52,8 @@ class RulesViewModel(application: Application) : AndroidViewModel(application) {
         requireCharging: Boolean,
         action: RuleAction,
         alarmSoundUri: String?,
-        alarmLoop: Boolean
+        alarmLoop: Boolean,
+        activeDays: String = "1,2,3,4,5,6,7"
     ) {
         viewModelScope.launch {
             val rule = RuleEntity(
@@ -64,7 +65,8 @@ class RulesViewModel(application: Application) : AndroidViewModel(application) {
                 actionType = action.stored,
                 isEnabled = true,
                 alarmSoundUri = alarmSoundUri,
-                alarmLoop = alarmLoop
+                alarmLoop = alarmLoop,
+                activeDays = activeDays
             )
             if (existingId == null) db.ruleDao().insert(rule) else db.ruleDao().update(rule)
         }

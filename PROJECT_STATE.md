@@ -25,6 +25,19 @@
 
 ---
 
+## [Batch 74] Fitur - Wiring `activeDays` End-to-End (Pending Queue #30, RESOLVED) — 2026-08-21
+
+**Selesai (3 file, sesuai estimasi Batch 73)**:
+- **`RulesScreen.kt`**: `RuleFormDialog` +state `activeDaySet` (Set<String>, prefill dari `existing.activeDays`), +UI 7 lingkaran hari (M/S/S/R/K/J/S, clickable toggle Box+CircleShape, warna primary/surfaceVariant sesuai selected). Kosong semua -> fallback "1,2,3,4,5,6,7" (safety, jangan sampai rule mati total krn 0 hari). `onSave` lambda +param `activeDays: String`.
+- **`RulesViewModel.kt`**: `saveRule()` +param `activeDays: String = "1,2,3,4,5,6,7"` (default aman utk caller lama spt `saveChargeLimitPreset`), diteruskan ke `RuleEntity`.
+- **`AlarmCheckReceiver.kt`**: `checkAndFire()` +cek `rule.activeDays` PERSIS sama dgn `BatteryMonitorService.checkRule()` (skip total via `return@forEach`, BUKAN reset `firedKey` - edge-detection tetap benar begitu hari aktif berikutnya tiba).
+
+**Bump**: versionName 1.0.36 -> 1.0.37.
+
+**Pending Queue**: nihil item baru dari fitur ini (selesai tuntas). Carry-over lama: #27 (isEnabled ke-reset true saat edit rule - cek status di batch terkait, belum diverifikasi ulang di sesi ini).
+
+---
+
 ## [Batch 73] Fitur - Jadwal Hari Aktif Rule mirip Google Clock (Core Engine, belum diwiring UI) — 2026-08-21
 
 **Konteks**: User mau tiap Aturan bisa dijadwalkan aktif di hari tertentu saja (M S S R K J S toggle circle, persis mekanisme repeat Google Clock). Scope full (schema+evaluasi service+evaluasi safety net+UI picker) > 3 file -> dipecah, pola identik Custom Alarm Batch 58/Alarm Loop Batch 66 (core dulu, UI wiring batch terpisah).

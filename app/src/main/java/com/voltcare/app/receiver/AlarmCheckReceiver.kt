@@ -13,6 +13,7 @@ import com.voltcare.app.util.BatteryUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 /**
  * Jaring pengaman TERAKHIR, INDEPENDEN dari lifecycle BatteryMonitorService.
@@ -49,8 +50,12 @@ class AlarmCheckReceiver : BroadcastReceiver() {
         val db = AppDatabase.getInstance(context)
         val snapshot = BatteryUtils.readSnapshot(context)
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val today = Calendar.getInstance().get(Calendar.DAY_OF_WEEK).toString()
         db.ruleDao().enabledOnce().forEach { rule ->
             if (rule.actionType != "ALARM") return@forEach
+            // Batch 74 (Pending #30): samakan persis dgn BatteryMonitorService.checkRule() -
+            // skip total (bukan reset firedKey) di hari non-aktif, biar edge-detection konsisten.
+            if (!rule.activeDays.split(",").map { it.trim() }.contains(today)) return@forEach
             val key = firedKey(rule.id)
             if (rule.requireCharging && !snapshot.isCharging) {
                 prefs.edit().remove(key).apply()

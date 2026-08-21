@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.37-batch74] - 2026-08-21
+### Added
+- Pending Queue #30 tuntas: wiring `activeDays` end-to-end. UI toggle 7 lingkaran hari (M/S/S/R/K/J/S, mirip Google Clock) di `RuleFormDialog`, `RulesViewModel.saveRule()` param baru, `AlarmCheckReceiver.kt` (safety net) tambah cek hari sama persis dgn `BatteryMonitorService.checkRule()` - konsisten, tidak ada window inkonsistensi.
+
 ## [v1.0.36-batch73] - 2026-08-21
 ### Added
 - Jadwal hari aktif rule mirip Google Clock (core engine): `RuleEntity.kt` +kolom `activeDays` (Migration 3->4, non-destruktif, default semua hari). `BatteryMonitorService.kt` `checkRule()` skip hari tidak aktif. Belum diwiring ke UI/safety net (default = perilaku lama tidak berubah). Lihat `PROJECT_STATE.md` Batch 73.

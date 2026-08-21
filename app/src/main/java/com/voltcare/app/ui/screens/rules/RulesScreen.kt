@@ -5,6 +5,8 @@ import android.media.RingtoneManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +14,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -120,8 +125,8 @@ fun RulesScreen(viewModel: RulesViewModel = viewModel()) {
         RuleFormDialog(
             existing = editingRule,
             onDismiss = { showForm = false },
-            onSave = { label, condition, value, requireCharging, action, alarmSoundUri, alarmLoop ->
-                viewModel.saveRule(editingRule?.id, label, condition, value, requireCharging, action, alarmSoundUri, alarmLoop)
+            onSave = { label, condition, value, requireCharging, action, alarmSoundUri, alarmLoop, activeDays ->
+                viewModel.saveRule(editingRule?.id, label, condition, value, requireCharging, action, alarmSoundUri, alarmLoop, activeDays)
                 showForm = false
             }
         )
@@ -240,7 +245,7 @@ private fun RuleRow(
 private fun RuleFormDialog(
     existing: RuleEntity?,
     onDismiss: () -> Unit,
-    onSave: (label: String, condition: RuleCondition, value: Float, requireCharging: Boolean, action: RuleAction, alarmSoundUri: String?, alarmLoop: Boolean) -> Unit
+    onSave: (label: String, condition: RuleCondition, value: Float, requireCharging: Boolean, action: RuleAction, alarmSoundUri: String?, alarmLoop: Boolean, activeDays: String) -> Unit
 ) {
     var label by remember { mutableStateOf(existing?.label ?: "") }
     var condition by remember { mutableStateOf(RuleCondition.fromStored(existing?.conditionType ?: RuleCondition.TEMP_ABOVE.stored)) }
@@ -256,6 +261,12 @@ private fun RuleFormDialog(
     // Pending Queue #26 (RESOLVED): custom nada alarm via RingtoneManager.ACTION_RINGTONE_PICKER.
     var alarmSoundUri by remember { mutableStateOf(existing?.alarmSoundUri) }
     var alarmLoop by remember { mutableStateOf(existing?.alarmLoop ?: false) }
+    // Batch 74 (Pending #30): UI toggle hari aktif, mirip picker repeat Google Clock.
+    var activeDaySet by remember {
+        mutableStateOf(
+            (existing?.activeDays ?: "1,2,3,4,5,6,7").split(",").filter { it.isNotBlank() }.toSet()
+        )
+    }
     var conditionMenuOpen by remember { mutableStateOf(false) }
     var actionMenuOpen by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -394,12 +405,47 @@ private fun RuleFormDialog(
                         Text("Ulangi terus sampai dimatikan manual")
                         Switch(checked = alarmLoop, onCheckedChange = { alarmLoop = it })
                     }
+                    Text("Hari Aktif")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        listOf(
+                            "1" to "M", "2" to "S", "3" to "S", "4" to "R",
+                            "5" to "K", "6" to "J", "7" to "S"
+                        ).forEach { (value, label) ->
+                            val selected = activeDaySet.contains(value)
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (selected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                    .clickable {
+                                        activeDaySet =
+                                            if (selected) activeDaySet - value else activeDaySet + value
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    label,
+                                    color = if (selected) MaterialTheme.colorScheme.onPrimary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
                 }
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { onSave(label.trim(), condition, parsedValue ?: 0f, requireCharging, action, alarmSoundUri, alarmLoop) },
+                onClick = {
+                    val daysStr = if (activeDaySet.isEmpty()) "1,2,3,4,5,6,7" else activeDaySet.sorted().joinToString(",")
+                    onSave(label.trim(), condition, parsedValue ?: 0f, requireCharging, action, alarmSoundUri, alarmLoop, daysStr)
+                },
                 enabled = isValid
             ) { Text("Simpan") }
         },
