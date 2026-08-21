@@ -1,6 +1,14 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.30-batch67] - 2026-08-21
+### Added
+- Wiring alarm loop end-to-end (Pending Queue #28): Switch "Ulangi terus sampai dimatikan manual" di `RuleFormDialog` (`RulesScreen.kt`), `RulesViewModel.saveRule()` +param `alarmLoop`, `BatteryMonitorService.fireAlert()` teruskan ke `AlarmPlayer.play()`. Lihat `PROJECT_STATE.md` Batch 67.
+
+## [v1.0.29-batch66] - 2026-08-21
+### Added
+- **Opsi Loop Alarm (core engine)**: `RuleEntity.kt` +kolom `alarmLoop` (Migration 2->3, non-destruktif). `AlarmPlayer.kt` `play()` +param `loop` - nada+getar diulang terus sampai `stop()` dipanggil manual. Belum diwiring ke form Aturan/service (default false, perilaku existing tidak berubah).
+
 ## [v1.0.28-batch65] - 2026-08-21
 ### Fixed
 - Konfirmasi: "alarm loop/reset sebelum lagu kelar saat charging" = root cause #2 yang sudah selesai di Batch 64 (edge-triggered firing). Tidak ada kode baru.

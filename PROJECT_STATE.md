@@ -25,6 +25,34 @@
 
 ---
 
+## [Batch 67] Fitur - Wiring Alarm Loop End-to-End (Pending Queue #28, RESOLVED) — 2026-08-21
+
+**Selesai (3 file)**:
+- **`BatteryMonitorService.kt`**: `fireAlert()` teruskan `rule.alarmLoop` ke `AlarmPlayer.play()`.
+- **`RulesViewModel.kt`**: `saveRule()` +param `alarmLoop: Boolean`, diteruskan ke `RuleEntity`.
+- **`RulesScreen.kt`**: `RuleFormDialog` +Switch "Ulangi terus sampai dimatikan manual" (muncul saat Aksi=ALARM, sejajar tombol pilih nada), state awal dari `existing?.alarmLoop`.
+
+**Sengaja TIDAK diubah**: UI dismiss/notifikasi (tombol "Matikan Alarm" sudah ada sejak Batch 64, otomatis relevan buat mode loop juga - tidak perlu perubahan tambahan).
+
+---
+
+## [Batch 66] Fitur - Opsi Loop Alarm Terus-Menerus (Core Engine, belum diwiring UI) — 2026-08-21
+
+**Konteks**: User mau opsi alarm bisa diulang TERUS sampai ditekan "Matikan Alarm" manual (bukan cuma main 1x sampai selesai spt default Batch 64/58). Scope full (schema+player+UI+service wiring) > 3 file -> dipecah, pola identik Custom Alarm Batch 58 (core dulu, UI wiring batch terpisah).
+
+**Selesai (3 file)**:
+- **`RuleEntity.kt`** (edit parsial, protected - DB Schema): +kolom `alarmLoop: Boolean = false`.
+- **`AppDatabase.kt`** (edit parsial, protected - DB Schema): `version` 2->3, `MIGRATION_2_3` (`ALTER TABLE smart_rule ADD COLUMN alarmLoop INTEGER NOT NULL DEFAULT 0`, non-destruktif, default false = perilaku lama tidak berubah).
+- **`AlarmPlayer.kt`**: `play()` +param `loop: Boolean = false` - `ringtone.isLooping = loop` (API 28+, aman krn minSdk 29), getar ikut looping via `VibrationEffect.createWaveform(pattern, repeat=0)` kalau `loop=true` (bukan cuma 1x getar di awal). `stop()` kini juga cancel vibrator aktif (`activeVibrator`, field baru) - sebelumnya cuma stop ringtone, getar 1x-shot toh otomatis selesai sendiri jadi tidak masalah, TAPI utk mode loop wajib eksplisit di-cancel saat dismiss.
+
+**Sengaja TIDAK diubah**: `RulesViewModel.saveRule()` (belum ada param `alarmLoop`), `RuleFormDialog` di `RulesScreen.kt` (belum ada toggle "Ulangi terus"), `BatteryMonitorService.fireAlert()` (masih manggil `AlarmPlayer.play(context, rule.alarmSoundUri)` tanpa param loop -> default `false`, SEMUA rule existing tetap main 1x spt sebelumnya, tidak ada perubahan perilaku sampai wiring selesai).
+
+**Bump**: versionName 1.0.28 -> 1.0.29 (versionCode auto GITHUB_RUN_NUMBER per revisi Batch 65).
+
+**Pending Queue (batch berikutnya)**: #28 wiring `alarmLoop` end-to-end - toggle "Ulangi terus sampai dimatikan manual" di `RuleFormDialog` (khusus saat Aksi=ALARM) + `RulesViewModel.saveRule()` param baru + `BatteryMonitorService.fireAlert()` teruskan `rule.alarmLoop` ke `AlarmPlayer.play()`. Estimasi 2-3 file.
+
+---
+
 ## [Batch 65] Fix - Klarifikasi Root Cause #2 (RESOLVED oleh Batch 64) + Revisi Rule Versioning — 2026-08-21
 
 **Klarifikasi user thd laporan sebelumnya**: "alarm looping" yang dimaksud = nada alarm panjang belum kelar sampai akhir sudah reset dari awal, HANYA terjadi saat charger tercolok. **Ini PERSIS root cause #2 yang sudah difix di Batch 64** (`checkRule()` level-triggered dulu -> `fireAlert()`/`AlarmPlayer.play()` dipanggil ulang tiap siklus sampling 60s selama charger masih nancep & kondisi tetap true -> `AlarmPlayer.play()` internal manggil `stop()` duluan sebelum `ringtone.play()` lagi -> nada kedengeran reset dari awal tiap ~60 detik). Fix Batch 64 (edge-triggered `firedRuleIds`) sudah menuntaskan ini scr struktural - alarm sekarang HANYA `play()` 1x per episode, nada bisa main sampai selesai natural tanpa direstart paksa. **Tidak ada perubahan kode baru** utk poin ini - murni konfirmasi & dokumentasi silang.

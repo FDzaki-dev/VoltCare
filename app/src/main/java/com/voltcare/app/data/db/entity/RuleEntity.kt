@@ -9,6 +9,8 @@ import androidx.room.PrimaryKey
  * actionType: "ALARM" | "NOTIFY"
  * alarmSoundUri: URI nada custom (dari RingtoneManager.ACTION_RINGTONE_PICKER) untuk aksi ALARM.
  *   null = pakai nada alarm sistem default (Batch 58, kolom baru - lihat AppDatabase Migration 1->2).
+ * alarmLoop: true = nada diulang terus-menerus sampai user pencet "Matikan Alarm" manual;
+ *   false (default) = main 1x sampai selesai lalu berhenti sendiri (Batch 66, Migration 2->3).
  */
 @Entity(tableName = "smart_rule")
 data class RuleEntity(
@@ -19,5 +21,6 @@ data class RuleEntity(
     val requireCharging: Boolean,
     val actionType: String,
     val isEnabled: Boolean = true,
-    val alarmSoundUri: String? = null
+    val alarmSoundUri: String? = null,
+    val alarmLoop: Boolean = false
 )

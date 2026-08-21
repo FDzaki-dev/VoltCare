@@ -248,7 +248,7 @@ class BatteryMonitorService : Service() {
         // Wiring AlarmPlayer (Pending Queue #25, Batch 58 sebelumnya belum tersambung):
         // rule.actionType "ALARM" wajib bunyi+getar, bukan cuma notifikasi pasif.
         if (rule.actionType == "ALARM") {
-            AlarmPlayer.play(applicationContext, rule.alarmSoundUri)
+            AlarmPlayer.play(applicationContext, rule.alarmSoundUri, rule.alarmLoop)
         }
 
         val manager = getSystemService(NotificationManager::class.java) ?: return

@@ -120,8 +120,8 @@ fun RulesScreen(viewModel: RulesViewModel = viewModel()) {
         RuleFormDialog(
             existing = editingRule,
             onDismiss = { showForm = false },
-            onSave = { label, condition, value, requireCharging, action, alarmSoundUri ->
-                viewModel.saveRule(editingRule?.id, label, condition, value, requireCharging, action, alarmSoundUri)
+            onSave = { label, condition, value, requireCharging, action, alarmSoundUri, alarmLoop ->
+                viewModel.saveRule(editingRule?.id, label, condition, value, requireCharging, action, alarmSoundUri, alarmLoop)
                 showForm = false
             }
         )
@@ -240,7 +240,7 @@ private fun RuleRow(
 private fun RuleFormDialog(
     existing: RuleEntity?,
     onDismiss: () -> Unit,
-    onSave: (label: String, condition: RuleCondition, value: Float, requireCharging: Boolean, action: RuleAction, alarmSoundUri: String?) -> Unit
+    onSave: (label: String, condition: RuleCondition, value: Float, requireCharging: Boolean, action: RuleAction, alarmSoundUri: String?, alarmLoop: Boolean) -> Unit
 ) {
     var label by remember { mutableStateOf(existing?.label ?: "") }
     var condition by remember { mutableStateOf(RuleCondition.fromStored(existing?.conditionType ?: RuleCondition.TEMP_ABOVE.stored)) }
@@ -255,6 +255,7 @@ private fun RuleFormDialog(
     var action by remember { mutableStateOf(RuleAction.fromStored(existing?.actionType ?: RuleAction.NOTIFY.stored)) }
     // Pending Queue #26 (RESOLVED): custom nada alarm via RingtoneManager.ACTION_RINGTONE_PICKER.
     var alarmSoundUri by remember { mutableStateOf(existing?.alarmSoundUri) }
+    var alarmLoop by remember { mutableStateOf(existing?.alarmLoop ?: false) }
     var conditionMenuOpen by remember { mutableStateOf(false) }
     var actionMenuOpen by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -385,12 +386,20 @@ private fun RuleFormDialog(
                             else "Nada Alarm: ${alarmSoundTitle ?: "Custom"} ✓"
                         )
                     }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Ulangi terus sampai dimatikan manual")
+                        Switch(checked = alarmLoop, onCheckedChange = { alarmLoop = it })
+                    }
                 }
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { onSave(label.trim(), condition, parsedValue ?: 0f, requireCharging, action, alarmSoundUri) },
+                onClick = { onSave(label.trim(), condition, parsedValue ?: 0f, requireCharging, action, alarmSoundUri, alarmLoop) },
                 enabled = isValid
             ) { Text("Simpan") }
         },
