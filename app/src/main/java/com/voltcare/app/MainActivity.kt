@@ -16,6 +16,7 @@ import androidx.core.content.ContextCompat
 import com.voltcare.app.navigation.VoltCareNavGraph
 import com.voltcare.app.service.BatteryMonitorService
 import com.voltcare.app.ui.theme.VoltCareTheme
+import com.voltcare.app.util.AutostartHelper
 
 class MainActivity : ComponentActivity() {
 
@@ -33,6 +34,7 @@ class MainActivity : ComponentActivity() {
 
         ensureNotificationPermissionThenStartService()
         requestIgnoreBatteryOptimization()
+        promptAutostartIfNeeded()
 
         setContent {
             VoltCareTheme {
@@ -75,6 +77,18 @@ class MainActivity : ComponentActivity() {
         } catch (e: Throwable) {
             // Fail-safe: sebagian OEM custom ROM tolak/tidak dukung intent ini - jangan crash.
         }
+    }
+
+    /**
+     * Gap lanjutan dari klaim force-stop: battery optimization exemption TIDAK
+     * menjangkau Autostart Manager OEM. Prompt sekali saja (bukan tiap onCreate)
+     * biar tidak nag - user tetap bisa buka manual dari Settings OEM kapan pun.
+     */
+    private fun promptAutostartIfNeeded() {
+        val prefs = getSharedPreferences("voltcare_prefs", MODE_PRIVATE)
+        if (prefs.getBoolean("autostart_prompted", false)) return
+        prefs.edit().putBoolean("autostart_prompted", true).apply()
+        AutostartHelper.openIfKnownOem(this)
     }
 
     private fun startMonitorService() {

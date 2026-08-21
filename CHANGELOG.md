@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.32-batch69] - 2026-08-21
+### Fixed
+- Force-stop masih terjadi setelah battery optimization exemption: gap OEM Autostart Manager (di luar API standar Android). `AutostartHelper.kt` (baru) + `MainActivity.kt` `promptAutostartIfNeeded()` (sekali, via SharedPreferences flag). Limitasi jujur: ComponentName OEM bisa berubah/tidak akurat 100%, fallback ke App Details settings. Lihat `PROJECT_STATE.md` Batch 69.
+
 ## [v1.0.31-batch68] - 2026-08-21
 ### Fixed
 - Klaim force-stop Batch 64 tidak lengkap: `MainActivity.kt` +`requestIgnoreBatteryOptimization()` (exemption OEM battery manager via `Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`), `AndroidManifest.xml` +permission. Limitasi: OEM Autostart Manager tetap butuh aktivasi manual user, tidak ada API publik. Lihat `PROJECT_STATE.md` Batch 68.

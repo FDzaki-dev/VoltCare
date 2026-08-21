@@ -25,6 +25,20 @@
 
 ---
 
+## [Batch 69] Fix - Force-Stop Masih Terjadi Setelah Battery Optimization Exemption (OEM Autostart Gap) — 2026-08-21
+
+**Klarifikasi user**: dialog battery optimization sudah muncul (Batch 68), TAPI service tetap force-stop saat swipe Recents. Root cause: battery optimization exemption = API standar Android, TIDAK menjangkau "Autostart Manager" OEM (MIUI/ColorOS/Funtouch/EMUI) yang kill proses lewat mekanisme sendiri di luar lifecycle Service standar. **Tidak ada API publik** utk toggle otomatis - satu-satunya cara adalah arahkan user ke halaman Settings OEM yang benar.
+
+**Fix (2 file)**:
+- **`AutostartHelper.kt`** (baru): daftar `ComponentName` Autostart Manager per OEM (Xiaomi/Redmi/POCO, Oppo/Realme, Vivo, Huawei/Honor, Samsung), deteksi via `Build.MANUFACTURER`, coba buka dgn try-catch per kandidat (component bisa beda/hilang antar versi ROM), fallback `openAppDetailsSettings()` (halaman App Details standar Android, selalu ada).
+- **`MainActivity.kt`**: `promptAutostartIfNeeded()` dipanggil sekali di `onCreate` (SharedPreferences flag `autostart_prompted`, tidak nge-nag tiap buka app).
+
+**Limitasi jujur (BUKAN bug, batas keras platform)**: daftar `ComponentName` di atas TIDAK dijamin akurat 100% di semua versi ROM (OEM sering ubah tanpa dokumentasi resmi) - kalau gagal, otomatis fallback ke App Details settings, user cari manual dari sana. Ini batas maksimal yang bisa dicapai tanpa API publik OEM.
+
+**Bump**: versionName 1.0.31 -> 1.0.32.
+
+---
+
 ## [Batch 68] Fix - Klaim Force-Stop: Battery Optimization Exemption (Root Cause Tambahan) — 2026-08-21
 
 **Klarifikasi user**: klaim "gak force-stop walau di-swipe dari Recents" (Batch 64) TIDAK sepenuhnya benar - `stopWithTask=false` + `onTaskRemoved()` cuma proteksi level Android standar, TIDAK menahan OEM battery manager (MIUI/ColorOS/OneUI/EMUI) yang bunuh proses di level scheduler-nya sendiri.
