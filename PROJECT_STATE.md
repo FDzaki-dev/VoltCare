@@ -25,6 +25,17 @@
 
 ---
 
+## [Batch 70] Fix - Suara Alarm Terpotong Walau Notifikasi Tetap Ada (Missing Wake Lock) — 2026-08-21
+
+**Klarifikasi user**: setelah Batch 69, service tidak lagi force-stop total (notifikasi persisten tetap tampil), TAPI suara alarm tetap berhenti sendiri. Root cause beda dari 3 batch sebelumnya: notifikasi statis tidak butuh CPU, sedangkan `Ringtone.play()` butuh CPU aktif terus - `AlarmPlayer.kt` TIDAK PERNAH acquire wake lock, jadi begitu layar mati & device masuk Doze/deep sleep, CPU suspend dan playback audio terpotong di tengah jalan. Permission `WAKE_LOCK` sudah ada di manifest sejak awal tapi cuma dipakai di `StressTestScreen.kt` (fitur lain), tidak pernah dipakai di jalur alarm.
+
+**Fix (1 file)**:
+- **`AlarmPlayer.kt`**: `play()` acquire `PowerManager.PARTIAL_WAKE_LOCK` (tag `VoltCare:AlarmWakeLock`) SEBELUM `ringtone.play()`, timeout eksplisit 5 menit (fail-safe kalau `stop()` gagal terpanggil - wajib pakai timeout, jangan acquire tanpa batas, cegah battery drain leak). `stop()` release wake lock kalau masih dipegang.
+
+**Bump**: versionName 1.0.32 -> 1.0.33.
+
+---
+
 ## [Batch 69] Fix - Force-Stop Masih Terjadi Setelah Battery Optimization Exemption (OEM Autostart Gap) — 2026-08-21
 
 **Klarifikasi user**: dialog battery optimization sudah muncul (Batch 68), TAPI service tetap force-stop saat swipe Recents. Root cause: battery optimization exemption = API standar Android, TIDAK menjangkau "Autostart Manager" OEM (MIUI/ColorOS/Funtouch/EMUI) yang kill proses lewat mekanisme sendiri di luar lifecycle Service standar. **Tidak ada API publik** utk toggle otomatis - satu-satunya cara adalah arahkan user ke halaman Settings OEM yang benar.

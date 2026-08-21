@@ -6,6 +6,7 @@ import android.media.Ringtone
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -32,6 +33,16 @@ object AlarmPlayer {
     @Volatile private var activeVibrator: Vibrator? = null
 
     /**
+     * Root cause "notifikasi tetap ada tapi suara berhenti": notifikasi statis tidak
+     * butuh CPU, sedangkan playback Ringtone butuh CPU aktif - tanpa wake lock, CPU
+     * suspend (Doze/deep sleep) begitu layar mati dan suara terpotong di tengah jalan.
+     * Timeout wajib diisi (bukan acquire tanpa batas) sbg fail-safe kalau [stop] gagal
+     * terpanggil - cegah wake lock leak yang malah nguras baterai terus-menerus.
+     */
+    @Volatile private var wakeLock: PowerManager.WakeLock? = null
+    private const val WAKE_LOCK_TIMEOUT_MS = 5 * 60 * 1000L // 5 menit, cukup utk nada terpanjang + loop wajar
+
+    /**
      * Mulai putar alarm. [customSoundUri] dari RuleEntity.alarmSoundUri (nullable - null berarti
      * pakai nada alarm default sistem). [loop] dari RuleEntity.alarmLoop - true = nada + getar
      * diulang terus sampai [stop] dipanggil manual (tombol "Matikan Alarm"); false (default) =
@@ -40,6 +51,7 @@ object AlarmPlayer {
     fun play(context: Context, customSoundUri: String?, loop: Boolean = false) {
         try {
             stop() // pastikan tidak ada ringtone lama yang masih diputar bersamaan
+            acquireWakeLock(context)
             val uri: Uri = resolveUri(customSoundUri)
             val ringtone = RingtoneManager.getRingtone(context, uri) ?: return
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -69,6 +81,29 @@ object AlarmPlayer {
             activeRingtone = null
         }
         stopVibration()
+        releaseWakeLock()
+    }
+
+    private fun acquireWakeLock(context: Context) {
+        try {
+            val pm = context.applicationContext.getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
+            val lock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "VoltCare:AlarmWakeLock")
+            lock.setReferenceCounted(false)
+            lock.acquire(WAKE_LOCK_TIMEOUT_MS)
+            wakeLock = lock
+        } catch (e: Throwable) {
+            // Fail-safe: gagal acquire wake lock tidak boleh gagalkan alarm secara total.
+        }
+    }
+
+    private fun releaseWakeLock() {
+        try {
+            wakeLock?.let { if (it.isHeld) it.release() }
+        } catch (e: Throwable) {
+            // Fail-safe.
+        } finally {
+            wakeLock = null
+        }
     }
 
     /** Uri custom kalau valid & bisa di-parse, fallback ke TYPE_ALARM default sistem. */

@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.33-batch70] - 2026-08-21
+### Fixed
+- Suara alarm terpotong walau notifikasi tetap tampil: `AlarmPlayer.kt` tidak pernah acquire wake lock, CPU suspend saat Doze/layar mati memotong playback. Tambah `PARTIAL_WAKE_LOCK` (timeout 5 menit) di `play()`/`stop()`. Lihat `PROJECT_STATE.md` Batch 70.
+
 ## [v1.0.32-batch69] - 2026-08-21
 ### Fixed
 - Force-stop masih terjadi setelah battery optimization exemption: gap OEM Autostart Manager (di luar API standar Android). `AutostartHelper.kt` (baru) + `MainActivity.kt` `promptAutostartIfNeeded()` (sekali, via SharedPreferences flag). Limitasi jujur: ComponentName OEM bisa berubah/tidak akurat 100%, fallback ke App Details settings. Lihat `PROJECT_STATE.md` Batch 69.
