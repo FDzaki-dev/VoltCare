@@ -25,6 +25,18 @@
 
 ---
 
+## [Batch 75] Fix - Overflow/Truncation Dialog RuleFormDialog (RESOLVED) — 2026-08-21
+
+**Konteks:** Screenshot user - row "Hari Aktif" + tombol Simpan/Batal ketabrak/kepotong di layar pendek. Root cause: `AlertDialog` `text=` slot pakai `Column` polos tanpa scroll; sejak Batch 74 nambah row Hari Aktif, total tinggi konten sudah nembus tinggi maks default dialog, tapi TIDAK ada `verticalScroll` -> Compose overflow-clip, bukan crash, kelihatan "distorsi".
+
+**Fix (1 file)**: `RulesScreen.kt` - `RuleFormDialog` Column +`Modifier.heightIn(max=480.dp).verticalScroll(rememberScrollState())`. Dialog preset lain (`ChargeLimitPresetDialog`, konten pendek) sengaja TIDAK disentuh - bukan sumber masalah.
+
+**Bump**: versionName 1.0.37 -> 1.0.38.
+
+**Pending Queue tetap**: #27 (isEnabled ke-reset saat edit rule, belum diverifikasi ulang).
+
+---
+
 ## [Batch 74] Fitur - Wiring `activeDays` End-to-End (Pending Queue #30, RESOLVED) — 2026-08-21
 
 **Selesai (3 file, sesuai estimasi Batch 73)**:

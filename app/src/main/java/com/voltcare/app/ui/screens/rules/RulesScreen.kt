@@ -13,9 +13,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -293,7 +296,16 @@ private fun RuleFormDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (existing == null) "Tambah Aturan" else "Edit Aturan") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Batch 75: konten makin panjang (activeDays Batch 74) -> AlertDialog default
+            // TIDAK auto-scroll body-nya, jadi overflow kepotong/tabrakan sama tombol Simpan/Batal
+            // di layar pendek. Fix: verticalScroll + heightIn cap biar dialog gak nutupin
+            // status bar/insets atas & selalu ada scroll-room ke tombol bawah.
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .heightIn(max = 480.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
                 OutlinedTextField(
                     value = label,
                     onValueChange = { label = it },

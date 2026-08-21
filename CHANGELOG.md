@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.38-batch75] - 2026-08-21
+### Fixed
+- Dialog `RuleFormDialog` (tab Aturan) overflow/truncation di layar pendek sejak konten nambah panjang (activeDays, Batch 74) - `Column` body gak scroll, tabrakan sama tombol Simpan/Batal & row Hari Aktif kepotong (screenshot user). Fix: `verticalScroll` + `heightIn(max=480.dp)`.
+
 ## [v1.0.37-batch74] - 2026-08-21
 ### Added
 - Pending Queue #30 tuntas: wiring `activeDays` end-to-end. UI toggle 7 lingkaran hari (M/S/S/R/K/J/S, mirip Google Clock) di `RuleFormDialog`, `RulesViewModel.saveRule()` param baru, `AlarmCheckReceiver.kt` (safety net) tambah cek hari sama persis dgn `BatteryMonitorService.checkRule()` - konsisten, tidak ada window inkonsistensi.
