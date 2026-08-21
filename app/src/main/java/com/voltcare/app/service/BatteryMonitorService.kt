@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.voltcare.app.MainActivity
 import com.voltcare.app.VoltCareApplication
 import com.voltcare.app.R
@@ -17,6 +18,7 @@ import com.voltcare.app.data.db.AppDatabase
 import com.voltcare.app.data.db.entity.BatteryLogEntity
 import com.voltcare.app.data.db.entity.CycleEntity
 import com.voltcare.app.data.db.entity.RuleEntity
+import com.voltcare.app.util.AlarmPlayer
 import com.voltcare.app.util.BatterySnapshot
 import com.voltcare.app.util.BatteryUtils
 import kotlinx.coroutines.CoroutineScope
@@ -31,12 +33,27 @@ import kotlinx.coroutines.launch
  * mengevaluasi Aturan Cerdas (smart rules), dan mempertahankan notifikasi persisten
  * dashboard-lite. Cycle counting detail & drain analyzer akan disempurnakan di batch berikutnya
  * (lihat PROJECT_STATE.md > Pending Queue).
+ *
+ * Batch 64 (Alarm Reliability, 3 root cause dari laporan user):
+ * 1. `onTaskRemoved()` + `stopWithTask="false"` (AndroidManifest) - service dulu ikut mati saat
+ *    app displit/swipe dari Recents (default Android utk unbound Service), jadi alarm cuma
+ *    jalan selama app tidak di-swipe. Sekarang service tetap hidup + auto-restart fail-safe.
+ * 2. `firedRuleIds` (edge-triggered, bukan level-triggered) - dulu `fireAlert()` dipanggil ULANG
+ *    tiap siklus sampling (60s) selama kondisi tetap true (mis. charger belum dicopot),
+ *    menyebabkan alarm bunyi+getar berulang/"looping". Sekarang alarm HANYA bunyi 1x per
+ *    episode (saat kondisi baru MULAI terpenuhi), otomatis re-arm saat kondisi kembali false.
+ * 3. Tombol aksi "Matikan Alarm" di notifikasi - dulu tidak ada cara hentikan suara/getar yang
+ *    sedang jalan selain nunggu kondisi reset sendiri. Sekarang PendingIntent balik ke Service
+ *    sendiri (ACTION_DISMISS_ALARM) utk stop AlarmPlayer + cancel notifikasi saat itu juga.
  */
 class BatteryMonitorService : Service() {
 
     private val job = SupervisorJob()
     private val scope = CoroutineScope(job)
     private lateinit var db: AppDatabase
+
+    /** Rule ID yang alarmnya SUDAH bunyi & belum re-arm (kondisi belum pernah balik false lagi). */
+    private val firedRuleIds = mutableSetOf<Long>()
 
     private val batteryReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -55,10 +72,42 @@ class BatteryMonitorService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_DISMISS_ALARM) {
+            handleDismissAlarm(intent.getLongExtra(EXTRA_RULE_ID, -1L))
+        }
         return START_STICKY
     }
 
+    /** Root cause #3: hentikan suara/getar yang sedang jalan tanpa perlu tunggu kondisi reset. */
+    private fun handleDismissAlarm(ruleId: Long) {
+        try {
+            AlarmPlayer.stop()
+            if (ruleId >= 0) {
+                getSystemService(NotificationManager::class.java)
+                    ?.cancel(ALERT_NOTIF_BASE_ID + ruleId.toInt())
+            }
+        } catch (e: Throwable) {
+            // Fail-safe: dismiss gagal tidak boleh crash service pemantauan utama.
+        }
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
+
+    /**
+     * Root cause #1: unbound Service default `stopWithTask=true` -> OS mematikan service ini
+     * begitu task app di-swipe dari Recents, walau statusnya foreground. Restart diri sendiri
+     * di sini sebagai jaring pengaman tambahan (selain atribut manifest `stopWithTask="false"`)
+     * utk OEM yang masih agresif membunuh proses background (mis. custom battery manager).
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        try {
+            val restartIntent = Intent(applicationContext, BatteryMonitorService::class.java)
+            ContextCompat.startForegroundService(applicationContext, restartIntent)
+        } catch (e: Throwable) {
+            // Fail-safe: kalau restart gagal (mis. dibatasi OS), jangan crash proses.
+        }
+        super.onTaskRemoved(rootIntent)
+    }
 
     override fun onDestroy() {
         try {
@@ -176,30 +225,50 @@ class BatteryMonitorService : Service() {
     }
 
     private fun checkRule(rule: RuleEntity, temperatureC: Float, percent: Int, isCharging: Boolean) {
-        if (rule.requireCharging && !isCharging) return
+        if (rule.requireCharging && !isCharging) {
+            firedRuleIds.remove(rule.id) // charger dicopot = kondisi jelas gagal, re-arm langsung
+            return
+        }
         val triggered = when (rule.conditionType) {
             "TEMP_ABOVE" -> temperatureC > rule.conditionValue
             "PERCENT_ABOVE" -> percent > rule.conditionValue
             "PERCENT_BELOW" -> percent < rule.conditionValue
             else -> false
         }
-        if (triggered) fireAlert(rule)
+        if (triggered) {
+            // Root cause #2: edge-triggered - hanya bunyi sekali per episode, bukan tiap siklus
+            // sampling (60s) selama kondisi tetap true (mis. charger belum dicopot = "looping").
+            if (firedRuleIds.add(rule.id)) fireAlert(rule)
+        } else {
+            firedRuleIds.remove(rule.id) // kondisi balik normal -> re-arm utk episode berikutnya
+        }
     }
 
     private fun fireAlert(rule: RuleEntity) {
         // Wiring AlarmPlayer (Pending Queue #25, Batch 58 sebelumnya belum tersambung):
         // rule.actionType "ALARM" wajib bunyi+getar, bukan cuma notifikasi pasif.
         if (rule.actionType == "ALARM") {
-            com.voltcare.app.util.AlarmPlayer.play(applicationContext, rule.alarmSoundUri)
+            AlarmPlayer.play(applicationContext, rule.alarmSoundUri)
         }
 
         val manager = getSystemService(NotificationManager::class.java) ?: return
+        val dismissIntent = Intent(applicationContext, BatteryMonitorService::class.java).apply {
+            action = ACTION_DISMISS_ALARM
+            putExtra(EXTRA_RULE_ID, rule.id)
+        }
+        val dismissPendingIntent = PendingIntent.getService(
+            applicationContext, rule.id.toInt(), dismissIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
         val notification = NotificationCompat.Builder(this, VoltCareApplication.CHANNEL_ALERT)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle("Peringatan: ${rule.label}")
             .setContentText("Kondisi aturan cerdas terpenuhi.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
+            // Root cause #3: aksi eksplisit hentikan alarm yang sedang bunyi, tanpa perlu
+            // tunggu kondisi reset sendiri (mis. cabut charger).
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Matikan Alarm", dismissPendingIntent)
             .build()
         manager.notify(ALERT_NOTIF_BASE_ID + rule.id.toInt(), notification)
     }
@@ -231,5 +300,7 @@ class BatteryMonitorService : Service() {
         private const val CALIBRATION_DONE_NOTIF_ID = 2500
         private const val SAMPLE_INTERVAL_MS = 60_000L
         private const val RETENTION_MS = 30L * 24 * 60 * 60 * 1000
+        const val ACTION_DISMISS_ALARM = "com.voltcare.app.action.DISMISS_ALARM"
+        const val EXTRA_RULE_ID = "extra_rule_id"
     }
 }

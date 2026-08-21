@@ -24,6 +24,50 @@
 
 ---
 
+## [Batch 64] Fix - Alarm Reliability: 3 Root Cause Sekaligus (RESOLVED, terverifikasi source) — 2026-08-21
+
+**Konteks:** User laporkan 3 gejala, kali ini SEMUA cocok arsitektur nyata (beda dari audit eksternal Batch 63 yang ditolak) - diverifikasi manual thd `BatteryMonitorService.kt` sebelum eksekusi.
+
+**Root Cause #1 - "gak ke-trigger kecuali app tidak di-swipe dari Recents"**: `Service` unbound (bukan bound) di Android defaultnya `stopWithTask=true` - OS otomatis mematikannya begitu task app dihapus dari Recents, WALAUPUN statusnya foreground + notifikasi persisten. Tidak ada `onTaskRemoved()` override sebelumnya.
+**Root Cause #2 - "stuck/looping selama charger belum dicopot"**: `checkRule()` level-triggered murni - `fireAlert()` dipanggil ULANG tiap siklus sampling (60s) selama kondisi tetap true. Charger nancep + persen di atas ambang = alarm bunyi+getar tiap menit tanpa henti.
+**Root Cause #3 - "gak ada cara batalkan alarm"**: Notifikasi alarm tidak punya action button sama sekali - satu-satunya cara diam adalah nunggu kondisi reset sendiri (mis. cabut charger manual).
+
+**Fix (2 file kode + 1 wajib bump versi):**
+- **`BatteryMonitorService.kt`**: (1) `onTaskRemoved()` - restart diri via `ContextCompat.startForegroundService()`, fail-safe try-catch; (2) `firedRuleIds: MutableSet<Long>` in-memory - `checkRule()` kini edge-triggered (hanya fire saat transisi false->true, re-arm otomatis saat kondisi balik false ATAU saat `requireCharging` gagal/charger dicopot); (3) `ACTION_DISMISS_ALARM` - `onStartCommand()` tangani intent dismiss dari tombol notifikasi baru "Matikan Alarm" (`PendingIntent.getService` balik ke Service sendiri) -> `AlarmPlayer.stop()` + `manager.cancel()` utk notifikasi itu saja, TIDAK mengubah `firedRuleIds` (alarm tetap "sudah pernah bunyi", tidak bunyi ulang sampai kondisi natural reset - sesuai semantik "usang"/expired tanpa perlu kolom `expiresAt` baru).
+- **`AndroidManifest.xml`** (edit parsial, protected): `<service>` +atribut `android:stopWithTask="false"` - jaring pengaman utama (bukan cuma `onTaskRemoved()`) supaya OS tidak matikan service sejak awal saat task di-swipe.
+
+**Bump**: versionCode 27→28, versionName 1.0.26→1.0.27 (RULE WAJIB Batch 37).
+
+### Sengaja TIDAK diubah
+- `RuleEntity.kt`/`AppDatabase.kt` (DB Schema, protected) - TIDAK perlu kolom `expiresAt` baru. Semantik "kadaluarsa" dicapai murni via hysteresis in-memory (`firedRuleIds`) + tombol dismiss, tanpa migration.
+- `firedRuleIds` in-memory (bukan persisted ke DB/SharedPreferences) - reset otomatis ke kosong tiap kali service restart (reboot/OS kill+relaunch). Trade-off sadar: kalau service benar-benar restart di tengah kondisi masih true, alarm bisa bunyi 1x lagi (bukan bug looping, cuma re-arm wajar krn state proses baru). Persist-ke-disk didiskusikan tapi TIDAK diperlukan utk 3 root cause yang dilaporkan - di-skip supaya scope tetap 2 file kode.
+
+### Protected Assets tersentuh
+`AndroidManifest.xml` (1 atribut, XML valid diverifikasi). `app/build.gradle.kts` (versi).
+
+### Catatan
+Tidak ada build Gradle/device fisik sungguhan di lingkungan ini (network disabled) - verifikasi terbatas brace/paren balance (`BatteryMonitorService.kt` 41/41 curly, 152/152 paren) + XML valid + review manual API (`Service.onTaskRemoved`, `PendingIntent.getService`, `stopWithTask` manifest attribute) sesuai dokumentasi resmi Android, BUKAN compile Gradle sungguhan. Confidence 94%: satu risiko kecil belum terverifikasi device nyata - beberapa OEM (Xiaomi/Oppo/Vivo MIUI/ColorOS/FuntouchOS) punya battery manager sendiri yang bisa override `stopWithTask="false"` & tetap membunuh proses background tanpa izin "Autostart" manual dari user (di luar kendali kode aplikasi, hanya bisa dimitigasi dgn instruksi ke user, bukan fix kode).
+
+**Rekomendasi ke user**: kalau setelah update masih ada device tertentu yang alarmnya berhenti setelah beberapa jam, cek pengaturan "Autostart"/"Battery Saver" khusus merk HP tsb (Xiaomi/Oppo/Vivo/Samsung) - itu di luar kendali kode, laporkan device spesifiknya biar ditambah panduan di `TROUBLESHOOTING.md`.
+
+---
+
+## [Batch 63] Fix - Root Cause "Alarm Gak Ke-Trigger" (RESOLVED, audit eksternal ditolak) — 2026-08-21
+
+**Audit eksternal user klaim**: arsitektur `Handler`/`CountDownTimer` di Activity, `BroadcastReceiver ACTION_POWER_CONNECTED` tanpa debounce, tidak ada `expiryTime`/cancel. **Ditolak 100%** setelah verifikasi source code (`BatteryMonitorService.kt`): app TIDAK pakai Handler/Activity-lifecycle sama sekali - pakai foreground `Service` + coroutine loop (`monitorLoop()`, `SupervisorJob`, `delay 60s`), tidak ada `BroadcastReceiver` untuk `ACTION_POWER_CONNECTED` (yang ada cuma `ACTION_BATTERY_CHANGED` buat re-sample cepat, bukan trigger alarm langsung). Klaim audit tidak cocok arsitektur nyata proyek ini - konsisten pola Batch 57 (jangan trust dokumen, verifikasi source dulu).
+
+**Root cause asli (ditemukan via trace manual `RulesScreen.kt` -> `RulesViewModel.saveRule()` -> `BatteryMonitorService.checkRule()`)**: `requireCharging` di form Tambah/Edit Aturan **default SELALU `true`** (`RuleFormDialog`, baris lama `existing?.requireCharging ?: true`) - termasuk untuk kondisi `PERCENT_BELOW` (baterai lemah). Kombinasi "baterai lemah SAAT charging" nyaris mustahil terjadi bersamaan -> user bikin aturan "alarm kalau baterai < 20%" tanpa sadar switch "Hanya saat charging" nyala default, ambang batas persen terlewati berkali-kali tapi `checkRule()` selalu `return` duluan di baris `if (rule.requireCharging && !isCharging) return` karena device jarang lemah SAAT dicolok charger. Bukan bug engine (`checkRule()`/`evaluateRules()` 100% berfungsi benar sesuai definisi rule), murni jebakan default UX form.
+
+**Fix (1 file)**: `RulesScreen.kt` (`RuleFormDialog`) - (1) default `requireCharging` kini kontekstual: `PERCENT_BELOW` -> `false`, kondisi lain tetap `true` (perilaku lama dipertahankan utk kasus umum "alarm charge kelewat batas"); (2) tambah teks peringatan amber inline saat kombinasi kontradiktif (`PERCENT_BELOW` + switch masih manual dinyalakan user) supaya kejadian serupa langsung kelihatan di form, bukan baru nyadar berhari-hari kemudian.
+
+**Bump**: versionCode 26→27, versionName 1.0.25→1.0.26 (RULE WAJIB Batch 37).
+
+**Sengaja TIDAK diubah**: aturan LAMA yang sudah kepalang tersimpan dgn kombinasi jebakan ini (`PERCENT_BELOW` + `requireCharging=true`) TIDAK di-migration otomatis - user perlu buka Edit aturan lama itu manual & matikan switch-nya sendiri (peringatan amber baru akan langsung kelihatan begitu dibuka). Tidak menulis migration DB one-time untuk ini supaya fix tetap 1 file & scope kecil (`checkRule()`/`RuleEntity`/`AppDatabase` protected, tidak disentuh sama sekali).
+
+**Rekomendasi ke user**: buka tiap Aturan lama yang pakai kondisi "Persen di bawah" (low-battery warning), cek switch "Hanya saat charging" - kalau nyala & itu bukan maksudnya, matikan & simpan ulang.
+
+---
+
 ## [Batch 62] Fix - FEATURE_PARITY_GOALS.md Desync soal "Hemat Daya Otomatis" (RESOLVED) — 2026-08-20
 
 **Konteks:** User tanya "next pending: Hemat daya otomatis tanpa bikin lambat HP" — mengira fitur ini belum ada (mengacu ke tabel `FEATURE_PARITY_GOALS.md` item #9 yang masih ❌).

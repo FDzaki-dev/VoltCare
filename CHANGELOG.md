@@ -1,6 +1,18 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.27-batch64] - 2026-08-21
+### Fixed
+- **Alarm Reliability (3 root cause sekaligus, terverifikasi source)**: (1) service mati saat app di-swipe dari Recents -> `onTaskRemoved()` restart + manifest `stopWithTask="false"`; (2) alarm looping selama charger belum dicopot -> `checkRule()` kini edge-triggered (`firedRuleIds`, fire 1x per episode, re-arm otomatis saat kondisi reset); (3) tidak ada cara batalkan alarm -> tombol notifikasi "Matikan Alarm" (`ACTION_DISMISS_ALARM`) stop suara/getar saat itu juga.
+### Note
+- Beberapa OEM (Xiaomi/Oppo/Vivo/Samsung) tetap bisa membunuh background service via battery manager sendiri di luar kendali kode - perlu izin "Autostart" manual dari user di device tsb.
+
+## [v1.0.26-batch63] - 2026-08-21
+### Fixed
+- **Root cause "alarm gak ke-trigger"**: default `requireCharging` di form Aturan selalu `true` termasuk utk kondisi "Persen di bawah" (baterai lemah) - kombinasi "lemah SAAT charging" nyaris mustahil terpenuhi. Default kini kontekstual (`PERCENT_BELOW`->false) + peringatan amber inline saat kombinasi kontradiktif. Audit eksternal (klaim Handler/BroadcastReceiver/AlarmManager) ditolak - tidak cocok arsitektur nyata (Service+coroutine).
+### Note
+- Aturan lama dgn kombinasi jebakan ini TIDAK auto-migrasi - buka Edit manual & matikan switch "Hanya saat charging" kalau perlu.
+
 ## [v1.0.25-batch62] - 2026-08-20
 ### Fixed
 - Docs-only: `FEATURE_PARITY_GOALS.md` desync — item #9 "Hemat daya otomatis" masih ditandai ❌ padahal sudah ✅ selesai sejak Batch 44 (Auto-Hibernate Terjadwal). Tidak ada perubahan kode/APK.

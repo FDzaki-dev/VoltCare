@@ -245,7 +245,13 @@ private fun RuleFormDialog(
     var label by remember { mutableStateOf(existing?.label ?: "") }
     var condition by remember { mutableStateOf(RuleCondition.fromStored(existing?.conditionType ?: RuleCondition.TEMP_ABOVE.stored)) }
     var valueText by remember { mutableStateOf(existing?.conditionValue?.toString() ?: "") }
-    var requireCharging by remember { mutableStateOf(existing?.requireCharging ?: true) }
+    // Fix (Batch 63, root cause bug "alarm gak ke-trigger"): default lama SELALU true, jebakan
+    // untuk kondisi PERCENT_BELOW (baterai lemah) - "lemah SAAT charging" nyaris mustahil terjadi
+    // bareng, jadi alarm kelihatan "gak pernah nyala" padahal ambang sudah lama terlewati.
+    // Default kini kontekstual: PERCENT_BELOW -> false, kondisi lain tetap true (perilaku lama).
+    var requireCharging by remember {
+        mutableStateOf(existing?.requireCharging ?: (condition != RuleCondition.PERCENT_BELOW))
+    }
     var action by remember { mutableStateOf(RuleAction.fromStored(existing?.actionType ?: RuleAction.NOTIFY.stored)) }
     // Pending Queue #26 (RESOLVED): custom nada alarm via RingtoneManager.ACTION_RINGTONE_PICKER.
     var alarmSoundUri by remember { mutableStateOf(existing?.alarmSoundUri) }
@@ -325,6 +331,18 @@ private fun RuleFormDialog(
                 ) {
                     Text("Hanya saat charging")
                     Switch(checked = requireCharging, onCheckedChange = { requireCharging = it })
+                }
+                // Fix (Batch 63): peringatan eksplisit untuk kombinasi kontradiktif yang jadi
+                // root cause "alarm gak ke-trigger walaupun ambang batas terpenuhi" - baterai
+                // lemah SAAT charging nyaris tidak pernah terjadi bersamaan.
+                if (condition == RuleCondition.PERCENT_BELOW && requireCharging) {
+                    Text(
+                        "⚠ Kombinasi ini nyaris tidak pernah terpenuhi: baterai jarang \"lemah\" " +
+                            "SAAT sedang di-charge. Matikan switch di atas kalau aturan ini untuk " +
+                            "peringatan baterai lemah biasa (tidak charging).",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = com.voltcare.app.ui.theme.VcAmber
+                    )
                 }
 
                 ExposedDropdownMenuBox(
