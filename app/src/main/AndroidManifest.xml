@@ -12,6 +12,7 @@
     <uses-permission android:name="android.permission.BATTERY_STATS"
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- In-app updater (UpdateManager): cek + download rilis GitHub, install via FileProvider -->
     <uses-permission android:name="android.permission.INTERNET" />

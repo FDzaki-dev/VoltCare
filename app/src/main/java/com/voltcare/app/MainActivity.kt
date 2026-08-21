@@ -3,8 +3,11 @@ package com.voltcare.app
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -29,6 +32,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         ensureNotificationPermissionThenStartService()
+        requestIgnoreBatteryOptimization()
 
         setContent {
             VoltCareTheme {
@@ -49,6 +53,27 @@ class MainActivity : ComponentActivity() {
             }
         } else {
             startMonitorService()
+        }
+    }
+
+    /**
+     * Root cause klaim "gak force-stop walau di-swipe" ternyata TIDAK cukup dgn
+     * stopWithTask=false + onTaskRemoved() saja (Batch 64) - OEM battery manager
+     * (MIUI/ColorOS/OneUI/EMUI) tetap bunuh proses di level scheduler-nya sendiri
+     * kalau app belum di-whitelist dari battery optimization. Ini exemption resmi
+     * via API standar Android (bukan intent OEM-spesifik yg tidak reliable).
+     */
+    private fun requestIgnoreBatteryOptimization() {
+        try {
+            val pm = getSystemService(PowerManager::class.java) ?: return
+            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            }
+        } catch (e: Throwable) {
+            // Fail-safe: sebagian OEM custom ROM tolak/tidak dukung intent ini - jangan crash.
         }
     }
 

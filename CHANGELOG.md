@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.31-batch68] - 2026-08-21
+### Fixed
+- Klaim force-stop Batch 64 tidak lengkap: `MainActivity.kt` +`requestIgnoreBatteryOptimization()` (exemption OEM battery manager via `Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`), `AndroidManifest.xml` +permission. Limitasi: OEM Autostart Manager tetap butuh aktivasi manual user, tidak ada API publik. Lihat `PROJECT_STATE.md` Batch 68.
+
 ## [v1.0.30-batch67] - 2026-08-21
 ### Added
 - Wiring alarm loop end-to-end (Pending Queue #28): Switch "Ulangi terus sampai dimatikan manual" di `RuleFormDialog` (`RulesScreen.kt`), `RulesViewModel.saveRule()` +param `alarmLoop`, `BatteryMonitorService.fireAlert()` teruskan ke `AlarmPlayer.play()`. Lihat `PROJECT_STATE.md` Batch 67.

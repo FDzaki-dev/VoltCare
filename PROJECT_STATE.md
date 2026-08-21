@@ -25,6 +25,20 @@
 
 ---
 
+## [Batch 68] Fix - Klaim Force-Stop: Battery Optimization Exemption (Root Cause Tambahan) — 2026-08-21
+
+**Klarifikasi user**: klaim "gak force-stop walau di-swipe dari Recents" (Batch 64) TIDAK sepenuhnya benar - `stopWithTask=false` + `onTaskRemoved()` cuma proteksi level Android standar, TIDAK menahan OEM battery manager (MIUI/ColorOS/OneUI/EMUI) yang bunuh proses di level scheduler-nya sendiri.
+
+**Fix (2 file)**:
+- **`MainActivity.kt`**: `requestIgnoreBatteryOptimization()` - cek `PowerManager.isIgnoringBatteryOptimizations()`, kalau belum, minta exemption via `Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` (API standar Android, dipanggil tiap `onCreate` sampai user grant).
+- **`AndroidManifest.xml`** (protected): +`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` permission.
+
+**Limitasi jujur (BUKAN bug, di luar kemampuan API standar Android)**: OEM "Autostart Manager" (MIUI Autostart, ColorOS Startup Manager, dll) tidak punya API publik utk di-trigger dari kode - user tetap wajib aktifkan manual dari Settings OEM masing-masing. Battery optimization exemption di atas menutup celah paling umum, tapi bukan jaminan 100% di semua ROM.
+
+**Bump**: versionName 1.0.30 -> 1.0.31.
+
+---
+
 ## [Batch 67] Fitur - Wiring Alarm Loop End-to-End (Pending Queue #28, RESOLVED) — 2026-08-21
 
 **Selesai (3 file)**:
