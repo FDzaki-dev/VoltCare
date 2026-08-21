@@ -1,6 +1,14 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.28-batch65] - 2026-08-21
+### Fixed
+- Konfirmasi: "alarm loop/reset sebelum lagu kelar saat charging" = root cause #2 yang sudah selesai di Batch 64 (edge-triggered firing). Tidak ada kode baru.
+### Changed
+- **Revisi rule versioning**: `versionCode` di `app/build.gradle.kts` kini auto dari `GITHUB_RUN_NUMBER` (tidak manual lagi). `versionName` bump hanya saat ada perubahan nyata yg di-present ke user.
+### Process
+- Mulai batch ini, tiap `present_files` ZIP WAJIB disertai `versionName` + daftar fitur/fix yg di-present di balasan chat.
+
 ## [v1.0.27-batch64] - 2026-08-21
 ### Fixed
 - **Alarm Reliability (3 root cause sekaligus, terverifikasi source)**: (1) service mati saat app di-swipe dari Recents -> `onTaskRemoved()` restart + manifest `stopWithTask="false"`; (2) alarm looping selama charger belum dicopot -> `checkRule()` kini edge-triggered (`firedRuleIds`, fire 1x per episode, re-arm otomatis saat kondisi reset); (3) tidak ada cara batalkan alarm -> tombol notifikasi "Matikan Alarm" (`ACTION_DISMISS_ALARM`) stop suara/getar saat itu juga.

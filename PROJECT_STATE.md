@@ -14,13 +14,32 @@
 - **APK release asset** (`release.yml`): `VoltCare_v<Versi>_<RunNumber>.apk` (otomatis dari `rootProject.name`, tidak terpengaruh).
 - **Skrip Termux (mulai Batch 29 dan seterusnya)**: `LATEST_ZIP=$(ls -t ~/storage/downloads/VoltCare*.zip | head -1)` + `cd ~/projects/VoltCare` (BUKAN lagi `PowerVaultHealthPro`). `git remote -v` menunjuk `https://github.com/FDzaki-dev/VoltCare.git`.
 - Ringkas: **VoltCare = nama produk/artifact/repo GitHub/folder lokal Termux** — SEMUA SUDAH SELARAS mulai Batch 29. Tidak ada lagi perbedaan nama produk vs repo vs folder.
-- 🔴 **RULE WAJIB (mulai Batch 37, permintaan eksplisit user):** SETIAP batch yang menghasilkan artifact ZIP WAJIB bump `versionCode` (+1) & `versionName` (patch, mis. 1.0.1 -> 1.0.2) di `app/build.gradle.kts` — TIDAK BOLEH dilewatkan/ditunda lagi, walaupun perubahan batch itu kecil (docs-only, 1 baris, dsb). Ini berlaku TERPISAH dari fallback teknis `CI_RUN_NUMBER` (Batch 36) — fallback itu tetap ada sbg jaring pengaman kalau suatu saat bump kelewat, TAPI bukan alasan buat malas bump manual. Tiap kali mau `present_files` ZIP baru, cek dulu: apakah `versionCode`/`versionName` sudah naik dari batch sebelumnya? Kalau belum, bump DULU sebelum repack & present.
+- 🔴 **RULE WAJIB (REVISI Batch 65, gantikan rule Batch 37 sepenuhnya):** `versionCode` di `app/build.gradle.kts` kini **AUTO** dari `System.getenv("GITHUB_RUN_NUMBER")` — TIDAK BOLEH lagi di-bump manual angka tetap (dulu manual `+1` tiap batch, sekarang auto ikut nomor run CI, dijamin selalu naik tanpa campur tangan). `versionName` (mis. "1.0.1") tetap string manual, TAPI cukup dibump saat batch itu benar-benar berisi perubahan yang di-present ke user (fitur/fix) — BUKAN wajib tiap batch lagi (docs-only/housekeeping boleh skip).
+- 🔴 **RULE WAJIB BARU (Batch 65):** Setiap kali `present_files` dipanggil untuk ZIP baru, balasan chat WAJIB menyebutkan `versionName` saat itu + daftar ringkas fitur/fix baru yang di-present ke user pada batch tsb SAJA (bukan changelog lengkap/riwayat batch lama) — supaya user selalu tahu persis versi & isi rilis yang sedang diterima tanpa perlu buka `CHANGELOG.md`.
 
 ---
 
 ---
 
 ---
+
+---
+
+## [Batch 65] Fix - Klarifikasi Root Cause #2 (RESOLVED oleh Batch 64) + Revisi Rule Versioning — 2026-08-21
+
+**Klarifikasi user thd laporan sebelumnya**: "alarm looping" yang dimaksud = nada alarm panjang belum kelar sampai akhir sudah reset dari awal, HANYA terjadi saat charger tercolok. **Ini PERSIS root cause #2 yang sudah difix di Batch 64** (`checkRule()` level-triggered dulu -> `fireAlert()`/`AlarmPlayer.play()` dipanggil ulang tiap siklus sampling 60s selama charger masih nancep & kondisi tetap true -> `AlarmPlayer.play()` internal manggil `stop()` duluan sebelum `ringtone.play()` lagi -> nada kedengeran reset dari awal tiap ~60 detik). Fix Batch 64 (edge-triggered `firedRuleIds`) sudah menuntaskan ini scr struktural - alarm sekarang HANYA `play()` 1x per episode, nada bisa main sampai selesai natural tanpa direstart paksa. **Tidak ada perubahan kode baru** utk poin ini - murni konfirmasi & dokumentasi silang.
+
+**Revisi rule versioning (permintaan eksplisit user, gantikan RULE Batch 37 sepenuhnya)**:
+- **`app/build.gradle.kts`**: `versionCode` diubah dari manual `+1` tiap batch -> **auto** `System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1`. Selaras infrastruktur `CI_RUN_NUMBER` yang sudah ada sejak Batch 36 (dipakai `UpdateManager.kt`) & `release.yml` (`tag_name: v{version}-{run_number}`) - sekarang `versionCode` ikut sumber yang sama, dijamin monoton naik tiap build CI tanpa risiko lupa bump manual. `versionName` tetap string manual, tapi HANYA wajib naik saat batch berisi perubahan nyata yg di-present ke user (bukan tiap batch docs-only lagi).
+- **`PROJECT_STATE.md`** (bagian KONVENSI TETAP, pinned): rule Batch 37 lama dihapus total, diganti 2 rule baru - (1) versionCode auto/tidak manual lagi, versionName bump kondisional; (2) **WAJIB** tiap `present_files` ZIP baru, balasan chat sebut `versionName` + daftar ringkas fitur/fix yg di-present batch itu saja.
+
+**Bump batch ini**: versionCode sekarang otomatis (nilai lokal fallback "1", nilai asli akan muncul di build CI GitHub Actions sesungguhnya). versionName 1.0.27 -> **1.0.28** (perubahan nyata: mekanisme auto-versioning).
+
+### File diubah (2)
+`app/build.gradle.kts` (protected - versioning block), `PROJECT_STATE.md` (dokumentasi rule, bukan protected).
+
+### Sengaja TIDAK diubah
+`release.yml` - tidak perlu disentuh, `steps.version.outputs.version` masih baca `versionName` via `grep` seperti biasa (tidak terpengaruh perubahan `versionCode`). `BatteryMonitorService.kt`/`AlarmPlayer.kt` - tidak ada perubahan kode, root cause sudah tuntas di Batch 64.
 
 ---
 

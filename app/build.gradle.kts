@@ -12,8 +12,11 @@ android {
         applicationId = "com.voltcare.app"
         minSdk = 29
         targetSdk = 34
-        versionCode = 28
-        versionName = "1.0.27"
+        // Batch 65 (revisi RULE Batch 37): versionCode kini AUTO dari GITHUB_RUN_NUMBER -
+        // dijamin selalu naik tiap build CI, tidak perlu bump manual lagi per batch. Fallback
+        // "1" hanya kepakai kalau build lokal non-CI (jarang - build resmi selalu lewat Actions).
+        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionName = "1.0.28"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Batch 36: dibaca UpdateManager.kt buat bedain build CI mana yang lebih baru walau
