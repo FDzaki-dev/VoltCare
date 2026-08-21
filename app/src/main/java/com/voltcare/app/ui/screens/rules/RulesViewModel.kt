@@ -53,7 +53,8 @@ class RulesViewModel(application: Application) : AndroidViewModel(application) {
         action: RuleAction,
         alarmSoundUri: String?,
         alarmLoop: Boolean,
-        activeDays: String = "1,2,3,4,5,6,7"
+        activeDays: String = "1,2,3,4,5,6,7",
+        existingEnabled: Boolean = true
     ) {
         viewModelScope.launch {
             val rule = RuleEntity(
@@ -63,7 +64,10 @@ class RulesViewModel(application: Application) : AndroidViewModel(application) {
                 conditionValue = conditionValue,
                 requireCharging = requireCharging,
                 actionType = action.stored,
-                isEnabled = true,
+                // Batch 78 (Pending #27, RESOLVED): dulu hardcode true -> rule yang di-nonaktifin
+                // manual (Switch di list) ke-reset AKTIF lagi tiap kali di-edit & Simpan.
+                // existingEnabled dikirim caller dari rule.isEnabled saat ini (default true utk rule baru).
+                isEnabled = existingEnabled,
                 alarmSoundUri = alarmSoundUri,
                 alarmLoop = alarmLoop,
                 activeDays = activeDays

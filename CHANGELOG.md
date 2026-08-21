@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.41-batch78] - 2026-08-21
+### Fixed
+- Pending Queue #27 (lama, akhirnya diverifikasi & RESOLVED): `RulesViewModel.saveRule()` hardcode `isEnabled = true` - rule yang di-nonaktifin manual via Switch list ke-reset AKTIF lagi tiap kali di-edit & tekan Simpan. Fix: param baru `existingEnabled` dikirim dari `editingRule?.isEnabled` di call-site.
+
 ## [v1.0.40-batch77] - 2026-08-21
 ### Added
 - Row "Hari Aktif" kini nampilin ringkasan teks di bawah circle toggle: "Aktif setiap hari" / "Aktif: Senin, Selasa, ..." / warning merah kalau 0 hari dipilih (bakal auto-fallback ke semua hari saat disimpan). Sebelumnya circle doang tanpa feedback teks, user gak yakin status tersimpan.

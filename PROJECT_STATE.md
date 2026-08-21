@@ -25,6 +25,20 @@
 
 ---
 
+## [Batch 78] Fix - Pending Queue #27: isEnabled Ke-reset saat Edit Rule (RESOLVED) — 2026-08-21
+
+**Konteks:** Carry-over lama sejak Batch 60, akhirnya diverifikasi. Bug NYATA: `saveRule()` hardcode `isEnabled = true` di setiap insert MAUPUN update - jadi rule yang user nonaktifin manual (Switch di `RuleCard`, list Aturan) diam2 ke-ON lagi begitu user buka Edit lalu tekan Simpan (bahkan cuma ganti nama/threshold, gak niat nyalain ulang).
+
+**Fix (2 file)**:
+- `RulesViewModel.kt`: `saveRule()` +param `existingEnabled: Boolean = true`, dipakai jadi `RuleEntity.isEnabled` (bukan hardcode `true`). Default `true` aman utk `saveChargeLimitPreset()` & rule baru (unaffected).
+- `RulesScreen.kt`: call-site `onSave` kirim `editingRule?.isEnabled ?: true`.
+
+**Bump**: versionName 1.0.40 -> 1.0.41.
+
+**Pending Queue**: NIHIL - semua item lama (#27, #30) sudah RESOLVED. Belum ada task baru menunggu.
+
+---
+
 ## [Batch 77] Fitur - Feedback Ringkasan Hari Aktif (RESOLVED) — 2026-08-21
 
 **Konteks:** User: circle Hari Aktif "kurang informatif, gak ada feedback sama sekali" - habis toggle, gak ada konfirmasi visual apa yang beneran disetting, khususnya kalau user gak sadar semua hari ke-nonaktif (bakal silently fallback ke "semua hari" pas Simpan, tanpa peringatan).

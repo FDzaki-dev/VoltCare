@@ -129,7 +129,7 @@ fun RulesScreen(viewModel: RulesViewModel = viewModel()) {
             existing = editingRule,
             onDismiss = { showForm = false },
             onSave = { label, condition, value, requireCharging, action, alarmSoundUri, alarmLoop, activeDays ->
-                viewModel.saveRule(editingRule?.id, label, condition, value, requireCharging, action, alarmSoundUri, alarmLoop, activeDays)
+                viewModel.saveRule(editingRule?.id, label, condition, value, requireCharging, action, alarmSoundUri, alarmLoop, activeDays, editingRule?.isEnabled ?: true)
                 showForm = false
             }
         )
