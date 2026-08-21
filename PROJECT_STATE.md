@@ -25,6 +25,34 @@
 
 ---
 
+## [Batch 80] Audit UX Mendalam 100% (AUDIT-ONLY, tidak ada fix kode) — 2026-08-21
+
+**Konteks:** User minta "Audit UX mendalam 100%" atas seluruh app (6 screen + NavGraph + Theme). Full sweep dilakukan, detail lengkap di `UX_AUDIT.md` (baru, root ZIP).
+
+**Ringkasan temuan**: 2 HIGH (label duplikat day-picker Rules; kontras teks tombol gagal WCAG AA di Light Mode), 3 MEDIUM (StressTest tanpa BackHandler; Auto-Hibernate tanpa konfirmasi; History chart tanpa label sumbu), 3 LOW (dialog Update tanpa Batal; Force Stop tanpa konfirmasi; contentDescription nav bar duplikat).
+
+**File diubah (1 baru)**: `UX_AUDIT.md`.
+**Bump**: versionName 1.0.42 -> 1.0.43 (docs-only, tetap wajib).
+
+**Pending Queue (baru, 7 item dari audit — lihat `UX_AUDIT.md` utk detail #31-#37)**: #31 & #32 (HIGH) direkomendasikan duluan. Belum ada yang dikerjakan (audit-only batch, sesuai micro-batching 1 task/respon).
+
+---
+
+## [Batch 79] Fix - FEATURE_PARITY_GOALS.md Desync Lagi soal "Estimasi Sisa Pakai" (RESOLVED) — 2026-08-21
+
+**Konteks:** User minta "Next pending" - audit `FEATURE_PARITY_GOALS.md` (Pending Queue formal sudah nihil sejak Batch 78). Item #3 masih ❌, tapi ternyata sudah RESOLVED sejak **Batch 43** (`estimateRemainingMinutes()` di `DashboardViewModel.kt`) - persis pola desync yang sama dgn Batch 61/62 (dokumen matrix gak pernah di-update in-place saat fitur selesai).
+
+**Fix**: Update tabel item #3 ke status akurat + skor cakupan (4→5 Done, sisa 1 gap platform-limited #8 doang). Tidak ada perubahan kode/APK.
+
+**File diubah (1)**: `FEATURE_PARITY_GOALS.md`.
+**Bump**: versionName 1.0.41 -> 1.0.42 (docs-only, tetap wajib).
+
+**Rekomendasi ke user**: Fitur "Sisa Pakai" sudah aktif di Dashboard (kartu Estimasi, muncul otomatis saat discharge kalau histori 24 jam cukup). Coverage roadmap `FEATURE_PARITY_GOALS.md` sekarang PRAKTIS TUNTAS - satu2nya gap tersisa (#8, cegah auto-launch app lain) adalah keterbatasan platform Android, bukan bisa dibangun via 3rd-party app tanpa root. Kalau user punya fitur baru di luar 3 sumber referensi lama (AccuBattery/GSam/Greenify), tolong sebutkan spesifik.
+
+**Pending Queue**: NIHIL (formal maupun dari audit gap doc).
+
+---
+
 ## [Batch 78] Fix - Pending Queue #27: isEnabled Ke-reset saat Edit Rule (RESOLVED) — 2026-08-21
 
 **Konteks:** Carry-over lama sejak Batch 60, akhirnya diverifikasi. Bug NYATA: `saveRule()` hardcode `isEnabled = true` di setiap insert MAUPUN update - jadi rule yang user nonaktifin manual (Switch di `RuleCard`, list Aturan) diam2 ke-ON lagi begitu user buka Edit lalu tekan Simpan (bahkan cuma ganti nama/threshold, gak niat nyalain ulang).

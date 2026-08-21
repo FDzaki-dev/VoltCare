@@ -8,15 +8,15 @@ dicatat descending di bawah.)
 
 ---
 
-## Skor Cakupan Saat Ini (per Batch 61, direvisi dari per Batch 18)
+## Skor Cakupan Saat Ini (per Batch 79, direvisi dari per Batch 61)
 
-**4 Done • 3 Partial • 1 Not Implemented (1 platform-limited, 1 buildable) = ~78% penuh, ~94% termasuk partial**
+**5 Done • 2 Partial • 1 Not Implemented (platform-limited) = ~89% penuh, ~100% termasuk partial**
 
 | # | App Rujukan | Fitur (dari gambar) | Status | Bukti / Implementasi VoltCare |
 |---|---|---|---|---|
 | 1 | AccuBattery | Ukur tingkat keausan & kesehatan baterai | ✅ **Done** | `BatteryUtils.CalibrationStore` — Health% dari akumulasi mAh riil / kapasitas desain, syarat 3x siklus charge 0-100% berturut-turut non-drop (Batch 8) |
 | 2 | AccuBattery | Alarm batas isi daya agar baterai lebih awet | ✅ **Done** (generik) | `RuleEntity(conditionType=PERCENT_ABOVE, actionType=ALARM)` via tab Aturan — engine sudah jalan sejak Batch 1, UI editor Batch 14. User bisa buat aturan "alarm saat >80% & charging" sendiri |
-| 3 | AccuBattery | Hitung sisa waktu pakai berdasarkan kebiasaan Anda | ❌ **Belum ada** | `DashboardViewModel` **hanya** hitung `estimateMinutesToFull` saat charging (`BatteryUtils.estimateMinutesToFull`). Tidak ada estimasi **sisa waktu pakai saat discharge** berbasis rata-rata drain rate historis pengguna |
+| 3 | AccuBattery | Hitung sisa waktu pakai berdasarkan kebiasaan Anda | ✅ **Done** (sejak Batch 43) | `DashboardViewModel.estimateRemainingMinutes()` — rata-rata drain rate (%/menit) dari sample discharge-only 24 jam terakhir (`BatteryLogDao.sinceOnce()`, no schema baru), proyeksi `currentPercent / rate`. Label "Sisa Pakai" (reuse slot MetricCard "Estimasi", bukan kartu baru) |
 | 4 | GSam | Statistik penggunaan baterai mendetail | ✅ **Done** | `HistoryScreen`/`HistoryViewModel` — agregat 30 hari (Health/Suhu/Cycle) + grafik Canvas + export CSV (Batch 11) |
 | 5 | GSam | Lacak app paling banyak menguras CPU & sinyal | ✅ **Done** | `UsageStatsHelper.fetchDrainMahByPackage()` + `BatteryStatsParser` (Batch 49-52) — mAh riil per app via `dumpsys batterystats` (Shizuku), digabung ke daftar `topAppsByForegroundUsage()` di `DrainScreen`. Fallback proxy waktu-foreground tetap aktif kalau Shizuku tidak dipakai/tidak tersedia |
 | 6 | GSam | Pantau suhu & status pengisian daya real-time | ✅ **Done** | `DashboardScreen` — baca live `BatteryManager` tiap sample (Batch 1) |
@@ -42,5 +42,6 @@ Item **platform-limited** (dicatat sbg batasan, bukan buildable penuh — best-e
 
 ## Revisi
 
+- **2026-08-21 (Batch 79)**: Fix desync lagi — item #3 masih ❌ padahal `estimateRemainingMinutes()` sudah RESOLVED sejak Batch 43. Skor naik 4→5 Done. Sisa gap: HANYA #8 (platform-limited, gak mungkin dibangun tanpa root).
 - **2026-08-20 (Batch 61)**: Fix desync — tabel masih nampilin item #9 "❌ Belum ada" & #7 status lama, padahal Auto-Hibernate (Pending #12) sudah RESOLVED sejak Batch 44 (tidak pernah di-update in-place saat itu). Direvisi ke status akurat, skor naik 3→4 Done.
 - **2026-08-19 (Batch 18)**: Dibuat pertama kali. Sumber: 2 screenshot Google AI Overview diupload user ("Pilihan Aplikasi Battery Manager Terbaik" — AccuBattery, GSam Battery Monitor, Greenify). Audit dilakukan terhadap source code aktual (Batch 1-17), bukan asumsi — termasuk `grep` untuk memverifikasi WorkManager belum pernah dipakai walau sudah jadi dependency sejak Batch 1.

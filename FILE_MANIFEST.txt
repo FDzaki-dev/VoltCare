@@ -9,6 +9,7 @@ ROOT
   .gitattributes
   PROJECT_STATE.md
   CHANGELOG.md
+  UX_AUDIT.md
   FILE_MANIFEST.txt
   README.md
   FEATURE_PARITY_GOALS.md     (Batch 18 - matrix gap-analysis, dokumentasi)

@@ -1,6 +1,14 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.43-batch80] - 2026-08-21
+### Docs
+- Audit UX mendalam 100% (audit-only, 0 kode diubah). Temuan lengkap: `UX_AUDIT.md` (baru). 2 HIGH, 3 MEDIUM, 3 LOW — semua masuk Pending Queue #31-#37.
+
+## [v1.0.42-batch79] - 2026-08-21
+### Fixed
+- Docs-only: `FEATURE_PARITY_GOALS.md` desync lagi — item #3 "estimasi sisa waktu pakai" masih ❌ padahal sudah ✅ selesai sejak Batch 43. Tidak ada perubahan kode/APK.
+
 ## [v1.0.41-batch78] - 2026-08-21
 ### Fixed
 - Pending Queue #27 (lama, akhirnya diverifikasi & RESOLVED): `RulesViewModel.saveRule()` hardcode `isEnabled = true` - rule yang di-nonaktifin manual via Switch list ke-reset AKTIF lagi tiap kali di-edit & tekan Simpan. Fix: param baru `existingEnabled` dikirim dari `editingRule?.isEnabled` di call-site.
