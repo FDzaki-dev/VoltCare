@@ -303,6 +303,7 @@ private fun RuleFormDialog(
             Column(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier
+                    .fillMaxWidth()
                     .heightIn(max = 480.dp)
                     .verticalScroll(rememberScrollState())
             ) {
@@ -395,7 +396,9 @@ private fun RuleFormDialog(
                 }
 
                 if (action == RuleAction.ALARM) {
-                    TextButton(onClick = {
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
                         val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
                             putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
                             putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
@@ -406,7 +409,8 @@ private fun RuleFormDialog(
                     }) {
                         Text(
                             if (alarmSoundUri == null) "Pilih Nada Alarm (default sistem)"
-                            else "Nada Alarm: ${alarmSoundTitle ?: "Custom"} ✓"
+                            else "Nada Alarm: ${alarmSoundTitle ?: "Custom"} ✓",
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                     Row(
@@ -414,7 +418,10 @@ private fun RuleFormDialog(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Ulangi terus sampai dimatikan manual")
+                        // Batch 76: Text tanpa weight() diukur pakai lebar penuh Row duluan saat
+                        // wrap 2 baris -> Switch kedorong keluar border kanan (screenshot user).
+                        // weight(1f) reservasi sisa lebar buat Switch dulu, baru Text wrap sisanya.
+                        Text("Ulangi terus sampai dimatikan manual", modifier = Modifier.weight(1f))
                         Switch(checked = alarmLoop, onCheckedChange = { alarmLoop = it })
                     }
                     Text("Hari Aktif")

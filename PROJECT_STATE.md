@@ -25,6 +25,23 @@
 
 ---
 
+## [Batch 76] Fix - Switch Overflow Border Masih Terjadi Setelah Batch 75 (RESOLVED) — 2026-08-21
+
+**Konteks:** Screenshot user (setelah Batch 75) - Switch di row "Ulangi terus sampai dimatikan manual" masih nyembul lewat rounded-corner border kanan dialog.
+
+**Root cause SEBENARNYA:** `Text("Ulangi terus...")` di dalam `Row` TANPA `Modifier.weight(1f)`. Row Compose mengukur child non-weighted duluan dengan constraint max = lebar penuh Row; krn teks itu wrap 2 baris, Text "mengklaim" lebar penuh Row saat pengukuran, sehingga `Switch` yang diukur setelahnya kehabisan ruang & posisinya (via `Arrangement.SpaceBetween`) overflow keluar batas kanan sampai numpuk rounding border. Batch 75 kemarin cuma benerin overflow VERTIKAL (scroll) - overflow HORIZONTAL row ini beda root cause, belum kesentuh.
+
+**Fix (1 file, sama file Batch 75)**:
+- `Text("Ulangi terus...")` +`Modifier.weight(1f)` -> reservasi ruang Switch dulu, Text wrap di sisa lebar.
+- `TextButton` "Nada Alarm" +`Modifier.fillMaxWidth()` (+ Text di dalamnya) - defensif kelas bug sama, jaga2 kalau nama file custom tanpa spasi (gak wrap alami) numpuk lewat border juga.
+- Column pembungkus (`text=` slot AlertDialog) +`Modifier.fillMaxWidth()` eksplisit - pastikan lebar dialog konsisten, gak wrap-content ambigu.
+
+**Bump**: versionName 1.0.38 -> 1.0.39.
+
+**Pending Queue tetap**: #27 (isEnabled ke-reset saat edit rule, belum diverifikasi ulang).
+
+---
+
 ## [Batch 75] Fix - Overflow/Truncation Dialog RuleFormDialog (RESOLVED) — 2026-08-21
 
 **Konteks:** Screenshot user - row "Hari Aktif" + tombol Simpan/Batal ketabrak/kepotong di layar pendek. Root cause: `AlertDialog` `text=` slot pakai `Column` polos tanpa scroll; sejak Batch 74 nambah row Hari Aktif, total tinggi konten sudah nembus tinggi maks default dialog, tapi TIDAK ada `verticalScroll` -> Compose overflow-clip, bukan crash, kelihatan "distorsi".

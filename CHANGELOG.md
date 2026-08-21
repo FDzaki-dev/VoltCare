@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.39-batch76] - 2026-08-21
+### Fixed
+- Regresi Batch 75 belum tuntas (screenshot user): Switch di row "Ulangi terus..." masih overflow lewat border kanan dialog krn Text row itu gak punya `weight(1f)` (diukur lebar penuh duluan saat wrap 2 baris, dorong Switch keluar). Fix: `weight(1f)` di Text + `fillMaxWidth()` defensif di TextButton "Nada Alarm" & Column pembungkus.
+
 ## [v1.0.38-batch75] - 2026-08-21
 ### Fixed
 - Dialog `RuleFormDialog` (tab Aturan) overflow/truncation di layar pendek sejak konten nambah panjang (activeDays, Batch 74) - `Column` body gak scroll, tabrakan sama tombol Simpan/Batal & row Hari Aktif kepotong (screenshot user). Fix: `verticalScroll` + `heightIn(max=480.dp)`.
