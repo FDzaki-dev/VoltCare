@@ -1,6 +1,7 @@
 package com.voltcare.app
 
 import android.Manifest
+import android.app.AlarmManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -35,6 +36,7 @@ class MainActivity : ComponentActivity() {
         ensureNotificationPermissionThenStartService()
         requestIgnoreBatteryOptimization()
         promptAutostartIfNeeded()
+        requestExactAlarmPermission()
 
         setContent {
             VoltCareTheme {
@@ -89,6 +91,27 @@ class MainActivity : ComponentActivity() {
         if (prefs.getBoolean("autostart_prompted", false)) return
         prefs.edit().putBoolean("autostart_prompted", true).apply()
         AutostartHelper.openIfKnownOem(this)
+    }
+
+    /**
+     * Pending Queue #29 (Batch 71): AlarmCheckReceiver.schedule() sudah fallback diam2
+     * ke inexact kalau izin ini belum ada - di sini prompt EKSPLISIT ke user via halaman
+     * sistem `ACTION_REQUEST_SCHEDULE_EXACT_ALARM` (API 31+), biar safety net alarm
+     * seakurat mungkin, bukan nunggu user ke-Doze lalu telat 60s berkali-kali dulu.
+     */
+    private fun requestExactAlarmPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        try {
+            val am = getSystemService(AlarmManager::class.java) ?: return
+            if (!am.canScheduleExactAlarms()) {
+                val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            }
+        } catch (e: Throwable) {
+            // Fail-safe: gagal minta izin tidak boleh crash app - AlarmCheckReceiver ttp fallback inexact.
+        }
     }
 
     private fun startMonitorService() {

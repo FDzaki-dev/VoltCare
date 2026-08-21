@@ -1,6 +1,16 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.35-batch72] - 2026-08-21
+### Added
+- Prompt eksplisit izin exact alarm (Pending Queue #29): `MainActivity.kt` `requestExactAlarmPermission()` buka `Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM` kalau belum granted. Re-prompt tiap launch (bukan sekali saja) - jaga kalau user cabut izin manual. Lihat `PROJECT_STATE.md` Batch 72.
+
+## [v1.0.34-batch71] - 2026-08-21
+### Added
+- Safety net independen proses: `AlarmCheckReceiver.kt` (baru) dipicu `AlarmManager.setExactAndAllowWhileIdle()`, tidak bergantung service tetap hidup. Wiring `BatteryMonitorService.kt` + permission/registrasi `AndroidManifest.xml`. Lihat `PROJECT_STATE.md` Batch 71.
+### Queued
+- #29: prompt eksplisit izin `SCHEDULE_EXACT_ALARM` (skrng silent fallback ke inexact).
+
 ## [v1.0.33-batch70] - 2026-08-21
 ### Fixed
 - Suara alarm terpotong walau notifikasi tetap tampil: `AlarmPlayer.kt` tidak pernah acquire wake lock, CPU suspend saat Doze/layar mati memotong playback. Tambah `PARTIAL_WAKE_LOCK` (timeout 5 menit) di `play()`/`stop()`. Lihat `PROJECT_STATE.md` Batch 70.

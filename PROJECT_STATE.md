@@ -25,6 +25,34 @@
 
 ---
 
+## [Batch 72] Fitur - Prompt Eksplisit Izin Exact Alarm (Pending Queue #29, RESOLVED) — 2026-08-21
+
+**Selesai (1 file)**:
+- **`MainActivity.kt`**: `requestExactAlarmPermission()` - cek `AlarmManager.canScheduleExactAlarms()` (API 31+), kalau belum, buka `Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM` langsung. Dipanggil tiap `onCreate` (aman - OS tidak munculkan dialog kalau sudah granted, no-op).
+
+**Sengaja TIDAK pakai flag "sekali saja" (beda dari `promptAutostartIfNeeded`)**: kalau user cabut izin manual dari Settings suatu saat, app WAJIB re-prompt lagi di launch berikutnya - beda kasus dgn autostart OEM yg emang gak reliable di-deteksi balik.
+
+**Bump**: versionName 1.0.34 -> 1.0.35.
+
+---
+
+## [Batch 71] Fitur - Safety Net Independen Proses: AlarmManager (Gap Arsitektur, RESOLVED) — 2026-08-21
+
+**Konteks**: Semua fix reliability sebelumnya (Batch 64/68/69/70) tetap bergantung PROSES service hidup. Kalau OS/OEM akhirnya tetap kill proses paksa, alarm ikut mati total - gap arsitektur, bukan tambal sulam.
+
+**Selesai (3 file)**:
+- **`AlarmCheckReceiver.kt`** (baru): `BroadcastReceiver` dipicu `AlarmManager.setExactAndAllowWhileIdle()` tiap 60s (selaras interval sampling utama), pola sama persis app Jam/Alarm bawaan Android - sistem yang restart proses kalau perlu, bukan bergantung service tetap hidup. Query rule dari Room + baca `BatteryUtils.readSnapshot()` langsung (independen state in-memory service), edge-detection sendiri via `SharedPreferences` (`fired_<ruleId>`, terpisah dari `firedRuleIds` milik service - sengaja tidak reuse, safety net wajib jalan sendiri). One-shot alarm, self-reschedule tiap `onReceive` (bukan `setRepeating` - dijamin di-defer OS saat Doze).
+- **`BatteryMonitorService.kt`**: `onCreate()` panggil `AlarmCheckReceiver.schedule()` - aktif tiap kali service start (first launch & tiap boot via `BootReceiver` existing).
+- **`AndroidManifest.xml`** (protected): +permission `SCHEDULE_EXACT_ALARM`, +registrasi `<receiver>` `AlarmCheckReceiver` (`exported=false`).
+
+**Fallback jujur**: kalau `SCHEDULE_EXACT_ALARM` belum di-grant user (API 31+, `canScheduleExactAlarms()` false), otomatis fallback ke `setAndAllowWhileIdle()` (inexact, timing bisa mundur beberapa menit di Doze) - tetap jauh lebih baik daripada tanpa safety net sama sekali.
+
+**Pending Queue (batch berikutnya)**: #29 prompt eksplisit minta izin `SCHEDULE_EXACT_ALARM` via `Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM` di `MainActivity.kt` (skrng diam2 fallback inexact tanpa nge-nudge user).
+
+**Bump**: versionName 1.0.33 -> 1.0.34.
+
+---
+
 ## [Batch 70] Fix - Suara Alarm Terpotong Walau Notifikasi Tetap Ada (Missing Wake Lock) — 2026-08-21
 
 **Klarifikasi user**: setelah Batch 69, service tidak lagi force-stop total (notifikasi persisten tetap tampil), TAPI suara alarm tetap berhenti sendiri. Root cause beda dari 3 batch sebelumnya: notifikasi statis tidak butuh CPU, sedangkan `Ringtone.play()` butuh CPU aktif terus - `AlarmPlayer.kt` TIDAK PERNAH acquire wake lock, jadi begitu layar mati & device masuk Doze/deep sleep, CPU suspend dan playback audio terpotong di tengah jalan. Permission `WAKE_LOCK` sudah ada di manifest sejak awal tapi cuma dipakai di `StressTestScreen.kt` (fitur lain), tidak pernah dipakai di jalur alarm.

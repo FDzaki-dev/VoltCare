@@ -69,6 +69,9 @@ class BatteryMonitorService : Service() {
         registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         startForeground(NOTIF_ID, buildNotification("Memantau baterai..."))
         scope.launch { monitorLoop() }
+        // Jaring pengaman independen proses (lihat AlarmCheckReceiver) - dijadwalkan di sini
+        // biar aktif tiap kali service start (first launch via MainActivity & tiap boot via BootReceiver).
+        com.voltcare.app.receiver.AlarmCheckReceiver.schedule(applicationContext)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
