@@ -430,8 +430,8 @@ private fun RuleFormDialog(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         listOf(
-                            "1" to "M", "2" to "S", "3" to "S", "4" to "R",
-                            "5" to "K", "6" to "J", "7" to "S"
+                            "1" to "Mi", "2" to "Sn", "3" to "Sl", "4" to "Rb",
+                            "5" to "Km", "6" to "Jm", "7" to "Sb"
                         ).forEach { (value, label) ->
                             val selected = activeDaySet.contains(value)
                             Box(
@@ -450,6 +450,7 @@ private fun RuleFormDialog(
                             ) {
                                 Text(
                                     label,
+                                    style = MaterialTheme.typography.labelSmall,
                                     color = if (selected) MaterialTheme.colorScheme.onPrimary
                                     else MaterialTheme.colorScheme.onSurfaceVariant
                                 )

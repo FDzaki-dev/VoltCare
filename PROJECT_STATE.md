@@ -25,6 +25,26 @@
 
 ---
 
+## [Batch 81] Fix - Pending Queue #31: Label Duplikat "S" di Day-Picker RulesScreen (RESOLVED) — 2026-08-21
+
+**Konteks:** Item #31 (HIGH) dari `UX_AUDIT.md` Batch 80 - lingkaran hari aktif berlabel `M/S/S/R/K/J/S`, 3 huruf "S" (Senin/Selasa/Sabtu) tidak bisa dibedakan sama sekali saat memilih.
+
+**Fix (1 file)**: `RulesScreen.kt` - label lingkaran diganti 2 huruf unik per hari: `Mi/Sn/Sl/Rb/Km/Jm/Sb` (Minggu/Senin/Selasa/Rabu/Kamis/Jumat/Sabtu, semua beda). `Text` label ditambah `style = MaterialTheme.typography.labelSmall` supaya 2 karakter tetap muat rapi di lingkaran 32dp tanpa overflow (bukan cuma ganti teks - kalau dibiarkan ukuran default, 2 huruf berisiko kepotong/numpuk di lingkaran sekecil itu, jadi tetap perlu disesuaikan supaya benar2 legible, bukan cuma "gak ambigu doang tapi jadi gak kebaca").
+
+**Sengaja TIDAK diubah**: ukuran lingkaran (`32.dp`) - dipertahankan minimal, `labelSmall` sudah cukup menyelesaikan tanpa perlu ubah dimensi layout.
+
+**Bump**: versionName 1.0.43 -> 1.0.44.
+
+**Pending Queue (sisa dari audit Batch 80, 6 item)**:
+- **#32 (HIGH)** Fix kontras `onPrimary`/`onSecondary` di `LightColors` (Theme.kt) - direkomendasikan berikutnya.
+- #33 (MED) BackHandler StressTest RUNNING.
+- #34 (MED) Dialog konfirmasi sebelum aktifkan Auto-Hibernate.
+- #35 (MED) Label/gridline sumbu Y di LineChart History.
+- #36 (LOW) Tombol Batal di dialog Checking/Downloading Update.
+- #37 (LOW) Dialog konfirmasi Force Stop (opsional).
+
+---
+
 ## [Batch 80] Audit UX Mendalam 100% (AUDIT-ONLY, tidak ada fix kode) — 2026-08-21
 
 **Konteks:** User minta "Audit UX mendalam 100%" atas seluruh app (6 screen + NavGraph + Theme). Full sweep dilakukan, detail lengkap di `UX_AUDIT.md` (baru, root ZIP).

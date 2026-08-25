@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.44-batch81] - 2026-08-21
+### Fixed
+- Pending Queue #31 (HIGH, dari `UX_AUDIT.md` Batch 80): label lingkaran day-picker `RulesScreen.kt` (`M/S/S/R/K/J/S`) - 3 huruf "S" (Senin/Selasa/Sabtu) tak terbedakan. Diganti 2 huruf unik: `Mi/Sn/Sl/Rb/Km/Jm/Sb` + `labelSmall` biar tetap muat rapi di lingkaran 32dp.
+
 ## [v1.0.43-batch80] - 2026-08-21
 ### Docs
 - Audit UX mendalam 100% (audit-only, 0 kode diubah). Temuan lengkap: `UX_AUDIT.md` (baru). 2 HIGH, 3 MEDIUM, 3 LOW — semua masuk Pending Queue #31-#37.
