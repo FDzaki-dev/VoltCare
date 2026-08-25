@@ -16,7 +16,7 @@ android {
         // dijamin selalu naik tiap build CI, tidak perlu bump manual lagi per batch. Fallback
         // "1" hanya kepakai kalau build lokal non-CI (jarang - build resmi selalu lewat Actions).
         versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
-        versionName = "1.0.44"
+        versionName = "1.0.45"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Batch 36: dibaca UpdateManager.kt buat bedain build CI mana yang lebih baru walau

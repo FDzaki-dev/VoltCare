@@ -25,6 +25,31 @@
 
 ---
 
+## [Batch 82] Restyle iOS/Cupertino Tahap 1/N: Fondasi Warna + Shape (+ Pending #32 RESOLVED) — 2026-08-21
+
+**Konteks:** User minta restyle app jadi "iOS look, Cupertino, premium". Scope terlalu besar utk 1 batch (6 layar + NavGraph + Theme) - dipecah micro-batch, mulai dari fondasi (`Color.kt`/`Theme.kt`) krn dipakai SEMUA layar sekaligus.
+
+**Selesai (2 file, sesuai cap)**:
+- **`Color.kt`**: seluruh hex diganti ke token resmi Apple HIG System Colors (systemGreen/systemOrange/systemRed light+dark variant, systemGroupedBackground, secondarySystemGroupedBackground, systemGray5, separator, label/secondaryLabel). **Nama variabel LAMA dipertahankan 100%** (`VcGreen`/`VcAmber`/`VcRed`/`VcBgDark`/`VcSurfaceDark`/`VcTextPrimary`/`VcTextSecondary`) - dipakai langsung di `RulesScreen.kt` & `ShizukuStatusAction.kt`, TIDAK disentuh (Zero-Unnecessary-Refactor, diverifikasi masih resolve benar). +7 token baru (`VcOnAccent`, `VcGreenDark`/`VcAmberDark`/`VcRedDark`, `VcBackgroundLight`/`VcSurfaceLight`/dst) utk ColorScheme M3 lengkap.
+- **`Theme.kt`**: `LightColors`/`DarkColors` sekarang definisi PENUH (primary/onPrimary/secondary/onSecondary/error/onError/background/onBackground/surface/onSurface/surfaceVariant/onSurfaceVariant/outline) - sebelumnya cuma 3-6 token, sisanya M3 default. +`VcShapes` (Shapes M3: extraSmall 8dp, small 10dp, medium 14dp, large 18dp, extraLarge 24dp) - efek OTOMATIS ke semua Card (medium)/AlertDialog (extraLarge)/OutlinedTextField (extraSmall) di seluruh app tanpa edit tiap layar.
+
+**Pending #32 (HIGH, `UX_AUDIT.md` Batch 80) RESOLVED sekaligus**: onPrimary/onSecondary/onError sekarang eksplisit `VcOnAccent` (teks gelap `#14140F`), BUKAN default M3 (teks putih). **Verifikasi matematis** (skrip Python, formula WCAG relative luminance) - keenam kombinasi (3 aksen x 2 mode) lolos AA dgn margin besar: VcGreen 8.32:1, VcAmber 8.40:1, VcRed 5.21:1, VcGreenDark 9.14:1, VcAmberDark 8.99:1, VcRedDark 5.42:1 (ambang AA=4.5:1) - vs sebelumnya cuma ~2.1:1 (gagal).
+
+**Sengaja TIDAK dikerjakan batch ini** (di luar scope fondasi, antre Pending Queue):
+- Custom "continuous corner"/squircle Shape asli iOS (VcShapes masih `RoundedCornerShape` biasa, bukan squircle - butuh custom `Shape` class, task terpisah).
+- Reskin per-komponen (dialog jadi actionsheet style, Switch iOS-look, NavigationBar translucent/blur/glassmorphism, per-screen polish) - SEMUA otomatis kebagian warna+shape baru dari batch ini (efek global MaterialTheme), tapi styling detail per-komponen belum disentuh.
+
+**Bump**: versionName 1.0.44 -> 1.0.45.
+
+**Pending Queue (restyle iOS - roadmap baru, dikerjakan bertahap)**:
+- **#38** NavGraph.kt - NavigationBar iOS tab-bar look (translucent/blur via `Modifier.blur` RenderEffect, minSdk=31 mendukung).
+- **#39** Cupertino-style AlertDialog/action sheet (dialog Rules, Update, konfirmasi delete) - custom composable pengganti `AlertDialog` default.
+- **#40** iOS-style Switch/Button per layar (Dashboard/Drain/Rules/StressTest) - warna sudah ikut Batch 82, tinggal bentuk/animasi.
+- **#41** Custom squircle Shape (continuous corner asli iOS, opsional/polish akhir).
+- Sisa audit lama (#33-#37, MED/LOW) tetap terpisah, tidak digabung ke roadmap restyle ini.
+
+---
+
 ## [Batch 81] Fix - Pending Queue #31: Label Duplikat "S" di Day-Picker RulesScreen (RESOLVED) — 2026-08-21
 
 **Konteks:** Item #31 (HIGH) dari `UX_AUDIT.md` Batch 80 - lingkaran hari aktif berlabel `M/S/S/R/K/J/S`, 3 huruf "S" (Senin/Selasa/Sabtu) tidak bisa dibedakan sama sekali saat memilih.

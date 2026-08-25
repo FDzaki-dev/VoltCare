@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.45-batch82] - 2026-08-21
+### Added
+- Restyle iOS/Cupertino tahap 1/N (fondasi): `Color.kt` diganti ke token Apple HIG System Colors (nama variabel lama dipertahankan, cuma nilai hex diperbarui). `Theme.kt`: ColorScheme M3 lengkap (semua "on*" eksplisit) + `VcShapes` (sudut membulat generous ala Cupertino, efek otomatis ke Card/Dialog/TextField semua layar).
+### Fixed
+- Pending Queue #32 (HIGH, `UX_AUDIT.md` Batch 80): kontras onPrimary/onSecondary/onError gagal WCAG AA (~2.1:1, teks putih M3 default) - diganti teks gelap (`VcOnAccent`), diverifikasi matematis lolos AA (5.2-9.1:1) di semua 6 kombinasi warna x mode.
+
 ## [v1.0.44-batch81] - 2026-08-21
 ### Fixed
 - Pending Queue #31 (HIGH, dari `UX_AUDIT.md` Batch 80): label lingkaran day-picker `RulesScreen.kt` (`M/S/S/R/K/J/S`) - 3 huruf "S" (Senin/Selasa/Sabtu) tak terbedakan. Diganti 2 huruf unik: `Mi/Sn/Sl/Rb/Km/Jm/Sb` + `labelSmall` biar tetap muat rapi di lingkaran 32dp.
