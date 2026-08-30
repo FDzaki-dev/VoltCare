@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.48-batch85] - 2026-08-30
+### Fixed
+- Audit menyeluruh pola "persistent" (grep semua titik notifikasi/service persisten): `BatteryMonitorService.monitorLoop()` ternyata TANPA fail-safe, kontras dgn seluruh codebase lain - 1 kegagalan sesaat (DB lock/storage penuh/bug OEM) bisa menjatuhkan proses & notifikasi persisten via default uncaught handler. Sekarang dibungkus try-catch, 1 siklus gagal di-skip, service tetap hidup.
+### Docs
+- Titik lain (onTaskRemoved, updateNotification, AlarmCheckReceiver, HibernateWorker, dst) diperiksa ulang - sudah fail-safe, tidak ada gap tambahan. Detail lengkap: `PROJECT_STATE.md` Batch 85.
+
 ## [v1.0.47-batch84] - 2026-08-30
 ### Fixed
 - Notifikasi bar monitoring persisten ("Memantau baterai...") kini ikut kebal saat proses app dikill total: `AlarmCheckReceiver.kt` (safety net independen-proses, fire tiap ~60 detik) sekarang juga "ping" `BatteryMonitorService` via `startForegroundService()` - no-op kalau service masih hidup, restart otomatis (notifikasi pulih) kalau ternyata sudah mati, tanpa perlu user buka app manual.

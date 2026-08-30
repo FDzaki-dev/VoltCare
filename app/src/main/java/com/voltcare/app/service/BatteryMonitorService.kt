@@ -123,9 +123,24 @@ class BatteryMonitorService : Service() {
         super.onDestroy()
     }
 
+    /**
+     * Batch 85 (audit pola "persistent"): SEBELUMNYA loop ini TIDAK dibungkus try-catch -
+     * satu kegagalan sesaat di sampleAndPersist() (mis. SQLite lock/storage penuh saat
+     * pruneOlderThan(), atau bug getIntProperty() OEM tertentu di BatteryUtils.readSnapshot())
+     * akan lolos sebagai unhandled exception. CrashLogger.install() (VoltCareApplication)
+     * TETAP meneruskan ke defaultHandler?.uncaughtException() setelah logging - artinya
+     * proses TETAP mati, notifikasi persisten ikut hilang, kontras dgn hampir semua kode lain
+     * di app ini yang konsisten fail-safe (AlarmPlayer/ShizukuManager/AutostartHelper/semua
+     * receiver). Sekarang 1 siklus gagal di-skip, loop lanjut ke siklus berikutnya tanpa
+     * menjatuhkan proses - notifikasi & monitoring tetap hidup.
+     */
     private suspend fun monitorLoop() {
         while (job.isActive) {
-            sampleAndPersist()
+            try {
+                sampleAndPersist()
+            } catch (e: Throwable) {
+                // Fail-safe: 1 sample gagal tidak boleh menjatuhkan seluruh service persisten.
+            }
             delay(SAMPLE_INTERVAL_MS)
         }
     }

@@ -25,6 +25,36 @@
 
 ---
 
+## [Batch 85] Audit - Pola "Persistent" Menyeluruh (1 gap ditemukan & RESOLVED) — 2026-08-30
+
+**Konteks:** User minta audit eksplisit "semua yang berhubungan dengan pola persistent lalu perbaiki". Sweep dilakukan via grep menyeluruh (`persist|ongoing|sticky|foreground`, case-insensitive) di seluruh `app/src/main/java/` + `AndroidManifest.xml`, lalu tiap hit ditelusuri manual.
+
+### Cakupan audit (semua titik terkait notifikasi/service persisten)
+1. `BatteryMonitorService.kt` - `startForeground()`, `onStartCommand()`/`START_STICKY`, `onTaskRemoved()`, `onDestroy()`, `buildNotification()` (`.setOngoing(true)`), `monitorLoop()`/`sampleAndPersist()`.
+2. `AlarmCheckReceiver.kt` - `schedule()`, `ensureMonitorServiceAlive()` (Batch 84), `postAlertNotification()`.
+3. `MainActivity.kt` - `startMonitorService()`.
+4. `BootReceiver.kt` - restart service saat `BOOT_COMPLETED`.
+5. `AndroidManifest.xml` - atribut `stopWithTask="false"`, `foregroundServiceType`.
+6. `HibernateWorker.kt` (WorkManager periodic, pola berbeda - diperiksa sbg perbandingan, bukan bagian notifikasi persisten).
+
+### Temuan #1 (RESOLVED) - `monitorLoop()` tanpa fail-safe, KONTRAS dgn seluruh codebase lain
+**Root cause**: `BatteryMonitorService.monitorLoop()` (loop inti service persisten) memanggil `sampleAndPersist()` TANPA try-catch. `sampleAndPersist()` melakukan I/O yang secara realistis BISA gagal sesaat pada service yang berjalan 24/7 selama berbulan-bulan: insert/prune Room DB (`SQLiteFullException` storage penuh, `SQLiteDatabaseLockedException` lock sesaat), dan `BatteryUtils.readSnapshot()` (`BatteryManager.getIntProperty()` diketahui punya bug NPE internal di beberapa ROM OEM). Kalau exception ini lolos unhandled, `CrashLogger.install()` (`VoltCareApplication.onCreate()`) TETAP meneruskannya ke `defaultHandler?.uncaughtException()` setelah logging - proses MATI, notifikasi persisten ("Memantau baterai...") ikut hilang total. Ini KONTRAS mencolok dgn pola fail-safe yang konsisten dipakai di HAMPIR SEMUA kode lain di app ini (`AlarmPlayer.kt`, `ShizukuManager.kt`, `AutostartHelper.kt`, `AlarmCheckReceiver.kt`, `HibernateWorker.kt`, semua request permission di `MainActivity.kt`) - loop paling kritis (jantung dari "persistent" itu sendiri) justru satu-satunya yang tidak fail-safe.
+
+**Fix (1 file)**: `BatteryMonitorService.kt` - `monitorLoop()` sekarang membungkus `sampleAndPersist()` dgn try-catch (`catch (e: Throwable)`, fail-safe kosong + komentar, pola identik semua file lain di atas). 1 siklus sample gagal di-skip, loop lanjut ke siklus berikutnya (60s kemudian) - TIDAK menjatuhkan proses. Kombinasi dgn Batch 84 (`ensureMonitorServiceAlive()`): bahkan kalau suatu saat proses TETAP mati krn sebab lain di luar loop ini, notifikasi tetap pulih otomatis dalam ~60 detik.
+
+### Titik lain - DIPERIKSA, TIDAK ada gap (dikonfirmasi aman, bukan diasumsikan)
+- `onCreate()` (`registerReceiver(batteryReceiver, ...)`, `startForeground()`) - TIDAK dibungkus try-catch, TAPI risiko dinilai dapat diabaikan (register `ACTION_BATTERY_CHANGED` & `startForeground()` dgn tipe `specialUse` terdaftar manifest adalah operasi yang secara praktis tidak pernah gagal di lapangan) - sengaja TIDAK ditambah defensive try-catch supaya tidak menambah kompleksitas tanpa manfaat nyata (kalau `onCreate()` sendiri gagal, servicenya memang tidak bisa dibuat sama sekali, safety net `AlarmCheckReceiver` tetap akan coba lagi ~60 detik kemudian).
+- `onTaskRemoved()`, `updateNotification()`, `notifyCalibrationDone()`, `fireAlert()`, `handleDismissAlarm()` - SUDAH fail-safe (try-catch atau `?: return`) sejak batch-batch sebelumnya, diverifikasi ulang, tidak ada regresi.
+- `AlarmCheckReceiver.kt` (`schedule()`, `checkAndFire()`, `ensureMonitorServiceAlive()`, `postAlertNotification()`) - SUDAH fail-safe penuh (Batch 71/83/84), diverifikasi ulang, tidak ada gap baru.
+- `MainActivity.startMonitorService()` / `BootReceiver` - operasi tunggal (`startForegroundService`), tidak ada loop/state berkelanjutan yang berisiko gagal sesaat, dinilai tidak butuh try-catch tambahan.
+- `HibernateWorker.kt` - sudah fail-safe (`try/catch Exception -> Result.success()`), pola berbeda (WorkManager periodic, bukan foreground service persisten) - diperiksa sbg pembanding, TIDAK diubah (di luar scope "notifikasi persisten").
+
+**Bump**: versionName 1.0.47 -> 1.0.48.
+
+**Pending Queue**: tidak berubah dari Batch 84 (roadmap restyle iOS #38-#41 + sisa audit UX #33/#34/#36/#37 - beda topik dari audit pola persistent ini).
+
+---
+
 ## [Batch 84] Fitur - Notifikasi Bar Persisten Ikut Kebal Saat App Dikill — 2026-08-30
 
 **Konteks:** Lanjutan permintaan user di sesi yang sama dgn Batch 83 - notifikasi bar MONITORING persisten ("Memantau baterai...", beda dari notifikasi alert/reminder rule yang sudah dibenahi Batch 83) juga wajib tahan/pulih sendiri kalau proses app dikill total, bukan cuma nunggu user buka app manual.
