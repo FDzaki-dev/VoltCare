@@ -1,13 +1,18 @@
 package com.voltcare.app.receiver
 
 import android.app.AlarmManager
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.SystemClock
+import androidx.core.app.NotificationCompat
+import com.voltcare.app.VoltCareApplication
 import com.voltcare.app.data.db.AppDatabase
+import com.voltcare.app.data.db.entity.RuleEntity
+import com.voltcare.app.service.BatteryMonitorService
 import com.voltcare.app.util.AlarmPlayer
 import com.voltcare.app.util.BatteryUtils
 import kotlinx.coroutines.CoroutineScope
@@ -28,6 +33,21 @@ import java.util.Calendar
  * SENGAJA, bukan lupa reuse: safety net ini wajib tetap kerja sendiri walau
  * service utama sudah mati total, jadi tidak boleh bergantung state in-memory
  * (firedRuleIds) milik service - edge-detection sendiri via SharedPreferences.
+ *
+ * Batch 83 (fix bug laporan user - root cause ditemukan): SEBELUMNYA fungsi
+ * checkAndFire() punya baris `if (rule.actionType != "ALARM") return@forEach`
+ * di paling awal loop - rule beraksi "Notifikasi saja" (NOTIFY, lihat RuleAction
+ * di RulesViewModel.kt) DIAM-DIAM TIDAK PERNAH dievaluasi sama sekali oleh
+ * safety net independen-proses ini. Selama proses BatteryMonitorService masih
+ * hidup, tidak kelihatan (monitorLoop in-process masih jalan) - TAPI begitu OS
+ * benar-benar mematikan proses (yang justru jadi alasan safety net ini dibuat,
+ * Batch 71), rule NOTIFY berhenti total dievaluasi, dan baru aktif lagi begitu
+ * user buka app manual (MainActivity.startMonitorService() restart service).
+ * Persis gejala laporan user: "reminder notifikasi ... gak ke-trigger kecuali
+ * app dibuka lagi". Fix: SEMUA rule aktif dievaluasi tanpa memandang actionType
+ * - notifikasi SELALU diposting saat kondisi terpenuhi (postAlertNotification,
+ * meniru BatteryMonitorService.fireAlert()), suara/getar (AlarmPlayer) tetap
+ * eksklusif utk actionType == "ALARM" (tidak berubah).
  */
 class AlarmCheckReceiver : BroadcastReceiver() {
 
@@ -52,7 +72,6 @@ class AlarmCheckReceiver : BroadcastReceiver() {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val today = Calendar.getInstance().get(Calendar.DAY_OF_WEEK).toString()
         db.ruleDao().enabledOnce().forEach { rule ->
-            if (rule.actionType != "ALARM") return@forEach
             // Batch 74 (Pending #30): samakan persis dgn BatteryMonitorService.checkRule() -
             // skip total (bukan reset firedKey) di hari non-aktif, biar edge-detection konsisten.
             if (!rule.activeDays.split(",").map { it.trim() }.contains(today)) return@forEach
@@ -70,7 +89,13 @@ class AlarmCheckReceiver : BroadcastReceiver() {
             if (triggered) {
                 if (!prefs.getBoolean(key, false)) {
                     prefs.edit().putBoolean(key, true).apply()
-                    AlarmPlayer.play(context, rule.alarmSoundUri, rule.alarmLoop)
+                    // Batch 83: dulu baris ini digerbang `actionType == "ALARM"` di level ATAS
+                    // loop (rule NOTIFY skip total, lihat KDoc class). Sekarang suara/getar tetap
+                    // eksklusif ALARM, TAPI notifikasi (postAlertNotification) jalan utk KEDUANYA.
+                    if (rule.actionType == "ALARM") {
+                        AlarmPlayer.play(context, rule.alarmSoundUri, rule.alarmLoop)
+                    }
+                    postAlertNotification(context, rule)
                 }
             } else {
                 prefs.edit().remove(key).apply()
@@ -78,11 +103,44 @@ class AlarmCheckReceiver : BroadcastReceiver() {
         }
     }
 
+    /**
+     * Batch 83: posting notifikasi mandiri, independen proses Service - meniru persis
+     * BatteryMonitorService.fireAlert() (channel, ikon, tombol dismiss balik ke Service)
+     * supaya perilaku konsisten baik saat dipicu service yang masih hidup maupun safety
+     * net ini saat proses sudah mati total. Dipanggil utk SEMUA rule triggered (ALARM
+     * maupun NOTIFY) - beda dari AlarmPlayer.play() yang cuma jalan utk actionType ALARM.
+     */
+    private fun postAlertNotification(context: Context, rule: RuleEntity) {
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return
+        val dismissIntent = Intent(context, BatteryMonitorService::class.java).apply {
+            action = BatteryMonitorService.ACTION_DISMISS_ALARM
+            putExtra(BatteryMonitorService.EXTRA_RULE_ID, rule.id)
+        }
+        val dismissPendingIntent = PendingIntent.getService(
+            context, rule.id.toInt(), dismissIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        val notification = NotificationCompat.Builder(context, VoltCareApplication.CHANNEL_ALERT)
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setContentTitle("Peringatan: ${rule.label}")
+            .setContentText("Kondisi aturan cerdas terpenuhi.")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Matikan Alarm", dismissPendingIntent)
+            .build()
+        manager.notify(ALERT_NOTIF_BASE_ID + rule.id.toInt(), notification)
+    }
+
     private fun firedKey(ruleId: Long) = "fired_$ruleId"
 
     companion object {
         private const val PREFS_NAME = "voltcare_alarm_safetynet"
         private const val REQUEST_CODE = 9001
+
+        /** Sengaja SAMA dgn ALERT_NOTIF_BASE_ID di BatteryMonitorService.kt (duplikasi kecil
+         *  disengaja, lihat KDoc class) - ID notifikasi identik per rule.id, jadi kalau service
+         *  & safety net ini kebetulan fire beruntun, notifikasi saling menimpa (bukan menumpuk). */
+        private const val ALERT_NOTIF_BASE_ID = 2000
 
         /** Selaras interval sampling utama BatteryMonitorService (60s). */
         private const val INTERVAL_MS = 60_000L

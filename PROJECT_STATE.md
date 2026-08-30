@@ -25,6 +25,37 @@
 
 ---
 
+## [Batch 83] Fix - Reminder Notifikasi Tidak Trigger Setelah App Dikill (root cause) + Rombak Tab Riwayat — 2026-08-30
+
+**Konteks:** User laporkan 2 hal: (1) reminder notifikasi di tab Aturan tidak ke-trigger setelah app di-kill kecuali dibuka lagi; (2) tab Riwayat "kurang useful bagi user awam" (screenshot: grafik Health% terlihat garis rata kosong tanpa label sumbu, kartu ringkasan penuh jargon teknis).
+
+### Item 1 - RESOLVED (root cause ditemukan via audit source, bukan asumsi)
+`AlarmCheckReceiver.kt` adalah SATU-SATUNYA jalur yang independen dari lifecycle proses `BatteryMonitorService` (dijadwalkan via `AlarmManager.setExactAndAllowWhileIdle`, sistem yang deliver walau proses app sudah mati total - lihat Batch 71). Ditemukan baris `if (rule.actionType != "ALARM") return@forEach` di paling awal `checkAndFire()` - rule beraksi **"Notifikasi saja" (NOTIFY)** diam-diam SKIP TOTAL dari safety net ini, hanya rule beraksi ALARM (getar+suara) yang pernah dievaluasi. Selama proses service masih hidup ini tidak kelihatan (in-process `monitorLoop()` masih mengevaluasi semua rule via `BatteryMonitorService.checkRule()`), TAPI begitu OS benar-benar mematikan proses (skenario yang justru jadi alasan `AlarmCheckReceiver` dibuat), rule NOTIFY berhenti total dievaluasi sampai user buka app manual (`MainActivity.startMonitorService()` restart service) - PERSIS gejala laporan user.
+
+**Fix (1 file)**: `AlarmCheckReceiver.kt` - hapus filter `actionType != "ALARM"` di level atas loop; SEMUA rule aktif kini dievaluasi tanpa memandang actionType. Ditambah `postAlertNotification()` (meniru struktur `BatteryMonitorService.fireAlert()`: channel `CHANNEL_ALERT`, tombol "Matikan Alarm" balik ke Service via `ACTION_DISMISS_ALARM`) yang dipanggil utk SEMUA rule triggered - notifikasi SELALU diposting saat kondisi terpenuhi, `AlarmPlayer.play()` (suara+getar) tetap eksklusif utk `actionType == "ALARM"` (tidak berubah). ID notifikasi (`ALERT_NOTIF_BASE_ID = 2000`) sengaja disamakan dgn konstanta di `BatteryMonitorService.kt` (duplikasi kecil disengaja, sama seperti pola existing file ini) - kalau service & safety net kebetulan fire beruntun, notifikasi saling menimpa, bukan menumpuk.
+
+**Sengaja TIDAK diubah**: `BatteryMonitorService.kt` (`fireAlert()` sudah benar sejak awal - notifikasi selalu diposting terlepas actionType, cuma `AlarmCheckReceiver.kt` yang salah gerbang). `RuleEntity`/`RuleDao`/`AndroidManifest.xml` - tidak ada perubahan schema/permission, murni bug logic 1 file.
+
+### Item 2 - Rombak Tab Riwayat (2 file, sesuai cap)
+**Root cause tambahan yang ditemukan saat audit (bukan cuma "kurang cantik")**: (a) grafik Health% selalu dipetakan ke rentang TETAP 0-100 - karena Health% jarang berubah jauh dari nilai kalibrasi/heuristik (mis. selalu 87%), garis selalu terlihat nyaris rata TANPA label sumbu sama sekali (Pending Queue #35, `UX_AUDIT.md` Batch 80 - belum pernah digarap), variasi kecil sama sekali tidak kelihatan; (b) titik grafik = raw sample per-menit tanpa agregasi & tanpa label tanggal/jam, jadi tidak ada konteks waktu; (c) label "30 hari terakhir" di kartu Cycle STATIS walau data riil baru berumur ~2 jam (kasus screenshot user, 129 baris ≈ 129 menit) - menyesatkan.
+
+**`HistoryViewModel.kt`**: + `DailyStat` (titik agregat: dateLabel, avgHealthPercent, avgTemperatureC, maxTemperatureC). `computeDailyStats()` agregasi ADAPTIF - per jam kalau rentang data < 1 hari (biar tetap >=2 titik & ada konteks waktu meski baru install), per hari kalender kalau >= 1 hari. `spanLabel()` deskripsi rentang data RIIL ("kurang dari 1 jam terakhir" / "X jam terakhir" / "X hari terakhir"), menggantikan label statis lama. + `healthStatusLabel`/`healthInsightText` (reuse `BatteryUtils.healthLabel()` yg sudah ada, +kalimat insight polos per level) & `tempStatusLabel`/`tempInsightText` (ambang heuristik baru Normal<35°C/Hangat<40°C/Panas>=40°C, murni label kontekstual Riwayat - beda dari threshold ALARM custom user di `RuleEntity`).
+
+**`HistoryScreen.kt`**: kartu ringkasan direword ("Health"->"Kesehatan Baterai", "Cycle"->"Siklus Charge") + status berwarna (VcGreen/VcAmber/VcRed - token semantik yang sama dipakai lintas app, bukan warna baru) dipetakan dari label yang sudah ada. + 2 baris insight kalimat polos di bawah kartu. `HistoryLineChart` ditulis ulang total: 3 label sumbu-Y (maks/tengah/min) + gridline halus + 2 label sumbu-X (waktu awal/akhir) - menutup Pending Queue #35. Rentang Y kini DINAMIS mengikuti data riil (bukan 0-100 tetap) utk chart Health, jadi variasi kecil tetap kelihatan. Fallback pesan "Belum cukup data" saat titik <2 (bukan kanvas kosong yang bikin bingung, mis. app baru dipasang beberapa menit).
+
+**Sengaja TIDAK diubah**: `CsvExporter.kt`, `BatteryLogDao.kt`/`CycleDao.kt` (DAO, protected) - export CSV & sumber data mentah 100% sama, murni tampilan/agregasi di layer ViewModel. Retensi 30 hari (`RETENTION_MS`) tidak berubah - judul layar tetap "Riwayat Baterai" (dulu "Riwayat 30 Hari", diganti karena judul lama menjanjikan cakupan yg mungkin belum ada, `spanLabel` sekarang yang mengomunikasikan cakupan riil).
+
+**Bump**: versionName 1.0.45 -> 1.0.46.
+
+**Pending Queue (tidak berubah dari Batch 82, roadmap restyle iOS)**:
+- **#38** NavGraph.kt - NavigationBar iOS tab-bar look (translucent/blur).
+- **#39** Cupertino-style AlertDialog/action sheet.
+- **#40** iOS-style Switch/Button per layar.
+- **#41** Custom squircle Shape.
+- #33-#37 (MED/LOW, `UX_AUDIT.md` Batch 80) - #35 SEKARANG RESOLVED lewat batch ini (bukan bagian roadmap restyle, murni kebetulan tertutup sekalian), sisanya (#33, #34, #36, #37) tetap belum digarap.
+
+---
+
 ## [Batch 82] Restyle iOS/Cupertino Tahap 1/N: Fondasi Warna + Shape (+ Pending #32 RESOLVED) — 2026-08-21
 
 **Konteks:** User minta restyle app jadi "iOS look, Cupertino, premium". Scope terlalu besar utk 1 batch (6 layar + NavGraph + Theme) - dipecah micro-batch, mulai dari fondasi (`Color.kt`/`Theme.kt`) krn dipakai SEMUA layar sekaligus.

@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.46-batch83] - 2026-08-30
+### Fixed
+- Root cause reminder notifikasi (tab Aturan) tidak trigger setelah app dikill: `AlarmCheckReceiver.kt` (safety net independen-proses) diam-diam skip total rule beraksi "Notifikasi saja" (NOTIFY), hanya rule ALARM yang pernah dievaluasi. Sekarang semua rule aktif dievaluasi & notifikasi selalu diposting saat kondisi terpenuhi.
+### Changed
+- Rombak tab Riwayat: grafik dapat label sumbu-X/Y + gridline (Pending Queue #35 resolved), rentang Y dinamis (bukan 0-100 tetap - dulu bikin grafik Health% terlihat rata kosong), agregasi adaptif per jam/hari, kartu ringkasan direword ke bahasa awam + status berwarna, insight kalimat polos, label rentang data mengikuti data riil (bukan "30 hari" statis).
+
 ## [v1.0.45-batch82] - 2026-08-21
 ### Added
 - Restyle iOS/Cupertino tahap 1/N (fondasi): `Color.kt` diganti ke token Apple HIG System Colors (nama variabel lama dipertahankan, cuma nilai hex diperbarui). `Theme.kt`: ColorScheme M3 lengkap (semua "on*" eksplisit) + `VcShapes` (sudut membulat generous ala Cupertino, efek otomatis ke Card/Dialog/TextField semua layar).
