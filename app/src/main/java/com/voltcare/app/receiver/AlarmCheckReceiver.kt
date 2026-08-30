@@ -9,6 +9,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.SystemClock
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.voltcare.app.VoltCareApplication
 import com.voltcare.app.data.db.AppDatabase
 import com.voltcare.app.data.db.entity.RuleEntity
@@ -48,12 +49,28 @@ import java.util.Calendar
  * - notifikasi SELALU diposting saat kondisi terpenuhi (postAlertNotification,
  * meniru BatteryMonitorService.fireAlert()), suara/getar (AlarmPlayer) tetap
  * eksklusif utk actionType == "ALARM" (tidak berubah).
+ *
+ * Batch 84 (permintaan user - notifikasi bar persisten juga wajib kebal saat app dikill):
+ * SEBELUMNYA safety net ini HANYA mengevaluasi rule (alarm/notifikasi), tidak pernah
+ * menyentuh notifikasi monitoring persisten ("Memantau baterai...") - itu murni tanggung
+ * jawab `startForeground()` di `BatteryMonitorService.onCreate()`. Kalau proses service
+ * benar-benar mati (bukan cuma task di-swipe - kasus itu sudah ditangani `onTaskRemoved()`
+ * + `stopWithTask=false` sejak Batch 64), notifikasi persisten ikut hilang total & TIDAK
+ * ADA mekanisme independen-proses yang menghidupkannya lagi selain user buka app manual.
+ * Sekarang `ensureMonitorServiceAlive()` dipanggil tiap kali alarm ini fire (~60 detik
+ * sekali, selaras interval sampling) - `startForegroundService()` ke service yang SUDAH
+ * hidup cuma jadi no-op `onStartCommand()` tambahan (aman, pola sama persis dgn
+ * `MainActivity.startMonitorService()` yang sudah dipanggil tiap `onCreate()` sejak app
+ * pertama dibuat tanpa masalah), TAPI kalau service ternyata sudah mati, panggilan ini
+ * me-restart-nya dari nol (`onCreate()` jalan lagi -> `startForeground()` lagi -> notifikasi
+ * persisten pulih) - dalam waktu maksimal ~60 detik, independen dari kapan user buka app.
  */
 class AlarmCheckReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val appContext = context.applicationContext
         schedule(appContext) // reschedule dulu (one-shot, bukan repeating - wajib rantai ulang tiap fire)
+        ensureMonitorServiceAlive(appContext) // Batch 84: pulihkan notifikasi bar persisten kalau service mati
         val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -63,6 +80,22 @@ class AlarmCheckReceiver : BroadcastReceiver() {
             } finally {
                 pending.finish()
             }
+        }
+    }
+
+    /**
+     * Batch 84: "ping" BatteryMonitorService tiap kali safety net ini fire. Kalau service
+     * masih hidup, ini cuma onStartCommand() tambahan tanpa efek (harmless no-op - pola
+     * identik MainActivity.startMonitorService(), sudah terbukti aman sejak Batch 1). Kalau
+     * service ternyata sudah mati total, ini me-restart-nya dari nol - notifikasi monitoring
+     * persisten ("Memantau baterai...") pulih otomatis tanpa perlu user buka app.
+     */
+    private fun ensureMonitorServiceAlive(context: Context) {
+        try {
+            val serviceIntent = Intent(context, BatteryMonitorService::class.java)
+            ContextCompat.startForegroundService(context, serviceIntent)
+        } catch (e: Throwable) {
+            // Fail-safe: gagal restart tidak boleh mengganggu evaluasi rule/alarm di bawah.
         }
     }
 

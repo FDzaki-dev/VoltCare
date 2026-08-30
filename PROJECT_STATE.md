@@ -25,6 +25,24 @@
 
 ---
 
+## [Batch 84] Fitur - Notifikasi Bar Persisten Ikut Kebal Saat App Dikill — 2026-08-30
+
+**Konteks:** Lanjutan permintaan user di sesi yang sama dgn Batch 83 - notifikasi bar MONITORING persisten ("Memantau baterai...", beda dari notifikasi alert/reminder rule yang sudah dibenahi Batch 83) juga wajib tahan/pulih sendiri kalau proses app dikill total, bukan cuma nunggu user buka app manual.
+
+**Root cause (gap arsitektur, bukan bug)**: notifikasi persisten 100% tanggung jawab `startForeground()` di `BatteryMonitorService.onCreate()`. Semua fix reliability sebelumnya (Batch 64 `onTaskRemoved()`+`stopWithTask=false`, Batch 68 battery optimization exemption, Batch 69 OEM autostart helper) menahan/memulihkan SERVICE itu sendiri, TAPI kalau OS/OEM akhirnya tetap berhasil membunuh proses total (skenario yang justru jadi alasan `AlarmCheckReceiver` independen-proses dibuat, Batch 71), tidak ada satu pun mekanisme independen-proses yang MEMULIHKAN notifikasi persisten - `AlarmCheckReceiver` (sampai Batch 83) cuma peduli evaluasi rule, tidak pernah menyentuh service/notifikasi monitoring.
+
+**Fix (1 file, sama file Batch 83)**: `AlarmCheckReceiver.kt` - `onReceive()` sekarang juga panggil `ensureMonitorServiceAlive()` (baru) tiap kali alarm ~60 detik ini fire, SEBELUM evaluasi rule. Fungsi ini `ContextCompat.startForegroundService()` ke `BatteryMonitorService` tanpa syarat: kalau service SUDAH hidup, ini cuma `onStartCommand()` tambahan tanpa efek samping (pola identik `MainActivity.startMonitorService()` yang sudah dipanggil tiap `onCreate()` sejak Batch 1 tanpa masalah - aman dipanggil berulang ke instance yang sudah foreground). Kalau service SUDAH MATI, panggilan ini me-restart-nya dari nol (`onCreate()` jalan lagi -> `startForeground()` lagi) - notifikasi persisten pulih otomatis dalam maksimal ~60 detik, independen dari kapan user buka app.
+
+**Kenapa aman (bukan risiko crash `ForegroundServiceDidNotStartInTimeException`)**: requirement "wajib panggil `startForeground()` dalam 5 detik" berlaku saat service BARU DIBUAT (`onCreate()` fresh) via `startForegroundService()` - kalau instance SUDAH berjalan & sudah foreground dari sebelumnya, panggilan `startForegroundService()` susulan cuma deliver `onStartCommand()` baru ke instance yang sama, TIDAK memicu ulang timer 5 detik itu. `BatteryMonitorService.onStartCommand()` sendiri sudah fail-safe (`if (intent?.action == ACTION_DISMISS_ALARM) {...}`, selain itu no-op `return START_STICKY`) - ping tanpa action ini 100% harmless kalau service memang masih hidup.
+
+**Sengaja TIDAK diubah**: `BatteryMonitorService.kt`, `MainActivity.kt`, `AndroidManifest.xml` - tidak ada perubahan schema/permission/lifecycle lain, murni tambah 1 pemanggilan di jalur yang sudah ada (`AlarmCheckReceiver.onReceive()`, sudah tereksekusi tiap ~60 detik independen proses sejak Batch 71).
+
+**Bump**: versionName 1.0.46 -> 1.0.47.
+
+**Pending Queue**: tidak berubah dari Batch 83 (roadmap restyle iOS #38-#41 + sisa audit #33/#34/#36/#37).
+
+---
+
 ## [Batch 83] Fix - Reminder Notifikasi Tidak Trigger Setelah App Dikill (root cause) + Rombak Tab Riwayat — 2026-08-30
 
 **Konteks:** User laporkan 2 hal: (1) reminder notifikasi di tab Aturan tidak ke-trigger setelah app di-kill kecuali dibuka lagi; (2) tab Riwayat "kurang useful bagi user awam" (screenshot: grafik Health% terlihat garis rata kosong tanpa label sumbu, kartu ringkasan penuh jargon teknis).

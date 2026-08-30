@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.47-batch84] - 2026-08-30
+### Fixed
+- Notifikasi bar monitoring persisten ("Memantau baterai...") kini ikut kebal saat proses app dikill total: `AlarmCheckReceiver.kt` (safety net independen-proses, fire tiap ~60 detik) sekarang juga "ping" `BatteryMonitorService` via `startForegroundService()` - no-op kalau service masih hidup, restart otomatis (notifikasi pulih) kalau ternyata sudah mati, tanpa perlu user buka app manual.
+
 ## [v1.0.46-batch83] - 2026-08-30
 ### Fixed
 - Root cause reminder notifikasi (tab Aturan) tidak trigger setelah app dikill: `AlarmCheckReceiver.kt` (safety net independen-proses) diam-diam skip total rule beraksi "Notifikasi saja" (NOTIFY), hanya rule ALARM yang pernah dievaluasi. Sekarang semua rule aktif dievaluasi & notifikasi selalu diposting saat kondisi terpenuhi.
