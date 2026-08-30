@@ -14,7 +14,6 @@ import com.voltcare.app.VoltCareApplication
 import com.voltcare.app.data.db.AppDatabase
 import com.voltcare.app.data.db.entity.RuleEntity
 import com.voltcare.app.service.BatteryMonitorService
-import com.voltcare.app.util.AlarmPlayer
 import com.voltcare.app.util.BatteryUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -64,6 +63,16 @@ import java.util.Calendar
  * pertama dibuat tanpa masalah), TAPI kalau service ternyata sudah mati, panggilan ini
  * me-restart-nya dari nol (`onCreate()` jalan lagi -> `startForeground()` lagi -> notifikasi
  * persisten pulih) - dalam waktu maksimal ~60 detik, independen dari kapan user buka app.
+ *
+ * Batch 86 (fix bug laporan user - "notifikasi doang nyantol, nada dering mati saat app
+ * dikill"): SEBELUMNYA checkAndFire() memanggil AlarmPlayer.play() LANGSUNG di proses
+ * BroadcastReceiver ini sendiri - proses itu cuma dijamin hidup selama jendela goAsync()
+ * (~beberapa detik), TANPA jaminan prioritas foreground service, jadi OS bisa reclaim
+ * proses & memotong ringtone di tengah jalan walau notifikasi (sudah terkirim ke
+ * NotificationManagerService, independen proses app) tetap nyantol - PERSIS gejala laporan
+ * user. Sekarang playback didelegasikan ke BatteryMonitorService (ACTION_FIRE_ALARM, lihat
+ * fireAlarmViaService() & KDoc BatteryMonitorService.handleFireAlarmRequest()) - proses itu
+ * DIJAMIN sudah berstatus foreground service resmi begitu onStartCommand() jalan.
  */
 class AlarmCheckReceiver : BroadcastReceiver() {
 
@@ -125,14 +134,36 @@ class AlarmCheckReceiver : BroadcastReceiver() {
                     // Batch 83: dulu baris ini digerbang `actionType == "ALARM"` di level ATAS
                     // loop (rule NOTIFY skip total, lihat KDoc class). Sekarang suara/getar tetap
                     // eksklusif ALARM, TAPI notifikasi (postAlertNotification) jalan utk KEDUANYA.
+                    // Batch 86: AlarmPlayer.play() TIDAK lagi dipanggil langsung di sini - lihat
+                    // fireAlarmViaService() & KDoc BatteryMonitorService.handleFireAlarmRequest().
                     if (rule.actionType == "ALARM") {
-                        AlarmPlayer.play(context, rule.alarmSoundUri, rule.alarmLoop)
+                        fireAlarmViaService(context, rule)
                     }
                     postAlertNotification(context, rule)
                 }
             } else {
                 prefs.edit().remove(key).apply()
             }
+        }
+    }
+
+    /**
+     * Batch 86 (fix bug laporan user): delegasikan actual playback ke BatteryMonitorService
+     * lewat ACTION_FIRE_ALARM, BUKAN panggil AlarmPlayer.play() langsung di proses receiver
+     * ini - lihat KDoc lengkap di BatteryMonitorService.handleFireAlarmRequest() utk root
+     * cause. Pola identik ACTION_DISMISS_ALARM (Batch 64) & ensureMonitorServiceAlive()
+     * (Batch 84) - startForegroundService() ke service yang sama, aman dipanggil berulang.
+     */
+    private fun fireAlarmViaService(context: Context, rule: RuleEntity) {
+        try {
+            val serviceIntent = Intent(context, BatteryMonitorService::class.java).apply {
+                action = BatteryMonitorService.ACTION_FIRE_ALARM
+                putExtra(BatteryMonitorService.EXTRA_ALARM_SOUND_URI, rule.alarmSoundUri)
+                putExtra(BatteryMonitorService.EXTRA_ALARM_LOOP, rule.alarmLoop)
+            }
+            ContextCompat.startForegroundService(context, serviceIntent)
+        } catch (e: Throwable) {
+            // Fail-safe: gagal minta service memutar alarm tidak boleh mengganggu rule lain.
         }
     }
 

@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.49-batch86] - 2026-08-30
+### Fixed
+- Root cause ringtone alarm mati saat app dikill (notifikasi tetap nyantol): `AlarmCheckReceiver` memutar `AlarmPlayer` langsung di proses BroadcastReceiver ephemeral-nya sendiri (bisa direclaim OS sebelum foreground service sempat aman). Sekarang playback didelegasikan ke `BatteryMonitorService` via `ACTION_FIRE_ALARM` (pola sama dgn `ACTION_DISMISS_ALARM`) - proses dijamin sudah foreground service begitu dieksekusi.
+
 ## [v1.0.48-batch85] - 2026-08-30
 ### Fixed
 - Audit menyeluruh pola "persistent" (grep semua titik notifikasi/service persisten): `BatteryMonitorService.monitorLoop()` ternyata TANPA fail-safe, kontras dgn seluruh codebase lain - 1 kegagalan sesaat (DB lock/storage penuh/bug OEM) bisa menjatuhkan proses & notifikasi persisten via default uncaught handler. Sekarang dibungkus try-catch, 1 siklus gagal di-skip, service tetap hidup.

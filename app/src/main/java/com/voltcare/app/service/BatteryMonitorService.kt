@@ -76,8 +76,9 @@ class BatteryMonitorService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_DISMISS_ALARM) {
-            handleDismissAlarm(intent.getLongExtra(EXTRA_RULE_ID, -1L))
+        when (intent?.action) {
+            ACTION_DISMISS_ALARM -> handleDismissAlarm(intent.getLongExtra(EXTRA_RULE_ID, -1L))
+            ACTION_FIRE_ALARM -> handleFireAlarmRequest(intent)
         }
         return START_STICKY
     }
@@ -92,6 +93,34 @@ class BatteryMonitorService : Service() {
             }
         } catch (e: Throwable) {
             // Fail-safe: dismiss gagal tidak boleh crash service pemantauan utama.
+        }
+    }
+
+    /**
+     * Batch 86 (fix bug laporan user: "notifikasi doang nyantol, nada dering mati saat app
+     * dikill"). SEBELUMNYA AlarmCheckReceiver (safety net independen proses) memanggil
+     * AlarmPlayer.play() LANGSUNG di proses BroadcastReceiver-nya sendiri - proses itu
+     * ephemeral (dijamin hidup cuma sampai goAsync() selesai, ~beberapa detik), TIDAK ada
+     * jaminan prioritas foreground service saat itu, jadi OS bisa reclaim proses & memotong
+     * ringtone yang baru mulai diputar - padahal notifikasi (sudah terkirim ke
+     * NotificationManagerService, hidup di luar proses app) tetap nyantol. Root cause PERSIS
+     * seperti laporan user.
+     *
+     * Sekarang AlarmCheckReceiver TIDAK lagi memutar alarm sendiri - ia startForegroundService()
+     * ke SINI dgn ACTION_FIRE_ALARM (pola sama persis dgn ACTION_DISMISS_ALARM yang sudah ada
+     * sejak Batch 64). onCreate() SELALU memanggil startForeground() sebelum onStartCommand()
+     * jalan (kontrak Android standar utk service baru), jadi begitu handleFireAlarmRequest()
+     * ini dieksekusi, proses SUDAH DIJAMIN berstatus foreground service resmi - prioritas jauh
+     * lebih tinggi & stabil drpd proses ephemeral BroadcastReceiver, ringtone tidak lagi ikut
+     * mati di tengah jalan.
+     */
+    private fun handleFireAlarmRequest(intent: Intent) {
+        try {
+            val soundUri = intent.getStringExtra(EXTRA_ALARM_SOUND_URI)
+            val loop = intent.getBooleanExtra(EXTRA_ALARM_LOOP, false)
+            AlarmPlayer.play(applicationContext, soundUri, loop)
+        } catch (e: Throwable) {
+            // Fail-safe: gagal putar alarm tidak boleh crash service pemantauan utama.
         }
     }
 
@@ -327,5 +356,12 @@ class BatteryMonitorService : Service() {
         private const val RETENTION_MS = 30L * 24 * 60 * 60 * 1000
         const val ACTION_DISMISS_ALARM = "com.voltcare.app.action.DISMISS_ALARM"
         const val EXTRA_RULE_ID = "extra_rule_id"
+
+        /** Batch 86: lihat KDoc handleFireAlarmRequest() - alarm SELALU diputar di proses
+         *  service ini (bukan di proses AlarmCheckReceiver), supaya ringtone tidak ikut
+         *  mati saat app dikill. */
+        const val ACTION_FIRE_ALARM = "com.voltcare.app.action.FIRE_ALARM"
+        const val EXTRA_ALARM_SOUND_URI = "extra_alarm_sound_uri"
+        const val EXTRA_ALARM_LOOP = "extra_alarm_loop"
     }
 }

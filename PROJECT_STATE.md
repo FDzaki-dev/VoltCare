@@ -25,6 +25,26 @@
 
 ---
 
+## [Batch 86] Fix - Ringtone Alarm Mati Saat App Dikill (Notifikasi Tetap Nyantol) — 2026-08-30
+
+**Konteks:** Lanjutan Batch 83-85 di sesi yang sama. User laporkan: notifikasi alert tetap muncul & bertahan (`postAlertNotification()`, Batch 83), TAPI nada dering/getar (`AlarmPlayer`) malah berhenti begitu app dikill - gejala spesifik "notifikasi nyantol, suara mati".
+
+**Root cause (ditemukan via analisis lifecycle proses, bukan tebakan)**: `AlarmCheckReceiver.checkAndFire()` (safety net independen proses, Batch 71) memanggil `AlarmPlayer.play()` **LANGSUNG di dalam proses BroadcastReceiver-nya sendiri**. Proses ini cuma dijamin hidup selama jendela `goAsync()` (idealnya ~10 detik, bisa lebih pendek tergantung versi/OEM Android) - TANPA jaminan prioritas foreground service saat itu. `AlarmPlayer` memutar `Ringtone` via `MediaPlayer` LOKAL di proses yang sama (bukan lewat service sistem terpisah) - begitu proses ephemeral ini di-reclaim OS setelah `pending.finish()` dipanggil, `MediaPlayer` ikut mati & suara terpotong di tengah jalan. Sementara itu notifikasi (`postAlertNotification()`) sudah terkirim & tersimpan di `NotificationManagerService` (proses `system_server`, TERPISAH dari proses app) - jadi tetap nyantol di status bar walau proses app sendiri sudah direclaim. Ini menjelaskan PERSIS gejala laporan user: notifikasi nyantol, suara mati.
+
+Catatan: `ensureMonitorServiceAlive()` (Batch 84) memang sudah `startForegroundService()` di `onReceive()`, TAPI itu ASINKRON (cuma request, bukan blocking) - `AlarmPlayer.play()` di `checkAndFire()`'s coroutine bisa saja tereksekusi & proses direclaim SEBELUM `BatteryMonitorService.onCreate()`/`startForeground()` benar-benar selesai mengamankan prioritas proses. Race condition inilah yang bikin Batch 84 belum cukup utk kasus ini.
+
+**Fix (2 file)**:
+- **`BatteryMonitorService.kt`**: + `ACTION_FIRE_ALARM`/`EXTRA_ALARM_SOUND_URI`/`EXTRA_ALARM_LOOP` (companion). `onStartCommand()` sekarang `when` 2 action (`ACTION_DISMISS_ALARM` existing + `ACTION_FIRE_ALARM` baru). + `handleFireAlarmRequest(intent)` - panggil `AlarmPlayer.play()` DI SINI (di dalam proses service). Kontrak Android standar: `onCreate()` (yang memanggil `startForeground()`) SELALU dieksekusi sebelum `onStartCommand()` utk service yang baru dibuat - jadi begitu `handleFireAlarmRequest()` jalan, proses SUDAH DIJAMIN berstatus foreground service resmi, ringtone tidak lagi berisiko terpotong.
+- **`AlarmCheckReceiver.kt`**: `checkAndFire()` tidak lagi panggil `AlarmPlayer.play()` langsung - diganti `fireAlarmViaService()` (baru) yang `startForegroundService()` ke `BatteryMonitorService` dgn `ACTION_FIRE_ALARM` + extras (soundUri, loop) dari `RuleEntity`. Pola identik `ACTION_DISMISS_ALARM` (Batch 64) & `ensureMonitorServiceAlive()` (Batch 84) yang sudah terbukti aman. Import `AlarmPlayer` yang jadi tidak terpakai dihapus.
+
+**Sengaja TIDAK diubah**: `BatteryMonitorService.fireAlert()` (jalur in-process, dipanggil `evaluateRules()` saat service memang sudah hidup & foreground - TIDAK punya race condition ini sejak awal, `AlarmPlayer.play()` di situ tetap langsung seperti biasa). `postAlertNotification()` di `AlarmCheckReceiver.kt` - posting notifikasi TIDAK perlu proses bertahan lama (instan terkirim ke system_server), jadi TIDAK dipindah ke service (beda akar masalah dari playback audio).
+
+**Bump**: versionName 1.0.48 -> 1.0.49.
+
+**Pending Queue**: tidak berubah dari Batch 85 (roadmap restyle iOS #38-#41 + sisa audit UX #33/#34/#36/#37).
+
+---
+
 ## [Batch 85] Audit - Pola "Persistent" Menyeluruh (1 gap ditemukan & RESOLVED) — 2026-08-30
 
 **Konteks:** User minta audit eksplisit "semua yang berhubungan dengan pola persistent lalu perbaiki". Sweep dilakukan via grep menyeluruh (`persist|ongoing|sticky|foreground`, case-insensitive) di seluruh `app/src/main/java/` + `AndroidManifest.xml`, lalu tiap hit ditelusuri manual.
