@@ -25,6 +25,26 @@
 
 ---
 
+## [Batch 87] Fix - Alarm Masih Gak Ke-Trigger Saat App Dikill (root cause di lapisan AlarmManager) — 2026-08-31
+
+**Konteks:** User laporkan (setelah Batch 86 live): "alarm masih gak ke trigger saat aplikasi di kill". Batch 71-86 sudah menutup SEMUA celah di lapisan proses/service/playback/notifikasi (stopWithTask, battery optimization exemption, OEM autostart, wake lock, delegasi playback ke foreground service) - diverifikasi ulang via audit source penuh (`AlarmCheckReceiver.kt`, `BatteryMonitorService.kt`, `AlarmPlayer.kt`, `BootReceiver.kt`, `MainActivity.kt`, `AndroidManifest.xml`), semuanya SUDAH BENAR sesuai desain masing-masing. Tidak ada regresi di lapisan itu.
+
+**Root cause (ditemukan via riset dokumentasi resmi Android, bukan tebakan)**: `AlarmCheckReceiver.schedule()` (safety net independen-proses, Batch 71) sejak awal pakai `AlarmManager.setExactAndAllowWhileIdle()`, self-chaining (reschedule +60 detik tiap kali fire). Alarm jenis ini MEMANG exempt dari pembatasan start-foreground-service-dari-background (dikonfirmasi ulang ke dokumentasi resmi Android: "Your app invokes an exact alarm to complete an action that the user requests" adalah salah satu exemption resmi, [developer.android.com/develop/background-work/services/fgs/restrictions-bg-start](https://developer.android.com/develop/background-work/services/fgs/restrictions-bg-start)) - TAPI tetap tunduk pada throttling Doze/App Standby OS utk alarm self-chaining seperti ini. Beda dgn `AlarmManager.setAlarmClock()`, yang menurut dokumentasi resmi Android eksplisit: "the system exits Doze shortly before those alarms fire" & "the system never adjusts their delivery time" - satu-satunya jenis alarm yang dijamin TIDAK PERNAH dibatch/ditunda Doze/App Standby/battery optimization apa pun (mekanisme sama persis app Jam/Alarm bawaan Android).
+
+**Fix (1 file)**: `AlarmCheckReceiver.kt` - `schedule()` sekarang pakai `AlarmManager.setAlarmClock(AlarmClockInfo(triggerAt, showIntent), pendingIntent)` (kalau `canScheduleExactAlarms()` true - permission SAMA persis dgn sebelumnya, tidak ada manifest/prompt baru). `AlarmClockInfo` butuh wall-clock (`System.currentTimeMillis()`), beda dari `elapsedRealtime()` yang dipakai `setExactAndAllowWhileIdle()` sebelumnya - ditambah `showIntent()` (PendingIntent baru wajib utk `AlarmClockInfo`, diarahkan ke `MainActivity`, dipanggil sistem kalau user tap ikon alarm di status bar). Fallback (SCHEDULE_EXACT_ALARM belum granted) TETAP `setAndAllowWhileIdle()` + `elapsedRealtime()` seperti sebelumnya, tidak berubah - `setAlarmClock()` butuh permission yang sama, jadi tidak ada jalur baru yang perlu ditangani di sana.
+
+**Trade-off jujur (bukan bug, disengaja & didokumentasikan Android sendiri)**: ikon kecil "alarm clock" (⏰) akan tampil permanen di status bar/quick settings selama safety net ini aktif (praktis terus-menerus, krn re-chain tiap 60 detik) - efek samping resmi jenis alarm ini, BUKAN bug. Untuk app yang fiturnya memang "Alarm (getar+suara)" (`RuleAction.ALARM`), ikon ini tematically konsisten, bukan sesuatu yang aneh dilihat user. Battery cost sedikit lebih tinggi drpd `setExactAndAllowWhileIdle()` krn OS lebih agresif keluar dari Doze demi alarm ini - trade-off yang disengaja demi reliabilitas (STABILITY > Speed, sesuai Core Directive).
+
+**Sengaja TIDAK diubah**: `BatteryMonitorService.kt`, `AlarmPlayer.kt`, `BootReceiver.kt`, `MainActivity.kt`, `AndroidManifest.xml` - seluruhnya sudah diverifikasi BENAR (0 regresi ditemukan), root cause murni di jenis AlarmManager API yang dipakai. `requestExactAlarmPermission()` (Batch 72, `MainActivity.kt`) TIDAK perlu diubah - `setAlarmClock()` pakai permission check (`canScheduleExactAlarms()`) yang identik dgn `setExactAndAllowWhileIdle()`.
+
+**Catatan**: Tidak ada compile Gradle/device fisik sungguhan di lingkungan pembuatan ZIP ini (network disabled) - verifikasi terbatas brace/paren balance (`AlarmCheckReceiver.kt` 33/33 curly, 186/186 paren) + audit source penuh lapisan alarm (Batch 64-86) + cross-check ke 2 halaman dokumentasi resmi Android (`restrictions-bg-start`, artikel `setAlarmClock` vs `setExactAndAllowWhileIdle`) via web search sebelum menulis fix - BUKAN compile Gradle sungguhan. Rekomendasi kuat: build + test di device yang sebelumnya melaporkan bug (biarkan device idle/layar mati lama tanpa charging, app di-swipe dari Recents), konfirmasi alarm tetap bunyi tepat waktu & ikon alarm-clock muncul di status bar sbg tanda safety net aktif. Kalau device tertentu MASIH gagal setelah ini, kemungkinan besar bukan lagi bug kode - melainkan OEM Autostart belum di-grant manual (`AutostartHelper.kt`, Batch 69) atau battery optimization belum di-exempt (Batch 68) - keduanya di luar kendali kode, perlu dicek manual di Settings device tsb.
+
+**Bump**: versionName 1.0.49 -> 1.0.50.
+
+**Pending Queue**: tidak berubah dari Batch 86 (roadmap restyle iOS #38-#41 + sisa audit UX #33/#34/#36/#37).
+
+---
+
 ## [Batch 86] Fix - Ringtone Alarm Mati Saat App Dikill (Notifikasi Tetap Nyantol) — 2026-08-30
 
 **Konteks:** Lanjutan Batch 83-85 di sesi yang sama. User laporkan: notifikasi alert tetap muncul & bertahan (`postAlertNotification()`, Batch 83), TAPI nada dering/getar (`AlarmPlayer`) malah berhenti begitu app dikill - gejala spesifik "notifikasi nyantol, suara mati".

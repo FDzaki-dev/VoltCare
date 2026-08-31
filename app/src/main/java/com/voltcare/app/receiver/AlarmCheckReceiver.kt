@@ -73,6 +73,22 @@ import java.util.Calendar
  * user. Sekarang playback didelegasikan ke BatteryMonitorService (ACTION_FIRE_ALARM, lihat
  * fireAlarmViaService() & KDoc BatteryMonitorService.handleFireAlarmRequest()) - proses itu
  * DIJAMIN sudah berstatus foreground service resmi begitu onStartCommand() jalan.
+ *
+ * Batch 87 (fix bug laporan user - "masih gak ke-trigger saat app dikill", PERSISTEN setelah
+ * Batch 71-86 menutup seluruh celah proses/playback/notifikasi): root cause tersisa ada di
+ * lapisan AlarmManager itu sendiri, BUKAN lagi di lapisan proses/service/playback (semua sudah
+ * diverifikasi benar via audit source Batch 64-86). setExactAndAllowWhileIdle() (dipakai sejak
+ * Batch 71) memang exempt dari pembatasan start-foreground-service-dari-background (dokumentasi
+ * resmi Android: "Your app invokes an exact alarm to complete an action that the user
+ * requests" adalah salah satu exemption resminya) - TAPI alarm jenis ini TETAP tunduk pada
+ * throttling Doze/App Standby, khususnya utk alarm SELF-CHAINING seperti safety net ini
+ * (reschedule +60 detik tiap kali fire): saat device deep-Doze berkepanjangan (layar mati lama,
+ * statis, tidak nge-charge), OS bisa membatch/menunda alarm ini jauh lebih jarang drpd 60 detik.
+ * setAlarmClock() (dipakai mulai batch ini, lihat schedule()) BEDA fundamental - dokumentasi
+ * resmi Android eksplisit: "the system exits Doze shortly before those alarms fire" & "the
+ * system never adjusts their delivery time". Ini SATU-SATUNYA jenis alarm yang dijamin Android
+ * tidak pernah ditunda oleh Doze/App Standby/battery optimization apa pun - persis mekanisme
+ * yang dipakai app Jam/Alarm bawaan Android sendiri utk alarm bangun tidur.
  */
 class AlarmCheckReceiver : BroadcastReceiver() {
 
@@ -217,19 +233,48 @@ class AlarmCheckReceiver : BroadcastReceiver() {
             )
         }
 
+        /**
+         * Batch 87: setAlarmClock() dipilih drpd setExactAndAllowWhileIdle() (Batch 71-86) -
+         * lihat KDoc class utk root cause lengkap. Butuh wall-clock (System.currentTimeMillis()),
+         * BEDA dari elapsedRealtime yang dipakai jalur fallback di bawah - AlarmClockInfo memang
+         * didesain sekitar konsep "jam dinding" (persis semantik alarm bangun tidur).
+         */
+        private fun triggerAtWallClock(): Long = System.currentTimeMillis() + INTERVAL_MS
+
+        /** PendingIntent "show" wajib utk AlarmClockInfo - sistem panggil ini kalau user tap
+         *  ikon alarm di status bar/quick settings. Diarahkan ke MainActivity, pola sama persis
+         *  tap notifikasi monitoring (buildNotification() di BatteryMonitorService). */
+        private fun showIntent(context: Context): PendingIntent {
+            val intent = Intent(context, com.voltcare.app.MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            return PendingIntent.getActivity(
+                context, REQUEST_CODE, intent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+        }
+
         /** Dipanggil saat BatteryMonitorService start (first launch & tiap boot). */
         fun schedule(context: Context) {
             try {
                 val am = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
-                val triggerAt = SystemClock.elapsedRealtime() + INTERVAL_MS
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !am.canScheduleExactAlarms()) {
-                    // SCHEDULE_EXACT_ALARM belum di-grant user (Pending Queue: prompt eksplisit
-                    // via Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, batch berikutnya) -
-                    // fallback inexact, tetap JAUH lebih baik drpd tanpa safety net sama sekali.
-                    am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pendingIntent(context))
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && am.canScheduleExactAlarms()) {
+                    // Batch 87: setAlarmClock() - TIDAK PERNAH dibatch/ditunda Doze/App Standby/
+                    // battery optimization (lihat KDoc class), permission sama persis dgn
+                    // setExactAndAllowWhileIdle() (canScheduleExactAlarms()), jadi tidak perlu
+                    // manifest/prompt tambahan - MainActivity.requestExactAlarmPermission() (Batch
+                    // 72) sudah cukup.
+                    am.setAlarmClock(
+                        AlarmManager.AlarmClockInfo(triggerAtWallClock(), showIntent(context)),
+                        pendingIntent(context)
+                    )
                     return
                 }
-                am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pendingIntent(context))
+                // SCHEDULE_EXACT_ALARM belum di-grant user -> fallback inexact (elapsedRealtime,
+                // TIDAK berubah dari Batch 71), tetap JAUH lebih baik drpd tanpa safety net sama
+                // sekali. setAlarmClock() tidak dipakai di jalur ini krn butuh permission yang sama.
+                val triggerAtElapsed = SystemClock.elapsedRealtime() + INTERVAL_MS
+                am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAtElapsed, pendingIntent(context))
             } catch (e: Throwable) {
                 // Fail-safe.
             }

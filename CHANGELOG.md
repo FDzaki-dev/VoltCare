@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.50-batch87] - 2026-08-31
+### Fixed
+- Root cause TERSISA dari "alarm masih gak ke-trigger saat app dikill" (setelah Batch 71-86 menutup semua celah proses/playback/notifikasi): `AlarmCheckReceiver.schedule()` pindah dari `setExactAndAllowWhileIdle()` ke `AlarmManager.setAlarmClock()` - satu-satunya jenis alarm Android yang dijamin resmi TIDAK PERNAH dibatch/ditunda oleh Doze/App Standby/battery optimization. Trade-off jujur: ikon kecil alarm-clock akan tampil permanen di status bar selama safety net aktif (efek samping resmi jenis alarm ini, bukan bug).
+
 ## [v1.0.49-batch86] - 2026-08-30
 ### Fixed
 - Root cause ringtone alarm mati saat app dikill (notifikasi tetap nyantol): `AlarmCheckReceiver` memutar `AlarmPlayer` langsung di proses BroadcastReceiver ephemeral-nya sendiri (bisa direclaim OS sebelum foreground service sempat aman). Sekarang playback didelegasikan ke `BatteryMonitorService` via `ACTION_FIRE_ALARM` (pola sama dgn `ACTION_DISMISS_ALARM`) - proses dijamin sudah foreground service begitu dieksekusi.
