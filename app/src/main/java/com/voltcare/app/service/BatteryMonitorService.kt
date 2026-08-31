@@ -284,9 +284,12 @@ class BatteryMonitorService : Service() {
         }
     }
 
+    /** Batch 91: `CHANNEL_ALERT` lama dihapus (lihat KDoc VoltCareApplication) - notifikasi
+     *  info non-alarm ini pindah ke `CHANNEL_ALERT_NOTIFY` (bukan channel ALARM, tidak perlu
+     *  bypass DND utk sekadar info "kalibrasi selesai"). */
     private fun notifyCalibrationDone(healthPercent: Int) {
         val manager = getSystemService(NotificationManager::class.java) ?: return
-        val notification = NotificationCompat.Builder(this, VoltCareApplication.CHANNEL_ALERT)
+        val notification = NotificationCompat.Builder(this, VoltCareApplication.CHANNEL_ALERT_NOTIFY)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("Kalibrasi selesai")
             .setContentText("3 siklus penuh tercapai. Health baterai terkalibrasi: $healthPercent%")
@@ -374,11 +377,21 @@ class BatteryMonitorService : Service() {
             applicationContext, rule.id.toInt(), dismissIntent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
-        val notification = NotificationCompat.Builder(this, VoltCareApplication.CHANNEL_ALERT)
+        // Batch 91: channel ALARM (DND bypass, suara disuppress - AlarmPlayer handle sendiri)
+        // vs channel NOTIFY (default sound, tanpa bypass) - lihat KDoc VoltCareApplication.
+        val channelId = if (rule.actionType == "ALARM") {
+            VoltCareApplication.CHANNEL_ALERT_ALARM
+        } else {
+            VoltCareApplication.CHANNEL_ALERT_NOTIFY
+        }
+        val notification = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle("Peringatan: ${rule.label}")
             .setContentText("Kondisi aturan cerdas terpenuhi.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            // Batch 90: kategori standar OS utk notifikasi bertipe alarm vs reminder pasif -
+            // permintaan user "terapkan konfigurasi umum alarm/charger-trigger app".
+            .setCategory(if (rule.actionType == "ALARM") NotificationCompat.CATEGORY_ALARM else NotificationCompat.CATEGORY_REMINDER)
             // Batch 88: rule ALARM -> ongoing (TIDAK bisa di-swipe), rule NOTIFY -> autoCancel
             // seperti sebelumnya (swipeable, tidak ada suara yang perlu dijaga). Lihat KDoc class.
             .setOngoing(rule.actionType == "ALARM")

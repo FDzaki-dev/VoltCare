@@ -6,6 +6,7 @@
     <string name="tab_rules">Aturan</string>
     <string name="notif_channel_monitor">Monitor Baterai</string>
     <string name="notif_channel_alert">Peringatan Baterai</string>
+    <string name="notif_channel_alert_alarm">Peringatan Baterai (Alarm)</string>
 
     <!-- In-app updater (Batch 21) -->
     <string name="update_check_action">Cek Update</string>

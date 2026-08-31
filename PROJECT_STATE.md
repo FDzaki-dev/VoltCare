@@ -25,6 +25,59 @@
 
 ---
 
+## [Batch 91] Fitur - DND Bypass utk Rule ALARM (Pending Queue #42, pilihan user) — 2026-08-31
+
+**Konteks:** User pilih lanjut ke Pending Queue #42 (dari Batch 90): split channel notifikasi ALARM/NOTIFY + DND bypass utk channel ALARM.
+
+**Kenapa channel ID BARU, bukan reuse `battery_alert` lama:** properti `NotificationChannel` (importance/sound/bypassDnd) TERKUNCI sejak pembuatan pertama di device user & TIDAK bisa diubah lewat update APK biasa - user existing yang sudah pernah buka app versi lama (channel `battery_alert` sudah dibuat sejak Batch 1) tidak akan dapat efek apa pun kalau cuma channel LAMA yang di-kode ulang. Wajib ID baru supaya Android benar-benar membuat channel baru dengan properti baru.
+
+**Fix (3 file kode, sesuai Micro-Batch):**
+- `VoltCareApplication.kt`: `CHANNEL_ALERT` lama dipecah jadi `CHANNEL_ALERT_ALARM` (`battery_alert_alarm`, `setBypassDnd(true)` + `setSound(null,null)`) & `CHANNEL_ALERT_NOTIFY` (`battery_alert_notify`, default sound, tanpa bypass). Channel lama (`battery_alert`) dihapus eksplisit via `deleteNotificationChannel()` (aman/no-op kalau sudah tidak ada). Bonus efek samping SENGAJA: channel ALARM sekarang bisa disuppress soundnya (sebelumnya tidak bisa krn dipakai bersama rule NOTIFY yang butuh suara default itu) - AlarmPlayer sudah handle suara sendiri (custom URI + loop + USAGE_ALARM), jadi default channel sound cuma bikin dobel bunyi "ding" di depan nada alarm; sekarang dihilangkan.
+- `BatteryMonitorService.kt`: `fireAlert()` & `notifyCalibrationDone()` diarahkan ke channel baru yang sesuai (ALARM/NOTIFY utk rule; NOTIFY utk notifikasi info kalibrasi non-rule).
+- `AlarmCheckReceiver.kt`: `postAlertNotification()` disamakan persis dgn `fireAlert()` - WAJIB konsisten, kalau tidak, notifikasi dari safety net independen-proses bisa post ke channel ID yang sudah dihapus (notifikasi ke channel yang tidak ada = gagal total/tidak muncul sama sekali, bukan sekadar salah channel).
+- `strings.xml`: tambah `notif_channel_alert_alarm` ("Peringatan Baterai (Alarm)") - channel ALARM & NOTIFY butuh nama BEDA di Settings app, kalau sama-sama "Peringatan Baterai" user tidak bisa bedain mana yang bypass DND mana yang tidak. Resource string, TIDAK dihitung ke batas 3 file kode (bukan source code Kotlin).
+
+**PENTING - belum lengkap sendirian:** `setBypassDnd(true)` TIDAK berefek apa pun sampai user grant izin "Do Not Disturb access" MANUAL (`Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS`) - prompt otomatis utk izin ini SENGAJA belum ditambahkan di batch ini (item terpisah, `MainActivity.kt` - lihat Pending Queue baru #44 di bawah, biar Micro-Batch ini tetap fokus 1 task = channel architecture-nya dulu). Sementara ini user bisa grant manual: Settings > Apps > VoltCare > Notifications, cari "Do Not Disturb access" > Allow.
+
+**Sengaja TIDAK diubah:** `MainActivity.kt` (permission prompt, lihat catatan di atas) - kalau digabung sekarang jadi 4 file kode, lewat batas Micro-Batch. `RulesViewModel.kt`/`RulesScreen.kt`/`RuleDao.kt` - tidak ada perubahan skema/DB, murni notification channel di layer OS.
+
+**Catatan:** Brace/paren balance dicek (`VoltCareApplication.kt` 5/5 curly 38/38 paren, `BatteryMonitorService.kt` 55/55 curly 257/257 paren, `AlarmCheckReceiver.kt` 35/35 curly 198/198 paren). Tidak ada compile Gradle/device fisik sungguhan (network disabled). Rekomendasi test: install, cek Settings > Apps > VoltCare > Notifications - harus ada 2 channel "Peringatan Baterai (Alarm)" & "Peringatan Baterai", channel lama "Peringatan Baterai" tunggal tidak boleh nongkrong lagi (sudah dihapus). Grant "Do Not Disturb access" manual, aktifkan DND device, trigger rule ALARM - notifikasi+suara harus tetap muncul walau DND aktif.
+
+**Bump**: versionName 1.0.53 -> 1.0.54.
+
+**Pending Queue baru:**
+- #44: `MainActivity.kt` - prompt otomatis izin "Do Not Disturb access" (`ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS`), pola sama dgn `requestIgnoreBatteryOptimization()`/`requestExactAlarmPermission()` yang sudah ada. Tanpa ini, DND bypass Batch 91 di atas TIDAK berefek kecuali user grant manual sendiri via Settings.
+
+**Pending Queue lama**: tidak berubah dari Batch 90 - #43 (full-screen intent), roadmap restyle iOS #38-#41, sisa audit UX #33/#34/#36/#37.
+
+---
+
+## [Batch 90] Proaktif - Terapkan Konfigurasi Umum Alarm/Charger-Trigger App (permintaan user, tanpa laporan bug spesifik) — 2026-08-31
+
+**Konteks:** User minta diterapkan "semua konfigurasi yang umum digunakan alarm charger trigger" secara proaktif, tanpa perlu lapor bug satu-satu dulu. Diaudit fokus ke subsistem alarm (BUKAN full-project audit, sesuai Fast-Track) - dicari gap vs pola umum app alarm/reminder sejenis (Battery Charge Alarm, Ampere, dsb).
+
+**Diterapkan (3 file, low-risk, tidak butuh permission/channel baru):**
+1. **`AlarmPlayer.kt` - volume floor stream ALARM**: gotcha paling umum di app alarm ("alarm gak bunyi" ternyata stream ALARM device kebetulan 0/mute, bukan bug kode). `ensureAudibleAlarmVolume()` baru, dipanggil di awal `play()` - kalau `AudioManager.STREAM_ALARM` kebetulan 0, dinaikkan ke ~40% dari maksimum. Tidak butuh izin khusus (beda dari stream RINGER yang butuh Notification Policy Access). Sengaja HANYA menaikkan dari 0 - tidak pernah mengubah kalau user sudah set volume berapa pun di atas 0 (tidak melawan preferensi user).
+2. **`BatteryMonitorService.kt` (`fireAlert()`) & `AlarmCheckReceiver.kt` (`postAlertNotification()`) - `NotificationCompat.CATEGORY_ALARM`**: kategori standar OS utk notifikasi yang MEMANG alarm berbunyi (rule ALARM) vs `CATEGORY_REMINDER` utk rule NOTIFY pasif (tanpa suara). Konfigurasi standar, per-notifikasi (bukan per-channel, jadi langsung berlaku tanpa perlu channel baru/reinstall).
+
+**Sengaja TIDAK diterapkan sekarang (butuh audit/scope terpisah, dicatat ke Pending Queue #42/#43 biar tidak dipaksakan setengah-jadi):**
+- **DND bypass** (`NotificationChannel.setBypassDnd(true)`) - properti channel ini TERKUNCI saat pembuatan pertama & TIDAK bisa diubah lewat update APK biasa (channel `battery_alert` sudah dibuat sejak Batch 1, semua user existing tidak akan dapat efeknya sama sekali kalau cuma ditambah ke kode). Butuh channel ID baru (mis. `battery_alert_v2`) + `manager.deleteNotificationChannel()` channel lama (opsional tapi best practice) + user tetap wajib grant akses "Do Not Disturb" manual di Settings (`ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS`) - `setBypassDnd` tidak berefek apa pun tanpa izin ini. 3 potongan kerja ini pantas jadi batch tersendiri, bukan ditempel buru-buru di sini.
+- **Suppress default channel sound** (`setSound(null,null)`) - channel `battery_alert` DIPAKAI BERSAMA rule ALARM (yang punya suara sendiri via AlarmPlayer, jadi default channel sound-nya redundan/dobel bunyi) DAN rule NOTIFY (yang TIDAK punya AlarmPlayer sama sekali - default channel sound itu SATU-SATUNYA sumber suaranya). Suppress total channel ini akan bikin rule NOTIFY jadi bisu total (regresi). Perlu split ke 2 channel terpisah dulu - scope lebih besar dari 1 line fix, ditunda.
+- **Full-screen intent** (alarm clock app style, notifikasi buka UI penuh di atas lockscreen) - butuh Activity/UI khusus "Alarm Berbunyi! [Matikan]" (belum ada di app ini, `MainActivity` cuma dashboard biasa) + permission `USE_FULL_SCREEN_INTENT`. Fitur besar, bukan config 1-baris - masuk Pending Queue sbg fitur terpisah, bukan hardening kecil.
+- **Ringtone picker dibatasi ke tipe Alarm** - DICEK, TERNYATA SUDAH BENAR sejak lama (`RulesScreen.kt` baris ~402: `EXTRA_RINGTONE_TYPE = TYPE_ALARM` + `EXTRA_RINGTONE_SHOW_SILENT = false`). Tidak ada perubahan diperlukan.
+
+**Catatan:** Brace/paren balance dicek ulang (`AlarmPlayer.kt` 41/41 curly 128/128 paren, `BatteryMonitorService.kt` 53/53 curly 252/252 paren, `AlarmCheckReceiver.kt` 33/33 curly 194/194 paren). Tidak ada compile Gradle/device fisik sungguhan (network disabled di lingkungan ini).
+
+**Bump**: versionName 1.0.52 -> 1.0.53.
+
+**Pending Queue baru (dari audit di atas, prioritas diserahkan ke user):**
+- #42: Split `CHANNEL_ALERT` jadi 2 channel (ALARM vs NOTIFY) + DND bypass utk channel ALARM (channel ID baru + prompt izin Notification Policy Access + hapus channel lama).
+- #43: Full-screen intent ala alarm clock (Activity dedicated "Alarm Berbunyi!" + `USE_FULL_SCREEN_INTENT`) - fitur besar, bukan hardening kecil.
+
+**Pending Queue lama**: tidak berubah dari Batch 87-89 (roadmap restyle iOS #38-#41 + sisa audit UX #33/#34/#36/#37).
+
+---
+
 ## [Batch 89] Fix - 2 Bug Laporan User (Tombol Matikan Alarm Salah Sasaran + Rule Baru Gak Langsung Bunyi) — 2026-08-31
 
 **Konteks:** User laporkan 2 bug terpisah dalam 1 pesan yang sama, keduanya diaudit & di-fix terpisah di sini (root cause beda total, kebetulan numpuk di batch yang sama).

@@ -205,11 +205,21 @@ class AlarmCheckReceiver : BroadcastReceiver() {
             context, rule.id.toInt(), dismissIntent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
-        val notification = NotificationCompat.Builder(context, VoltCareApplication.CHANNEL_ALERT)
+        // Batch 91: samakan persis dgn BatteryMonitorService.fireAlert() - channel ALARM
+        // (DND bypass) vs channel NOTIFY (default sound) - lihat KDoc VoltCareApplication.
+        val channelId = if (rule.actionType == "ALARM") {
+            VoltCareApplication.CHANNEL_ALERT_ALARM
+        } else {
+            VoltCareApplication.CHANNEL_ALERT_NOTIFY
+        }
+        val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle("Peringatan: ${rule.label}")
             .setContentText("Kondisi aturan cerdas terpenuhi.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            // Batch 90: samakan persis dgn BatteryMonitorService.fireAlert() - lihat KDoc di
+            // sana utk alasan (permintaan user, konfigurasi umum alarm/charger-trigger app).
+            .setCategory(if (rule.actionType == "ALARM") NotificationCompat.CATEGORY_ALARM else NotificationCompat.CATEGORY_REMINDER)
             // Batch 88: samakan persis dgn BatteryMonitorService.fireAlert() - lihat KDoc class
             // di sana utk root cause lengkap.
             .setOngoing(rule.actionType == "ALARM")

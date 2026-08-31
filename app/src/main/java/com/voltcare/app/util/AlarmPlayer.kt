@@ -2,6 +2,7 @@ package com.voltcare.app.util
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.net.Uri
@@ -47,6 +48,17 @@ import android.os.VibratorManager
  *    suara saat ini; [stop] sekarang terima [ruleId] opsional - hanya benar-benar stop kalau
  *    ruleId cocok pemilik saat ini (atau dipanggil tanpa ruleId = force-stop total, dipakai
  *    internal oleh [play] sendiri sebelum mulai suara baru).
+ *
+ * Batch 90 (permintaan user - "terapkan konfigurasi yang umum dipakai alarm/charger-trigger
+ * app", proaktif tanpa laporan bug spesifik): 1 config standar diterapkan di sini -
+ * [ensureAudibleAlarmVolume] menaikkan stream ALARM ke batas minimum audible kalau kebetulan
+ * 0/mute saat [play] dipanggil. Ini gotcha paling umum di app alarm/reminder (banyak keluhan
+ * "alarm gak bunyi" ternyata bukan bug kode, tapi stream ALARM device kebetulan ke-mute, mis.
+ * kepencet tombol volume). TIDAK butuh izin khusus (beda dari stream RINGER yang butuh Notification
+ * Policy Access di API 23+) - `setStreamVolume(STREAM_ALARM, ...)` selalu diizinkan. Sengaja
+ * HANYA menaikkan kalau 0 (tidak pernah menurunkan/mengubah kalau user sudah set volume apa pun
+ * di atas 0) - tidak melawan preferensi volume user, cuma jaga-jaga dari kondisi benar-benar bisu
+ * total yang bikin alarm tidak berguna sama sekali.
  */
 object AlarmPlayer {
 
@@ -82,6 +94,7 @@ object AlarmPlayer {
         try {
             stopInternal() // pastikan tidak ada ringtone lama yang masih diputar bersamaan
             acquireWakeLock(context)
+            ensureAudibleAlarmVolume(context)
             val uri: Uri = resolveUri(customSoundUri)
             val ringtone = RingtoneManager.getRingtone(context, uri) ?: return
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -148,6 +161,24 @@ object AlarmPlayer {
             // Fail-safe.
         } finally {
             wakeLock = null
+        }
+    }
+
+    /**
+     * Batch 90: kalau stream ALARM device kebetulan 0 (mute total), naikkan ke ~40% dari
+     * maksimum sebelum mulai putar - lihat KDoc class utk alasan. Tidak pernah menyentuh
+     * volume kalau sudah > 0 (apapun angkanya, itu preferensi user, bukan bug).
+     */
+    private fun ensureAudibleAlarmVolume(context: Context) {
+        try {
+            val am = context.applicationContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+            val current = am.getStreamVolume(AudioManager.STREAM_ALARM)
+            if (current > 0) return
+            val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+            val floor = (max * 0.4f).toInt().coerceAtLeast(1)
+            am.setStreamVolume(AudioManager.STREAM_ALARM, floor, 0)
+        } catch (e: Throwable) {
+            // Fail-safe: gagal cek/naikkan volume tidak boleh gagalkan alarm secara total.
         }
     }
 

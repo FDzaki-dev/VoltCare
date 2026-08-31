@@ -1,6 +1,19 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.54-batch91] - 2026-08-31
+### Added
+- Pending Queue #42: notifikasi alert dipecah jadi 2 channel - `battery_alert_alarm` (rule ALARM, DND bypass + suara channel disuppress karena AlarmPlayer handle sendiri) dan `battery_alert_notify` (rule NOTIFY, default sound, tanpa bypass). Channel gabungan lama dihapus.
+### Note
+- DND bypass baru berefek setelah user grant izin "Do Not Disturb access" manual di Settings - prompt otomatis belum ada, masuk Pending Queue #44.
+
+## [v1.0.53-batch90] - 2026-08-31
+### Added
+- Proaktif (permintaan user, konfigurasi umum app alarm/charger-trigger): `AlarmPlayer` sekarang menaikkan stream volume ALARM device ke batas minimum audible kalau kebetulan 0/mute saat alarm dipicu (gotcha paling umum "alarm gak bunyi" di app sejenis). Notifikasi alert kini pakai `NotificationCompat.CATEGORY_ALARM` (rule ALARM) / `CATEGORY_REMINDER` (rule NOTIFY) - kategori standar OS.
+### Deferred (lihat PROJECT_STATE.md Batch 90 - Pending Queue #42/#43)
+- DND bypass & pemisahan channel notifikasi ALARM/NOTIFY (butuh channel ID baru + izin manual user).
+- Full-screen intent ala alarm clock (butuh Activity dedicated baru, fitur besar bukan hardening kecil).
+
 ## [v1.0.52-batch89] - 2026-08-31
 ### Fixed
 - Tombol "Matikan Alarm" bisa salah sasaran: `AlarmPlayer` singleton global TIDAK tahu rule mana pemilik suara aktif + `play()`/`stop()` tidak thread-safe (race bisa bikin `Ringtone` orphan tak bisa distop). Sekarang `play()`/`stop()` `@Synchronized` + melacak `activeRuleId`, `stop(ruleId)` cuma mematikan suara kalau memang milik rule itu.
