@@ -1,6 +1,11 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.52-batch89] - 2026-08-31
+### Fixed
+- Tombol "Matikan Alarm" bisa salah sasaran: `AlarmPlayer` singleton global TIDAK tahu rule mana pemilik suara aktif + `play()`/`stop()` tidak thread-safe (race bisa bikin `Ringtone` orphan tak bisa distop). Sekarang `play()`/`stop()` `@Synchronized` + melacak `activeRuleId`, `stop(ruleId)` cuma mematikan suara kalau memang milik rule itu.
+- Rule baru/diedit yang kondisinya sudah terpenuhi saat itu juga (mis. threshold PERCENT_BELOW 67% sedangkan baterai sudah di bawah itu) tidak langsung bunyi, harus tunggu siklus 60 detik berikutnya atau tutup-buka app. Sekarang `BatteryMonitorService` pasang Room `InvalidationTracker` di tabel `smart_rule` - perubahan rule langsung memicu evaluasi saat itu juga.
+
 ## [v1.0.51-batch88] - 2026-08-31
 ### Fixed
 - Notifikasi alert rule ALARM kini `setOngoing(true)` (tidak bisa di-swipe) menggantikan `setAutoCancel(true)` - swipe notifikasi secara arsitektur tidak pernah bisa menghentikan AlarmPlayer (tidak ada deleteIntent terhubung), tapi perubahan ini menutup kemungkinan jari tidak sengaja kena tombol "Matikan Alarm" saat mencoba menggeser. Rule NOTIFY tidak berubah (tetap swipeable). Kemungkinan penyebab lain: `alarmLoop` default OFF (main 1x lalu berhenti sendiri) - aktifkan toggle "Ulangi terus sampai dimatikan manual" kalau ingin alarm bunyi terus sampai ditekan manual.

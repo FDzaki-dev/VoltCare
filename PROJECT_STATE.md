@@ -25,6 +25,37 @@
 
 ---
 
+## [Batch 89] Fix - 2 Bug Laporan User (Tombol Matikan Alarm Salah Sasaran + Rule Baru Gak Langsung Bunyi) — 2026-08-31
+
+**Konteks:** User laporkan 2 bug terpisah dalam 1 pesan yang sama, keduanya diaudit & di-fix terpisah di sini (root cause beda total, kebetulan numpuk di batch yang sama).
+
+**Bug 1 - "tombol Matikan Alarm cuma matiin notifikasi stale, suaranya tetap ada; notifikasi fresh yang bisa matiin suaranya"**
+
+**Root cause (dianalisis via audit source penuh `AlarmPlayer.kt`/`BatteryMonitorService.kt`/`AlarmCheckReceiver.kt`, bukan tebakan), GANDA:**
+1. `AlarmPlayer.play()`/`stop()` SEBELUMNYA TIDAK `@Synchronized` - dipanggil dari 2 jalur independen yang bisa hampir bersamaan (`BatteryMonitorService.fireAlert()` langsung di coroutine service, VS `AlarmCheckReceiver` -> `ACTION_FIRE_ALARM` -> `handleFireAlarmRequest()` di thread `onStartCommand()`). Race klasik: 2 panggilan `play()` beririsan bisa sama-sama baca `activeRingtone` masih null saat masing-masing manggil `stop()` di awal, lalu SAMA-SAMA lanjut buat+putar `Ringtone` baru & assign `activeRingtone` - siapa assign TERAKHIR yang "menang" jadi satu-satunya yang bisa distop lewat kode; `Ringtone` yang KALAH jadi orphan tanpa referensi apa pun - terus bunyi tanpa bisa dihentikan tombol mana pun. Persis gejala laporan user.
+2. Notifikasi & tombol "Matikan Alarm" dilacak PER `rule.id` (ID notifikasi beda tiap rule via `ALERT_NOTIF_BASE_ID + rule.id`), TAPI `AlarmPlayer` adalah singleton GLOBAL (cuma 1 suara bisa aktif kapan pun). Kalau 2 rule ber-aksi ALARM ke-trigger berdekatan, rule kedua diam-diam menggantikan suara rule pertama (`play()` manggil `stop()` duluan) - notifikasi rule PERTAMA masih nongkrong (`setOngoing(true)` sejak Batch 88, tak bisa di-swipe) padahal suaranya sendiri sudah mati duluan ("stale"), sedangkan notifikasi rule KEDUA ("fresh") itulah pemilik suara yang sungguh masih bunyi. `handleDismissAlarm()` sebelumnya manggil `AlarmPlayer.stop()` TANPA syarat siapa pemiliknya - tombol notifikasi stale jadi tidak berefek ke suara (memang sudah mati duluan), padahal berpotensi SALAH matikan suara rule lain kalau urutan kebalik.
+
+**Fix (3 file):**
+- `AlarmPlayer.kt`: `play()`/`stop()` sekarang `@Synchronized` (tutup race #1 total - dijamin cuma ada 1 `Ringtone` hidup & selalu bisa dijangkau `stop()`). Tambah `activeRuleId` (rule pemilik suara aktif saat ini) - `play(context, uri, loop, ruleId)` catat pemilik baru, `stop(ruleId)` cuma benar-benar stop kalau `ruleId` cocok pemilik saat ini (atau dipanggil tanpa argumen = force-stop total, dipakai internal oleh `play()` sendiri sebelum mulai suara baru).
+- `BatteryMonitorService.kt`: `fireAlert()` & `handleFireAlarmRequest()` sekarang kirim `rule.id`/`ruleId` ke `AlarmPlayer.play()`. `handleDismissAlarm()` pakai `AlarmPlayer.stop(ruleId)` (bukan lagi tanpa syarat) - notifikasi rule ybs TETAP selalu di-cancel independen dari itu.
+- `AlarmCheckReceiver.kt`: `fireAlarmViaService()` sekarang ikut kirim `EXTRA_RULE_ID` di intent `ACTION_FIRE_ALARM`, supaya `handleFireAlarmRequest()` punya `ruleId` utk diteruskan ke `AlarmPlayer.play()`.
+
+**Bug 2 - "rule yang kondisinya udah kepenuhan pas dibikin gak bunyi sendiri, harus buka app dulu baru bunyi" (mis. rule PERCENT_BELOW 67% dibikin sedangkan baterai memang sudah di/bawah 67% duluan)**
+
+**Root cause (dikonfirmasi via audit alur `RulesViewModel.saveRule()` -> `RuleDao` -> `BatteryMonitorService`):** `evaluateRules()` SEBELUMNYA cuma dipanggil dari `sampleAndPersist()` di dalam `monitorLoop()` (siklus `SAMPLE_INTERVAL_MS`, 60 detik). Rule baru/diedit dari `RulesViewModel` (proses SAMA, `AppDatabase.getInstance()` singleton per-proses) memang ke-pickup di siklus BERIKUTNYA (maks ~60 detik) - TIDAK benar-benar "tidak pernah dievaluasi", tapi user yang keburu pindah/tutup app sebelum siklus itu lewat mengira rule tidak jalan sama sekali. Satu-satunya momen "kelihatan jalan" adalah pas app dibuka lagi - kalau kebetulan proses service sempat mati di antara itu, `onCreate()` -> `monitorLoop()` sampling PERTAMA jalan LANGSUNG tanpa nunggu 60 detik, jadi user salah atribusi ke "buka app"-nya, padahal sebenarnya krn service restart. Baik cara lama (nunggu maks 60 detik) maupun kesan "harus buka app" sama-sama BUKAN UX yang benar utk rule yang kondisinya sudah kepenuhan sejak awal dibikin.
+
+**Fix (1 file, `BatteryMonitorService.kt` - sama dgn Bug 1 di atas, TIDAK nambah file baru di batas Micro-Batch):** manfaatkan Room `InvalidationTracker` (API resmi, BUKAN polling tambahan) - `ruleTableObserver` didaftarkan di `onCreate()` (dilepas simetris di `onDestroy()`), begitu tabel `smart_rule` berubah (insert/update/delete dari `RulesViewModel`, proses sama persis via `AppDatabase` singleton), `evaluateRulesNow()` langsung jalan SAAT ITU JUGA - independen dari kapan siklus 60 detik berikutnya jatuh, TIDAK perlu app dibuka. Sengaja `evaluateRulesNow()` BUKAN `sampleAndPersist()` penuh - yang terakhir itu juga insert ke `battery_log`/`cycle_history` tiap panggil, padahal rule baru cuma butuh baca kondisi terkini, bukan menambah catatan riwayat di luar jadwal sampling normal.
+
+**Sengaja TIDAK diubah:** `RulesViewModel.kt`/`RulesScreen.kt`/`RuleDao.kt` - Bug 2 sengaja diselesaikan murni dari sisi observer di `BatteryMonitorService.kt` (Room `InvalidationTracker` bekerja lintas komponen manapun yang menulis ke tabel yang sama, TIDAK perlu wiring manual per call-site ViewModel - lebih tahan-masa-depan kalau nanti ada cara lain menulis `smart_rule`). `checkRule()`/edge-detection `firedRuleIds`/comparison operator (`>`/`<` strict, tidak diubah jadi `>=`/`<=`) TIDAK disentuh - itu semantik "melewati ambang" yang memang disengaja sejak awal, bukan bagian dari root cause Bug 2.
+
+**Catatan:** Tidak ada compile Gradle/device fisik sungguhan di lingkungan ini (network disabled) - verifikasi terbatas brace/paren balance (`AlarmPlayer.kt` 38/38 curly 110/110 paren, `BatteryMonitorService.kt` 53/53 curly 250/250 paren, `AlarmCheckReceiver.kt` 33/33 curly 190/190 paren) + audit source penuh jalur terkait. Rekomendasi: build + test skenario (a) 2 rule ALARM ke-trigger berdekatan -> pastikan masing-masing tombol "Matikan Alarm" cuma matiin suara punya rule sendiri, dan (b) bikin rule baru dgn kondisi yang sudah terpenuhi saat itu juga -> pastikan notifikasi/alarm langsung muncul dalam hitungan detik tanpa perlu tutup-buka app.
+
+**Bump**: versionName 1.0.51 -> 1.0.52.
+
+**Pending Queue**: tidak berubah dari Batch 87/88 (roadmap restyle iOS #38-#41 + sisa audit UX #33/#34/#36/#37).
+
+---
+
 ## [Batch 88] Fix - Alarm "Bunyi, Tapi Setelah Notifikasi Ditarik Langsung Ilang" — 2026-08-31
 
 **Konteks:** Lanjutan Batch 87 di sesi yang sama - user konfirmasi alarm SEKARANG bunyi (Batch 87's `setAlarmClock()` bekerja), TAPI laporan baru: "setelah tab notifikasi ditarik, langsung ilang dah tuh suaranya".

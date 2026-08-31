@@ -79,10 +79,32 @@ class BatteryMonitorService : Service() {
         }
     }
 
+    /**
+     * Batch 89 (fix bug laporan user - "rule yang kondisinya udah kepenuhan pas dibikin gak
+     * bunyi sendiri, harus buka app dulu baru bunyi"): SEBELUMNYA evaluateRules() cuma
+     * dipanggil dari sampleAndPersist() di dalam monitorLoop() (siklus SAMPLE_INTERVAL_MS,
+     * 60 detik) - rule baru/diedit dari RulesViewModel (proses SAMA, lihat AppDatabase
+     * singleton getInstance()) memang ke-pickup di siklus BERIKUTNYA (maks ~60 detik), TAPI
+     * user yang keburu tutup app sebelum siklus itu lewat mengira rule tidak jalan sama
+     * sekali - satu-satunya momen "kelihatan jalan" adalah pas app dibuka lagi (kalau proses
+     * service kebetulan sempat mati, onCreate() -> monitorLoop() sampling PERTAMA langsung
+     * tanpa nunggu). Fix: Room InvalidationTracker (API resmi, BUKAN polling tambahan) -
+     * begitu tabel `smart_rule` berubah, evaluateRulesNow() jalan SAAT ITU JUGA, independen
+     * dari kapan siklus 60 detik berikutnya jatuh. Sengaja BUKAN sampleAndPersist() penuh -
+     * itu ikut insert ke battery_log/cycle_history tiap panggil, padahal rule baru cuma butuh
+     * baca kondisi terkini, bukan menambah catatan riwayat di luar jadwal sampling normal.
+     */
+    private val ruleTableObserver = object : androidx.room.InvalidationTracker.Observer("smart_rule") {
+        override fun onInvalidated(tables: Set<String>) {
+            scope.launch { evaluateRulesNow() }
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         db = AppDatabase.getInstance(applicationContext)
         registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        db.invalidationTracker.addObserver(ruleTableObserver)
         startForeground(NOTIF_ID, buildNotification("Memantau baterai..."))
         scope.launch { monitorLoop() }
         // Jaring pengaman independen proses (lihat AlarmCheckReceiver) - dijadwalkan di sini
@@ -98,10 +120,16 @@ class BatteryMonitorService : Service() {
         return START_STICKY
     }
 
-    /** Root cause #3: hentikan suara/getar yang sedang jalan tanpa perlu tunggu kondisi reset. */
+    /**
+     * Root cause #3: hentikan suara/getar yang sedang jalan tanpa perlu tunggu kondisi reset.
+     * Batch 89: `AlarmPlayer.stop(ruleId)` (bukan lagi `stop()` tanpa syarat) - lihat KDoc
+     * AlarmPlayer.kt. Notifikasi rule ini SELALU tetap di-cancel di bawah apa pun hasilnya
+     * (rule ini boleh saja bukan pemilik suara aktif - notifikasinya tetap wajib hilang saat
+     * user tap "Matikan Alarm").
+     */
     private fun handleDismissAlarm(ruleId: Long) {
         try {
-            AlarmPlayer.stop()
+            AlarmPlayer.stop(ruleId)
             if (ruleId >= 0) {
                 getSystemService(NotificationManager::class.java)
                     ?.cancel(ALERT_NOTIF_BASE_ID + ruleId.toInt())
@@ -133,7 +161,9 @@ class BatteryMonitorService : Service() {
         try {
             val soundUri = intent.getStringExtra(EXTRA_ALARM_SOUND_URI)
             val loop = intent.getBooleanExtra(EXTRA_ALARM_LOOP, false)
-            AlarmPlayer.play(applicationContext, soundUri, loop)
+            // Batch 89: ruleId diteruskan ke AlarmPlayer supaya dismiss tahu pemilik suara ini.
+            val ruleId = intent.getLongExtra(EXTRA_RULE_ID, -1L)
+            AlarmPlayer.play(applicationContext, soundUri, loop, ruleId)
         } catch (e: Throwable) {
             // Fail-safe: gagal putar alarm tidak boleh crash service pemantauan utama.
         }
@@ -162,6 +192,11 @@ class BatteryMonitorService : Service() {
             unregisterReceiver(batteryReceiver)
         } catch (e: Exception) {
             // receiver mungkin belum terdaftar; abaikan agar service tetap fail-safe
+        }
+        try {
+            db.invalidationTracker.removeObserver(ruleTableObserver) // Batch 89: simetri dgn addObserver()
+        } catch (e: Exception) {
+            // Fail-safe: gagal remove tidak boleh cegah service berhenti bersih.
         }
         job.cancel()
         super.onDestroy()
@@ -287,6 +322,15 @@ class BatteryMonitorService : Service() {
         rules.forEach { rule -> checkRule(rule, temperatureC, percent, isCharging) }
     }
 
+    /** Batch 89: dipicu [ruleTableObserver] saat `smart_rule` berubah - baca kondisi terkini
+     *  lalu evaluasi SAAT ITU JUGA, tanpa nunggu siklus monitorLoop() berikutnya (lihat KDoc
+     *  [ruleTableObserver] utk root cause lengkap). */
+    private suspend fun evaluateRulesNow() {
+        val snapshot = BatteryUtils.readSnapshot(applicationContext)
+        if (snapshot.percent < 0) return
+        evaluateRules(snapshot.temperatureC, snapshot.percent, snapshot.isCharging)
+    }
+
     private fun checkRule(rule: RuleEntity, temperatureC: Float, percent: Int, isCharging: Boolean) {
         // Batch 73: jadwal hari aktif mirip Google Clock. Hari ini tidak termasuk -> skip
         // total (bukan re-arm firedRuleIds - biar pas hari aktif berikutnya tiba, edge-triggered
@@ -317,7 +361,8 @@ class BatteryMonitorService : Service() {
         // Wiring AlarmPlayer (Pending Queue #25, Batch 58 sebelumnya belum tersambung):
         // rule.actionType "ALARM" wajib bunyi+getar, bukan cuma notifikasi pasif.
         if (rule.actionType == "ALARM") {
-            AlarmPlayer.play(applicationContext, rule.alarmSoundUri, rule.alarmLoop)
+            // Batch 89: rule.id diteruskan supaya AlarmPlayer tahu pemilik suara ini.
+            AlarmPlayer.play(applicationContext, rule.alarmSoundUri, rule.alarmLoop, rule.id)
         }
 
         val manager = getSystemService(NotificationManager::class.java) ?: return

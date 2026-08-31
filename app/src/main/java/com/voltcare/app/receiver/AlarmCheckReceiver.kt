@@ -169,6 +169,10 @@ class AlarmCheckReceiver : BroadcastReceiver() {
      * ini - lihat KDoc lengkap di BatteryMonitorService.handleFireAlarmRequest() utk root
      * cause. Pola identik ACTION_DISMISS_ALARM (Batch 64) & ensureMonitorServiceAlive()
      * (Batch 84) - startForegroundService() ke service yang sama, aman dipanggil berulang.
+     *
+     * Batch 89: sekarang ikut kirim EXTRA_RULE_ID - AlarmPlayer butuh tahu rule.id pemilik
+     * suara (lihat KDoc AlarmPlayer.kt) supaya tombol "Matikan Alarm" tidak salah sasaran
+     * saat >1 rule ALARM aktif berdekatan.
      */
     private fun fireAlarmViaService(context: Context, rule: RuleEntity) {
         try {
@@ -176,6 +180,7 @@ class AlarmCheckReceiver : BroadcastReceiver() {
                 action = BatteryMonitorService.ACTION_FIRE_ALARM
                 putExtra(BatteryMonitorService.EXTRA_ALARM_SOUND_URI, rule.alarmSoundUri)
                 putExtra(BatteryMonitorService.EXTRA_ALARM_LOOP, rule.alarmLoop)
+                putExtra(BatteryMonitorService.EXTRA_RULE_ID, rule.id)
             }
             ContextCompat.startForegroundService(context, serviceIntent)
         } catch (e: Throwable) {
