@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.51-batch88] - 2026-08-31
+### Fixed
+- Notifikasi alert rule ALARM kini `setOngoing(true)` (tidak bisa di-swipe) menggantikan `setAutoCancel(true)` - swipe notifikasi secara arsitektur tidak pernah bisa menghentikan AlarmPlayer (tidak ada deleteIntent terhubung), tapi perubahan ini menutup kemungkinan jari tidak sengaja kena tombol "Matikan Alarm" saat mencoba menggeser. Rule NOTIFY tidak berubah (tetap swipeable). Kemungkinan penyebab lain: `alarmLoop` default OFF (main 1x lalu berhenti sendiri) - aktifkan toggle "Ulangi terus sampai dimatikan manual" kalau ingin alarm bunyi terus sampai ditekan manual.
+
 ## [v1.0.50-batch87] - 2026-08-31
 ### Fixed
 - Root cause TERSISA dari "alarm masih gak ke-trigger saat app dikill" (setelah Batch 71-86 menutup semua celah proses/playback/notifikasi): `AlarmCheckReceiver.schedule()` pindah dari `setExactAndAllowWhileIdle()` ke `AlarmManager.setAlarmClock()` - satu-satunya jenis alarm Android yang dijamin resmi TIDAK PERNAH dibatch/ditunda oleh Doze/App Standby/battery optimization. Trade-off jujur: ikon kecil alarm-clock akan tampil permanen di status bar selama safety net aktif (efek samping resmi jenis alarm ini, bukan bug).

@@ -25,6 +25,28 @@
 
 ---
 
+## [Batch 88] Fix - Alarm "Bunyi, Tapi Setelah Notifikasi Ditarik Langsung Ilang" — 2026-08-31
+
+**Konteks:** Lanjutan Batch 87 di sesi yang sama - user konfirmasi alarm SEKARANG bunyi (Batch 87's `setAlarmClock()` bekerja), TAPI laporan baru: "setelah tab notifikasi ditarik, langsung ilang dah tuh suaranya".
+
+**Root cause (dianalisis via audit arsitektur notifikasi, bukan tebakan)**: Notifikasi alert (`fireAlert()` di `BatteryMonitorService.kt` & `postAlertNotification()` di `AlarmCheckReceiver.kt`) sebelumnya `setAutoCancel(true)` TANPA `setDeleteIntent()` - secara arsitektur Android, SWIPE-dismiss notifikasi TIDAK PERNAH memanggil PendingIntent apa pun (beda total dari tap tombol aksi "Matikan Alarm", yang memang eksplisit terhubung ke `ACTION_DISMISS_ALARM`). Artinya swipe murni TIDAK BISA menghentikan `AlarmPlayer` lewat kode yang ada - dikonfirmasi via pembacaan source penuh, tidak ada `deleteIntent` yang terhubung ke `AlarmPlayer.stop()` di mana pun.
+
+Kemungkinan penyebab sebenarnya (2 kandidat, keduanya masuk akal, tidak bisa dipastikan 100% tanpa video/log device user):
+1. **Jari tidak sengaja kena tombol "Matikan Alarm"** saat mencoba menggeser notifikasi - tombol itu ada persis di badan notifikasi yang sama yang coba di-swipe, gampang ke-tap tanpa sadar terutama di notifikasi heads-up (banner) yang muncul singkat.
+2. **`RuleEntity.alarmLoop` default `false`** ("main 1x sampai selesai lalu berhenti sendiri", lihat KDoc `RuleEntity.kt`) - kalau rule user belum eksplisit mengaktifkan toggle "Ulangi terus sampai dimatikan manual" saat bikin/edit Aturan, nada alarm MEMANG didesain berhenti sendiri setelah 1x putar (durasi tergantung nada terpilih, bisa cukup singkat) - kebetulan waktunya berdekatan dgn user menarik notification shade untuk mengecek, bukan krn ditarik.
+
+**Fix (2 file, defensif - menutup kandidat #1 sepenuhnya, independen dari mana yang benar)**: `BatteryMonitorService.kt` (`fireAlert()`) & `AlarmCheckReceiver.kt` (`postAlertNotification()`) - notifikasi kini `.setOngoing(rule.actionType == "ALARM")` + `.setAutoCancel(rule.actionType != "ALARM")` (sebelumnya selalu `setAutoCancel(true)` tanpa syarat). Rule beraksi ALARM sekarang **TIDAK BISA di-swipe sama sekali** - satu-satunya cara notifikasi hilang adalah tap eksplisit "Matikan Alarm" (`handleDismissAlarm()` tetap `manager.cancel()` notifikasi via kode, independen dari flag ongoing/autoCancel - jadi tombol tetap berfungsi normal). Rule beraksi NOTIFY (tanpa suara/getar) **TIDAK diubah** - tetap `setAutoCancel(true)`/swipeable seperti sebelumnya, karena tidak ada suara yang perlu dijaga dari swipe tidak sengaja.
+
+**Sengaja TIDAK diubah**: `AlarmPlayer.kt`, `handleDismissAlarm()`, `AlarmCheckReceiver.schedule()` (Batch 87) - tidak ada regresi/perubahan lain di jalur ini, murni 2 baris flag notifikasi di 2 file.
+
+**Rekomendasi ke user**: Kalau maksudnya alarm harus bunyi TERUS sampai ditekan matikan manual (bukan cuma sekali), pastikan toggle **"Ulangi terus sampai dimatikan manual"** aktif saat bikin/edit Aturan (muncul khusus saat Aksi = Alarm) - default-nya OFF (main 1x saja). Setelah update ini, notifikasi alert juga tidak akan pernah hilang sendiri karena ke-swipe - kalau MASIH ada laporan suara berhenti sendiri padahal loop sudah ON, itu baru genuinely bug baru & butuh info lebih (device, berapa lama sebelum berhenti, apakah notifikasi juga ikut hilang atau masih nongkrong).
+
+**Bump**: versionName 1.0.50 -> 1.0.51.
+
+**Pending Queue**: tidak berubah dari Batch 87 (roadmap restyle iOS #38-#41 + sisa audit UX #33/#34/#36/#37).
+
+---
+
 ## [Batch 87] Fix - Alarm Masih Gak Ke-Trigger Saat App Dikill (root cause di lapisan AlarmManager) — 2026-08-31
 
 **Konteks:** User laporkan (setelah Batch 86 live): "alarm masih gak ke trigger saat aplikasi di kill". Batch 71-86 sudah menutup SEMUA celah di lapisan proses/service/playback/notifikasi (stopWithTask, battery optimization exemption, OEM autostart, wake lock, delegasi playback ke foreground service) - diverifikasi ulang via audit source penuh (`AlarmCheckReceiver.kt`, `BatteryMonitorService.kt`, `AlarmPlayer.kt`, `BootReceiver.kt`, `MainActivity.kt`, `AndroidManifest.xml`), semuanya SUDAH BENAR sesuai desain masing-masing. Tidak ada regresi di lapisan itu.

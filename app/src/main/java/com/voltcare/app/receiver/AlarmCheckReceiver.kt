@@ -205,7 +205,10 @@ class AlarmCheckReceiver : BroadcastReceiver() {
             .setContentTitle("Peringatan: ${rule.label}")
             .setContentText("Kondisi aturan cerdas terpenuhi.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
+            // Batch 88: samakan persis dgn BatteryMonitorService.fireAlert() - lihat KDoc class
+            // di sana utk root cause lengkap.
+            .setOngoing(rule.actionType == "ALARM")
+            .setAutoCancel(rule.actionType != "ALARM")
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Matikan Alarm", dismissPendingIntent)
             .build()
         manager.notify(ALERT_NOTIF_BASE_ID + rule.id.toInt(), notification)

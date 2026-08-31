@@ -46,6 +46,21 @@ import java.util.Calendar
  * 3. Tombol aksi "Matikan Alarm" di notifikasi - dulu tidak ada cara hentikan suara/getar yang
  *    sedang jalan selain nunggu kondisi reset sendiri. Sekarang PendingIntent balik ke Service
  *    sendiri (ACTION_DISMISS_ALARM) utk stop AlarmPlayer + cancel notifikasi saat itu juga.
+ *
+ * Batch 88 (fix bug laporan user - "bunyi, tapi setelah tab notifikasi ditarik langsung ilang"):
+ * Notifikasi alert (`fireAlert()`/`AlarmCheckReceiver.postAlertNotification()`) sebelumnya
+ * `setAutoCancel(true)` TANPA `setDeleteIntent()` - secara arsitektur SWIPE-dismiss TIDAK
+ * pernah memanggil PendingIntent apa pun (beda dari tap tombol "Matikan Alarm"), jadi swipe
+ * murni tidak bisa menghentikan AlarmPlayer via kode. Kemungkinan besar penyebab sebenarnya:
+ * (a) jari user tidak sengaja kena tombol "Matikan Alarm" saat mencoba menggeser notifikasi
+ * (tombol ada persis di notifikasi yang sama), ATAU (b) `rule.alarmLoop` default `false` (main
+ * 1x sampai selesai lalu berhenti sendiri, lihat RuleEntity.kt) - nada berhenti wajar sekitar
+ * waktu yang sama user menarik notification shade, bukan krn ditarik. Fix defensif (menutup
+ * kemungkinan (a) sepenuhnya, independen dari root cause pasti): notifikasi ALARM sekarang
+ * `setOngoing(true)` (TIDAK bisa di-swipe sama sekali) - satu-satunya cara hilang adalah tap
+ * eksplisit "Matikan Alarm" (yang tetap `manager.cancel()` notifikasi via kode di
+ * handleDismissAlarm(), independen dari flag ongoing/autoCancel). Rule NOTIFY (tanpa suara)
+ * TIDAK diubah - tetap `setAutoCancel(true)`/swipeable seperti sebelumnya.
  */
 class BatteryMonitorService : Service() {
 
@@ -319,7 +334,10 @@ class BatteryMonitorService : Service() {
             .setContentTitle("Peringatan: ${rule.label}")
             .setContentText("Kondisi aturan cerdas terpenuhi.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
+            // Batch 88: rule ALARM -> ongoing (TIDAK bisa di-swipe), rule NOTIFY -> autoCancel
+            // seperti sebelumnya (swipeable, tidak ada suara yang perlu dijaga). Lihat KDoc class.
+            .setOngoing(rule.actionType == "ALARM")
+            .setAutoCancel(rule.actionType != "ALARM")
             // Root cause #3: aksi eksplisit hentikan alarm yang sedang bunyi, tanpa perlu
             // tunggu kondisi reset sendiri (mis. cabut charger).
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Matikan Alarm", dismissPendingIntent)
