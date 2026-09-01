@@ -39,6 +39,7 @@ class MainActivity : ComponentActivity() {
         promptAutostartIfNeeded()
         requestExactAlarmPermission()
         requestDndAccessIfNeeded()
+        requestFullScreenIntentAccessIfNeeded()
 
         setContent {
             VoltCareTheme {
@@ -133,6 +134,34 @@ class MainActivity : ComponentActivity() {
             }
         } catch (e: Throwable) {
             // Fail-safe: sebagian OEM custom ROM tolak/tidak dukung intent ini - jangan crash.
+        }
+    }
+
+    /**
+     * Pending Queue #45 (Batch 93): `BatteryMonitorService.canUseFullScreenIntent()` &
+     * `AlarmCheckReceiver` sudah fail-safe fallback diam-diam ke notifikasi biasa kalau
+     * izin ini dicabut user (API 34+, `USE_FULL_SCREEN_INTENT` BISA dicabut manual lewat
+     * Settings meski sudah dideklarasikan manifest - beda dari API 33 ke bawah yang selalu
+     * granted otomatis). Prompt EKSPLISIT di sini menutup gap itu duluan, pola sama persis
+     * `requestDndAccessIfNeeded()`/`requestExactAlarmPermission()` di atas - re-prompt tiap
+     * `onCreate()` selama belum granted (`canUseFullScreenIntent()` reliable dicek via API,
+     * beda dari Autostart OEM yang tidak ada API cek makanya `promptAutostartIfNeeded()`
+     * sengaja cuma sekali).
+     */
+    private fun requestFullScreenIntentAccessIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return
+        try {
+            val manager = getSystemService(NotificationManager::class.java) ?: return
+            if (!manager.canUseFullScreenIntent()) {
+                val intent = Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            }
+        } catch (e: Throwable) {
+            // Fail-safe: sebagian OEM custom ROM tolak/tidak dukung intent ini - jangan crash.
+            // Guard canUseFullScreenIntent() di BatteryMonitorService/AlarmCheckReceiver ttp
+            // fallback ke notifikasi biasa terlepas dari hasil prompt ini.
         }
     }
 

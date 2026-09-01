@@ -25,6 +25,22 @@
 
 ---
 
+## [Batch 94] Fitur - Pending Queue #45: Prompt Otomatis Izin USE_FULL_SCREEN_INTENT API 34+ (RESOLVED) — 2026-09-01
+
+**Konteks:** Pending Queue #45 sejak Batch 93 - `BatteryMonitorService.canUseFullScreenIntent()`/`AlarmCheckReceiver` sudah fail-safe fallback diam-diam ke notifikasi biasa kalau izin `USE_FULL_SCREEN_INTENT` dicabut user (API 34+, bisa dicabut manual lewat Settings meski sudah dideklarasikan manifest sejak Batch 93 - beda dari API 33 ke bawah yang selalu granted otomatis begitu dideklarasikan). Batch ini menutup gap tsb dgn prompt EKSPLISIT di `MainActivity.kt`, biar user diarahkan ke halaman sistem duluan alih-alih diam-diam fallback tanpa sepengetahuan user.
+
+**Fix (1 file, `MainActivity.kt`):** `requestFullScreenIntentAccessIfNeeded()` baru - guard API 34+ (`Build.VERSION_CODES.UPSIDE_DOWN_CAKE`, no-op di bawah itu krn method `canUseFullScreenIntent()` belum ada & izin lama selalu berefek), cek `NotificationManager.canUseFullScreenIntent()`, kalau belum, buka `Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT` dgn data URI `package:$packageName` (pola sama persis `requestExactAlarmPermission()`/`requestIgnoreBatteryOptimization()` yang sudah pakai data URI serupa). Pola & penempatan identik `requestDndAccessIfNeeded()` di atasnya (re-prompt tiap `onCreate()` selama belum granted - status ini reliable dicek via API, beda dari Autostart OEM yang tidak punya API cek makanya `promptAutostartIfNeeded()` sengaja cuma sekali). Dipanggil di `onCreate()` setelah `requestDndAccessIfNeeded()`, sebelum `setContent {}`.
+
+**Sengaja TIDAK diubah:** `BatteryMonitorService.kt`/`AlarmCheckReceiver.kt` (`canUseFullScreenIntent()` guard, Batch 93) - fallback ke notifikasi biasa TETAP berlaku apa adanya terlepas dari hasil prompt ini (kalau user tolak/tutup halaman Settings tanpa Allow, app tidak crash/stuck - notifikasi alert tetap muncul, cuma tanpa full-screen). `AndroidManifest.xml` (permission `USE_FULL_SCREEN_INTENT`, `AlarmActivity` entry) - sudah lengkap sejak Batch 93, tidak perlu perubahan lagi.
+
+**Catatan:** Brace/paren balance dicek (`MainActivity.kt` 31/31 curly, 93/93 paren). Tidak ada compile Gradle/device fisik sungguhan (network disabled di lingkungan ini). Rekomendasi test: fresh install di device API 34+ (Android 14+) -> buka app -> kalau OEM tsb punya UI "Full screen notifications" per-app & default-nya OFF, halaman Settings terkait harus muncul otomatis -> Allow -> buat rule ALARM dgn kondisi gampang dipicu, kunci device (matikan layar), tunggu rule fire -> layar "Alarm Berbunyi!" (Batch 93) harus tampil DI ATAS lockscreen. Di device/OEM yang default-nya sudah ON (umum di banyak OEM Android 14+), `canUseFullScreenIntent()` sudah true sejak awal - intent Settings ini tidak akan pernah terbuka (no-op, sesuai desain, bukan bug).
+
+**Bump**: versionName 1.0.56 -> 1.0.57.
+
+**Pending Queue**: #45 ✅ **SELESAI** (batch ini). Tidak ada item baru. Sisa tidak berubah dari Batch 90-93 - roadmap restyle iOS #38-#41, sisa audit UX #33/#34/#36/#37.
+
+---
+
 ## [Batch 93] Fitur - Full-Screen Intent ala Alarm Clock (Pending Queue #43, dari Batch 90) — 2026-09-01
 
 **Konteks:** Pending Queue #43 sejak Batch 90 - fitur besar yang sengaja ditunda karena butuh Activity dedicated baru, bukan config 1-baris. Notifikasi alert rule ALARM sekarang bisa membuka layar penuh "Alarm Berbunyi!" di atas lockscreen, persis pola app Jam/Alarm bawaan Android, bukan cuma notifikasi bar biasa yang gampang tidak diperhatikan user saat device terkunci/layar mati.
