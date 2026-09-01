@@ -25,6 +25,32 @@
 
 ---
 
+## [Batch 93] Fitur - Full-Screen Intent ala Alarm Clock (Pending Queue #43, dari Batch 90) — 2026-09-01
+
+**Konteks:** Pending Queue #43 sejak Batch 90 - fitur besar yang sengaja ditunda karena butuh Activity dedicated baru, bukan config 1-baris. Notifikasi alert rule ALARM sekarang bisa membuka layar penuh "Alarm Berbunyi!" di atas lockscreen, persis pola app Jam/Alarm bawaan Android, bukan cuma notifikasi bar biasa yang gampang tidak diperhatikan user saat device terkunci/layar mati.
+
+**Fix (3 file kode, sesuai Micro-Batch):**
+- **`AlarmActivity.kt` (BARU)**: Activity Compose dedicated "Alarm Berbunyi!" - `setShowWhenLocked(true)` + `setTurnScreenOn(true)` (API 27+, dipanggil sebelum `super.onCreate()`, minSdk 29 project ini sudah di atas minimum jadi tidak perlu fallback `WindowManager.LayoutParams` versi lama) supaya tampil DI ATAS lockscreen TANPA ikut membuka kunci device. Tombol "Matikan Alarm" reuse persis `AlarmPlayer.stop(ruleId)` + cancel notifikasi (pola sama `BatteryMonitorService.handleDismissAlarm()`, bukan implementasi kedua yang bisa drift). Back-press di-no-op (`OnBackPressedCallback`) - alarm cuma boleh hilang lewat tombol eksplisit, sama seperti notifikasi `setOngoing(true)` sejak Batch 88. `launchMode="singleTask"` (manifest) + `onNewIntent()` - kalau 2 rule ALARM fire berdekatan, instance yang sama di-reuse & konten diperbarui ke rule terbaru, bukan numpuk beberapa layar alarm.
+- **`BatteryMonitorService.kt` (`fireAlert()`)**: `setFullScreenIntent()` ke `AlarmActivity` baru, HANYA utk rule ALARM (rule NOTIFY tetap notifikasi biasa). Guard baru `canUseFullScreenIntent()` - API 34+ (Android 14) izin `USE_FULL_SCREEN_INTENT` bisa DICABUT user via Settings meski sudah dideklarasikan manifest (beda dari API 33 ke bawah yang selalu granted otomatis); kalau dicabut, fallback diam-diam ke notifikasi biasa (bukan skip notifikasi total). Companion object dapat `EXTRA_RULE_LABEL` baru (dipakai bersama `AlarmCheckReceiver.kt`/`AlarmActivity.kt`).
+- **`AlarmCheckReceiver.kt` (`postAlertNotification()`)**: disamakan PERSIS dgn `fireAlert()` di atas (pola wajib yang sudah berlaku sejak channel split Batch 91/kategori Batch 90/ongoing Batch 88) - safety net independen-proses ini WAJIB kirim full-screen intent yang sama, kalau tidak, alarm yang fire lewat jalur ini (proses service sudah mati total) tidak dapat layar penuh padahal yang fire lewat service utama dapat.
+
+**Manifest (Protected, partial edit, TIDAK dihitung ke batas 3 file kode - bukan source code Kotlin):**
+- `<uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />` ditambah.
+- `<activity android:name=".AlarmActivity" .../>` baru: `exported="false"` (tidak dipanggil app lain), `excludeFromRecents="true"` (tidak nyantol di Recents sebagai task terpisah setelah dismiss), `launchMode="singleTask"`, `showWhenLocked`/`turnScreenOn="true"`, tema `Theme.VoltCare` (reuse, bukan tema baru).
+
+**Sengaja TIDAK diubah/ditambah:** `MainActivity.kt` - prompt izin eksplisit `USE_FULL_SCREEN_INTENT` API 34 (`Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT`, pola sama `requestDndAccessIfNeeded()`) DITUNDA ke Pending Queue baru (lihat bawah) biar batch ini tidak melebihi 3 file kode - `canUseFullScreenIntent()` di 2 file di atas sudah fail-safe menutup gap ini sementara (fallback notifikasi biasa, bukan crash/silent-fail). `Theme.kt` - `AlarmScreen` composable sengaja pakai token `error`/`onError`/`surface`/`onSurface` yang SUDAH eksplisit dipetakan + lolos WCAG AA sejak Batch 82, BUKAN `errorContainer`/`onErrorContainer` yang tidak dipetakan di `VoltCareTheme` (fallback ke baseline M3 generik, keluar dari palet custom app) - dengan begitu tidak perlu sentuh file shared lintas-app itu cuma utk 1 layar ini. `RuleEntity.kt`/`RulesViewModel.kt`/`RulesScreen.kt` - tidak ada field/kolom DB baru, fitur ini murni presentasi notifikasi yang sudah ada, bukan skema data baru.
+
+**Catatan:** Brace/paren balance dicek (`AlarmActivity.kt` 19/19 curly 84/84 paren, `BatteryMonitorService.kt` 61/61 curly 284/284 paren, `AlarmCheckReceiver.kt` 41/41 curly 221/221 paren). Manifest XML diverifikasi well-formed. Tidak ada compile Gradle/device fisik sungguhan (network disabled di lingkungan ini). Rekomendasi test: buat rule ALARM dgn kondisi yang gampang dipicu (mis. PERCENT_ABOVE rendah), kunci device (matikan layar), tunggu rule fire -> layar "Alarm Berbunyi!" harus tampil otomatis DI ATAS lockscreen (device TIDAK ikut ke-unlock) -> tap "Matikan Alarm" -> suara/getar berhenti + layar tertutup + notifikasi ikut hilang. Uji juga back-press saat layar alarm terbuka -> harus TIDAK menutup layar (sengaja no-op). Di Android 14+, kalau ada UI sistem utk "Full screen notifications" per-app, verifikasi togglenya ON secara default utk app baru install.
+
+**Bump**: versionName 1.0.55 -> 1.0.56.
+
+**Pending Queue baru:**
+- #45: `MainActivity.kt` - prompt otomatis izin `USE_FULL_SCREEN_INTENT` API 34+ (`Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT`), pola sama dgn `requestDndAccessIfNeeded()`/`requestExactAlarmPermission()` yang sudah ada. Tanpa ini, full-screen intent Batch 93 di atas diam-diam fallback ke notifikasi biasa di device yang mencabut izin ini manual (jarang, tapi ada UI-nya di beberapa OEM Android 14+).
+
+**Pending Queue lama**: tidak berubah dari Batch 92 - roadmap restyle iOS #38-#41, sisa audit UX #33/#34/#36/#37.
+
+---
+
 ## [Batch 92] Fitur - Prompt Otomatis Izin DND Access (Pending Queue #44, lanjutan Batch 91) — 2026-08-31
 
 **Konteks:** Batch 91 bikin channel `battery_alert_alarm` `setBypassDnd(true)`, tapi eksplisit didokumentasikan BELUM lengkap - properti itu tidak berefek tanpa user grant izin "Do Not Disturb access" manual. Batch ini nutup gap-nya.

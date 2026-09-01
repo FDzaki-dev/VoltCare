@@ -1,6 +1,12 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.56-batch93] - 2026-09-01
+### Added
+- Pending Queue #43: notifikasi alert rule ALARM sekarang bisa membuka layar penuh dedicated "Alarm Berbunyi!" (`AlarmActivity` baru) di atas lockscreen via `setFullScreenIntent()`, persis pola app Jam/Alarm bawaan Android - tidak lagi cuma notifikasi bar biasa. Device TIDAK ikut ke-unlock; tombol "Matikan Alarm" menghentikan suara/getar + notifikasi sama seperti tombol aksi notifikasi yang sudah ada.
+### Note
+- API 34+ (Android 14): izin `USE_FULL_SCREEN_INTENT` bisa dicabut user manual - sudah fail-safe (fallback ke notifikasi biasa), prompt otomatis minta izin ini belum ada, masuk Pending Queue #45.
+
 ## [v1.0.55-batch92] - 2026-08-31
 ### Added
 - Pending Queue #44: `MainActivity` sekarang prompt otomatis izin "Do Not Disturb access" (`ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS`) kalau belum granted - melengkapi DND bypass channel ALARM dari Batch 91 (sebelumnya harus grant manual sendiri).

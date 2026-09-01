@@ -18,6 +18,10 @@
     <!-- In-app updater (UpdateManager): cek + download rilis GitHub, install via FileProvider -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Pending Queue #43 (Batch 93): full-screen intent ala alarm clock (AlarmActivity).
+         API 34+ bisa dicabut user via Settings meski dideklarasikan - fireAlert()/
+         postAlertNotification() sudah fail-safe cek canUseFullScreenIntent(). -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <application
         android:name=".VoltCareApplication"
@@ -40,6 +44,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Pending Queue #43 (Batch 93): layar "Alarm Berbunyi!" full-screen ala alarm clock -
+             lihat KDoc AlarmActivity.kt utk alasan tiap atribut. -->
+        <activity
+            android:name=".AlarmActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.VoltCare" />
 
         <service
             android:name=".service.BatteryMonitorService"

@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import com.voltcare.app.AlarmActivity
 import com.voltcare.app.VoltCareApplication
 import com.voltcare.app.data.db.AppDatabase
 import com.voltcare.app.data.db.entity.RuleEntity
@@ -89,6 +90,13 @@ import java.util.Calendar
  * system never adjusts their delivery time". Ini SATU-SATUNYA jenis alarm yang dijamin Android
  * tidak pernah ditunda oleh Doze/App Standby/battery optimization apa pun - persis mekanisme
  * yang dipakai app Jam/Alarm bawaan Android sendiri utk alarm bangun tidur.
+ *
+ * Batch 93 (Pending Queue #43 - full-screen intent ala alarm clock): `postAlertNotification()`
+ * disamakan persis dgn `BatteryMonitorService.fireAlert()` - ikut `setFullScreenIntent()` ke
+ * `AlarmActivity` baru utk rule ALARM. WAJIB konsisten (pola sama dgn seluruh KDoc class ini) -
+ * kalau tidak, alarm yang fire lewat safety net independen-proses ini tidak dapat layar
+ * full-screen padahal yang fire lewat service utama dapat, perilaku jadi tidak konsisten
+ * tergantung jalur mana yang kebetulan sempat fire duluan.
  */
 class AlarmCheckReceiver : BroadcastReceiver() {
 
@@ -212,7 +220,7 @@ class AlarmCheckReceiver : BroadcastReceiver() {
         } else {
             VoltCareApplication.CHANNEL_ALERT_NOTIFY
         }
-        val notification = NotificationCompat.Builder(context, channelId)
+        val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle("Peringatan: ${rule.label}")
             .setContentText("Kondisi aturan cerdas terpenuhi.")
@@ -225,8 +233,35 @@ class AlarmCheckReceiver : BroadcastReceiver() {
             .setOngoing(rule.actionType == "ALARM")
             .setAutoCancel(rule.actionType != "ALARM")
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Matikan Alarm", dismissPendingIntent)
-            .build()
-        manager.notify(ALERT_NOTIF_BASE_ID + rule.id.toInt(), notification)
+        // Batch 93 (Pending Queue #43): samakan persis dgn BatteryMonitorService.fireAlert() -
+        // lihat KDoc di sana utk alasan lengkap (full-screen intent HANYA rule ALARM).
+        if (rule.actionType == "ALARM" && canUseFullScreenIntent(manager)) {
+            builder.setFullScreenIntent(fullScreenAlarmPendingIntent(context, rule), true)
+        }
+        manager.notify(ALERT_NOTIF_BASE_ID + rule.id.toInt(), builder.build())
+    }
+
+    /** Batch 93: samakan persis dgn BatteryMonitorService.canUseFullScreenIntent() - lihat KDoc
+     *  di sana utk alasan lengkap (API 34+ USE_FULL_SCREEN_INTENT bisa dicabut user). */
+    private fun canUseFullScreenIntent(manager: NotificationManager): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            manager.canUseFullScreenIntent()
+        } else {
+            true
+        }
+    }
+
+    /** Batch 93: PendingIntent ke AlarmActivity dedicated - lihat KDoc class di sana. */
+    private fun fullScreenAlarmPendingIntent(context: Context, rule: RuleEntity): PendingIntent {
+        val intent = Intent(context, AlarmActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            putExtra(BatteryMonitorService.EXTRA_RULE_ID, rule.id)
+            putExtra(BatteryMonitorService.EXTRA_RULE_LABEL, rule.label)
+        }
+        return PendingIntent.getActivity(
+            context, ALERT_NOTIF_BASE_ID + rule.id.toInt(), intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
     }
 
     private fun firedKey(ruleId: Long) = "fired_$ruleId"

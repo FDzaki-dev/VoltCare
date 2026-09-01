@@ -8,9 +8,11 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import com.voltcare.app.AlarmActivity
 import com.voltcare.app.MainActivity
 import com.voltcare.app.VoltCareApplication
 import com.voltcare.app.R
@@ -61,6 +63,11 @@ import java.util.Calendar
  * eksplisit "Matikan Alarm" (yang tetap `manager.cancel()` notifikasi via kode di
  * handleDismissAlarm(), independen dari flag ongoing/autoCancel). Rule NOTIFY (tanpa suara)
  * TIDAK diubah - tetap `setAutoCancel(true)`/swipeable seperti sebelumnya.
+ *
+ * Batch 93 (Pending Queue #43 - full-screen intent ala alarm clock): `fireAlert()` sekarang
+ * `setFullScreenIntent()` ke [AlarmActivity] baru, HANYA utk rule ALARM, guarded
+ * `canUseFullScreenIntent()` (API 34+, fail-safe fallback ke notifikasi biasa kalau izin
+ * dicabut user). Lihat KDoc lengkap di [AlarmActivity] & [canUseFullScreenIntent].
  */
 class BatteryMonitorService : Service() {
 
@@ -384,7 +391,7 @@ class BatteryMonitorService : Service() {
         } else {
             VoltCareApplication.CHANNEL_ALERT_NOTIFY
         }
-        val notification = NotificationCompat.Builder(this, channelId)
+        val builder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle("Peringatan: ${rule.label}")
             .setContentText("Kondisi aturan cerdas terpenuhi.")
@@ -399,8 +406,40 @@ class BatteryMonitorService : Service() {
             // Root cause #3: aksi eksplisit hentikan alarm yang sedang bunyi, tanpa perlu
             // tunggu kondisi reset sendiri (mis. cabut charger).
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Matikan Alarm", dismissPendingIntent)
-            .build()
-        manager.notify(ALERT_NOTIF_BASE_ID + rule.id.toInt(), notification)
+        // Pending Queue #43 (Batch 93): full-screen intent ala alarm clock - HANYA rule ALARM
+        // (rule NOTIFY tetap notifikasi biasa, tidak butuh perhatian sebesar layar penuh).
+        if (rule.actionType == "ALARM" && canUseFullScreenIntent(manager)) {
+            builder.setFullScreenIntent(fullScreenAlarmPendingIntent(rule), true)
+        }
+        manager.notify(ALERT_NOTIF_BASE_ID + rule.id.toInt(), builder.build())
+    }
+
+    /**
+     * API 34+ (Android 14 "UpsideDownCake"): `USE_FULL_SCREEN_INTENT` kini bisa DICABUT user
+     * lewat Settings meski sudah dideklarasikan di manifest (beda dari API 33 ke bawah yang
+     * selalu granted otomatis begitu dideklarasikan). Cek eksplisit - kalau dicabut, fallback
+     * diam-diam ke notifikasi biasa (TANPA full-screen), BUKAN skip notifikasi sama sekali;
+     * di bawah API 34 method ini belum ada sama sekali, permission lama selalu berefek.
+     */
+    private fun canUseFullScreenIntent(manager: NotificationManager): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            manager.canUseFullScreenIntent()
+        } else {
+            true
+        }
+    }
+
+    /** Pending Queue #43: PendingIntent ke [AlarmActivity] dedicated - lihat KDoc class di sana. */
+    private fun fullScreenAlarmPendingIntent(rule: RuleEntity): PendingIntent {
+        val intent = Intent(applicationContext, AlarmActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            putExtra(EXTRA_RULE_ID, rule.id)
+            putExtra(EXTRA_RULE_LABEL, rule.label)
+        }
+        return PendingIntent.getActivity(
+            applicationContext, ALERT_NOTIF_BASE_ID + rule.id.toInt(), intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
     }
 
     private fun updateNotification(percent: Int, temperatureC: Float, isCharging: Boolean) {
@@ -432,6 +471,11 @@ class BatteryMonitorService : Service() {
         private const val RETENTION_MS = 30L * 24 * 60 * 60 * 1000
         const val ACTION_DISMISS_ALARM = "com.voltcare.app.action.DISMISS_ALARM"
         const val EXTRA_RULE_ID = "extra_rule_id"
+
+        /** Pending Queue #43 (Batch 93): label rule utk ditampilkan di [AlarmActivity]
+         *  full-screen - dipakai bersama oleh fireAlert() di sini & postAlertNotification()
+         *  di AlarmCheckReceiver.kt (samakan persis, lihat KDoc masing-masing). */
+        const val EXTRA_RULE_LABEL = "extra_rule_label"
 
         /** Batch 86: lihat KDoc handleFireAlarmRequest() - alarm SELALU diputar di proses
          *  service ini (bukan di proses AlarmCheckReceiver), supaya ringtone tidak ikut
