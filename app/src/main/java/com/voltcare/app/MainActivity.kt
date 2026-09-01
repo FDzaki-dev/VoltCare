@@ -2,6 +2,7 @@ package com.voltcare.app
 
 import android.Manifest
 import android.app.AlarmManager
+import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -37,6 +38,7 @@ class MainActivity : ComponentActivity() {
         requestIgnoreBatteryOptimization()
         promptAutostartIfNeeded()
         requestExactAlarmPermission()
+        requestDndAccessIfNeeded()
 
         setContent {
             VoltCareTheme {
@@ -111,6 +113,26 @@ class MainActivity : ComponentActivity() {
             }
         } catch (e: Throwable) {
             // Fail-safe: gagal minta izin tidak boleh crash app - AlarmCheckReceiver ttp fallback inexact.
+        }
+    }
+
+    /**
+     * Pending Queue #44 (Batch 91): channel `battery_alert_alarm` sudah `setBypassDnd(true)`
+     * TAPI properti itu TIDAK berefek apa pun sampai user grant izin "Do Not Disturb access"
+     * di level sistem (beda dari izin biasa - tidak ada runtime permission dialog, harus lewat
+     * halaman Settings khusus). Pola sama persis dgn requestIgnoreBatteryOptimization()/
+     * requestExactAlarmPermission() di atas - re-prompt tiap launch selama belum granted
+     * (isNotificationPolicyAccessGranted() reliable dicek, beda dari Autostart OEM yang
+     * tidak ada API cek statusnya makanya promptAutostartIfNeeded() sengaja cuma sekali).
+     */
+    private fun requestDndAccessIfNeeded() {
+        try {
+            val manager = getSystemService(NotificationManager::class.java) ?: return
+            if (!manager.isNotificationPolicyAccessGranted) {
+                startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
+            }
+        } catch (e: Throwable) {
+            // Fail-safe: sebagian OEM custom ROM tolak/tidak dukung intent ini - jangan crash.
         }
     }
 

@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.55-batch92] - 2026-08-31
+### Added
+- Pending Queue #44: `MainActivity` sekarang prompt otomatis izin "Do Not Disturb access" (`ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS`) kalau belum granted - melengkapi DND bypass channel ALARM dari Batch 91 (sebelumnya harus grant manual sendiri).
+
 ## [v1.0.54-batch91] - 2026-08-31
 ### Added
 - Pending Queue #42: notifikasi alert dipecah jadi 2 channel - `battery_alert_alarm` (rule ALARM, DND bypass + suara channel disuppress karena AlarmPlayer handle sendiri) dan `battery_alert_notify` (rule NOTIFY, default sound, tanpa bypass). Channel gabungan lama dihapus.

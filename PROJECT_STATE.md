@@ -25,6 +25,22 @@
 
 ---
 
+## [Batch 92] Fitur - Prompt Otomatis Izin DND Access (Pending Queue #44, lanjutan Batch 91) — 2026-08-31
+
+**Konteks:** Batch 91 bikin channel `battery_alert_alarm` `setBypassDnd(true)`, tapi eksplisit didokumentasikan BELUM lengkap - properti itu tidak berefek tanpa user grant izin "Do Not Disturb access" manual. Batch ini nutup gap-nya.
+
+**Fix (1 file, `MainActivity.kt`):** `requestDndAccessIfNeeded()` baru - cek `NotificationManager.isNotificationPolicyAccessGranted()`, kalau belum, buka `Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS`. Pola & penempatan identik `requestIgnoreBatteryOptimization()`/`requestExactAlarmPermission()` yang sudah ada (re-prompt tiap `onCreate()` selama belum granted - status ini reliable dicek via API, beda dari Autostart OEM yang tidak punya API cek makanya `promptAutostartIfNeeded()` sengaja cuma sekali).
+
+**Sengaja TIDAK diubah:** `VoltCareApplication.kt`/`BatteryMonitorService.kt`/`AlarmCheckReceiver.kt` (channel & notifikasi, sudah benar sejak Batch 91) - batch ini murni menutup 1 gap izin yang sudah didokumentasikan eksplisit sebelumnya, bukan audit baru.
+
+**Catatan:** Brace/paren balance `MainActivity.kt` 26/26 curly, 73/73 paren. Tidak ada compile Gradle/device fisik sungguhan (network disabled). Rekomendasi test: fresh install (atau cabut manual izin "Do Not Disturb access" via Settings dulu) -> buka app -> halaman sistem "Do Not Disturb access" harus muncul otomatis -> Allow -> aktifkan DND device -> trigger rule ALARM -> notifikasi+suara harus tetap muncul.
+
+**Bump**: versionName 1.0.54 -> 1.0.55.
+
+**Pending Queue**: Pending Queue #42 (Batch 91) + #44 (batch ini) SELESAI TUNTAS. Sisa: #43 (full-screen intent ala alarm clock), roadmap restyle iOS #38-#41, sisa audit UX #33/#34/#36/#37.
+
+---
+
 ## [Batch 91] Fitur - DND Bypass utk Rule ALARM (Pending Queue #42, pilihan user) — 2026-08-31
 
 **Konteks:** User pilih lanjut ke Pending Queue #42 (dari Batch 90): split channel notifikasi ALARM/NOTIFY + DND bypass utk channel ALARM.
