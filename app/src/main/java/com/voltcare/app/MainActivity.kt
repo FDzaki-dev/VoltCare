@@ -121,17 +121,29 @@ class MainActivity : ComponentActivity() {
      * Pending Queue #44 (Batch 91): channel `battery_alert_alarm` sudah `setBypassDnd(true)`
      * TAPI properti itu TIDAK berefek apa pun sampai user grant izin "Do Not Disturb access"
      * di level sistem (beda dari izin biasa - tidak ada runtime permission dialog, harus lewat
-     * halaman Settings khusus). Pola sama persis dgn requestIgnoreBatteryOptimization()/
-     * requestExactAlarmPermission() di atas - re-prompt tiap launch selama belum granted
-     * (isNotificationPolicyAccessGranted() reliable dicek, beda dari Autostart OEM yang
-     * tidak ada API cek statusnya makanya promptAutostartIfNeeded() sengaja cuma sekali).
+     * halaman Settings khusus).
+     *
+     * Batch 95 (laporan user, screenshot ROM Transsion XOS): DIREVISI dari re-prompt tiap
+     * onCreate() (desain awal Batch 92) ke SEKALI SAJA - pola sama `promptAutostartIfNeeded()`.
+     * Root cause TERNYATA bukan celah kode: layar "Akses ke Mode" versi ROM ini HANYA
+     * menampilkan app sistem/vendor bawaan (TranfacMode/XHide/dst) - VoltCare (app pihak
+     * ketiga) tidak pernah bisa muncul di sana berapa kali pun layar itu dibuka.
+     * `isNotificationPolicyAccessGranted()` API-nya tetap reliable dicek (beda dari Autostart
+     * yang memang tidak ada API cek statusnya sama sekali) - TAPI di device dgn gap OEM ini,
+     * status itu TIDAK PERNAH bisa jadi true lewat jalur ini, jadi re-prompt terus-menerus
+     * cuma jadi nag tanpa jalan keluar (persis laporan user: layar itu muncul TIAP app dibuka).
+     * Device yang TIDAK kena gap OEM ini (ROM lain, VoltCare beneran muncul di list) tetap
+     * cukup 1x prompt - begitu user grant, `isNotificationPolicyAccessGranted()` true & flag
+     * sekali-prompt ini toh sudah tidak relevan lagi diperiksa ulang.
      */
     private fun requestDndAccessIfNeeded() {
         try {
             val manager = getSystemService(NotificationManager::class.java) ?: return
-            if (!manager.isNotificationPolicyAccessGranted) {
-                startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
-            }
+            if (manager.isNotificationPolicyAccessGranted) return
+            val prefs = getSharedPreferences("voltcare_prefs", MODE_PRIVATE)
+            if (prefs.getBoolean("dnd_access_prompted", false)) return
+            prefs.edit().putBoolean("dnd_access_prompted", true).apply()
+            startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
         } catch (e: Throwable) {
             // Fail-safe: sebagian OEM custom ROM tolak/tidak dukung intent ini - jangan crash.
         }

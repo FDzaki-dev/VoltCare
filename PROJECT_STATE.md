@@ -25,6 +25,24 @@
 
 ---
 
+## [Batch 95] Fix - Laporan User: Layar "Akses ke Mode" Terus Muncul Tiap Buka App (OEM Transsion XOS) — 2026-09-01
+
+**Konteks:** User kirim screenshot layar "Akses ke Mode" (Notification Policy Access/DND versi kustom ROM Transsion XOS) yang terus muncul tiap kali app dibuka, dan laporkan VoltCare tidak ada sama sekali di daftar app untuk diberikan izin. Root cause diaudit: BUKAN celah kode - `requestDndAccessIfNeeded()` (Batch 92) sudah benar memanggil `Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS` (API standar Android), TAPI implementasi layar itu di ROM Transsion XOS HANYA menampilkan app sistem/vendor bawaan (TranfacMode, TranVoiceCommand, Usf, Wi-Fi, XHide, Za-Hooc di screenshot user) - app pihak ketiga spt VoltCare tidak pernah bisa muncul di sana berapa kali pun dibuka. Karena fungsi ini didesain re-prompt TIAP `onCreate()` selama `isNotificationPolicyAccessGranted()` masih false (status yang TIDAK PERNAH bisa jadi true lewat jalur ini di device ybs), user terjebak diarahkan ke layar dead-end itu tiap buka app - sama kelas masalah dgn gap OEM Autostart (Batch 69), bukan bug yang bisa di-fix murni via API standar Android.
+
+**Keputusan user (ditanya eksplisit via pilihan):** Stop nagging - prompt sekali saja, pola sama `promptAutostartIfNeeded()`.
+
+**Fix (1 file, `MainActivity.kt`):** `requestDndAccessIfNeeded()` direvisi dari re-prompt tiap `onCreate()` (desain awal Batch 92) ke SEKALI SAJA - tambah flag `SharedPreferences` baru `dnd_access_prompted` (`voltcare_prefs`, key TERPISAH dari `autostart_prompted` yang sudah ada), pola identik `promptAutostartIfNeeded()`. Device yang TIDAK kena gap OEM ini (VoltCare beneran muncul di list DND access ROM lain) tetap cukup 1x prompt - begitu user grant, `isNotificationPolicyAccessGranted()` true & flag ini toh sudah tidak relevan diperiksa ulang.
+
+**Sengaja TIDAK diubah:** `BatteryMonitorService.kt`/`AlarmCheckReceiver.kt` (channel `battery_alert_alarm` `setBypassDnd(true)`, Batch 91) - perilaku bypass DND tetap sama, hanya BERGANTUNG pada user grant manual via Settings > Apps > VoltCare > Notifications > "Do Not Disturb access" (masih memungkinkan di sebagian ROM lewat jalur App Info, walau tidak lewat layar global "Akses ke Mode" versi Transsion XOS) - didokumentasikan sbg limitasi jujur, bukan diklaim solved 100%. `requestExactAlarmPermission()`/`requestFullScreenIntentAccessIfNeeded()` (Batch 72/94) TIDAK ikut diubah ke pola sekali-prompt - keduanya API standar AOSP tanpa laporan gap OEM serupa sejauh ini, tetap re-prompt tiap launch selama API cek reliable & user belum ada laporan device spesifik yang stuck sama seperti DND access ini.
+
+**Catatan:** Brace/paren balance dicek (`MainActivity.kt` 30/30 curly, 105/105 paren). Tidak ada compile Gradle/device fisik sungguhan (network disabled di lingkungan ini). Rekomendasi ke user: kalau masih mau coba grant DND access manual di device Transsion XOS ini, jalur alternatif yang kadang tersedia di sebagian ROM: Settings > Apps > VoltCare > Notifications > cari toggle "Do Not Disturb access" (beda dari layar global "Akses ke Mode" yang barusan dilaporkan) - kalau toggle itu juga tidak ada, berarti ROM ini memang tidak mengekspos akses ini ke app pihak ketiga sama sekali (batas platform, di luar kendali kode). Rekomendasi test: fresh install atau hapus data app -> buka app -> layar "Akses ke Mode" HARUS muncul PALING BANYAK 1x (bukan lagi tiap launch) -> tutup/skip -> buka app lagi -> layar itu TIDAK boleh muncul lagi.
+
+**Bump**: versionName 1.0.57 -> 1.0.58.
+
+**Pending Queue**: Tidak ada item baru dari batch ini (murni bugfix laporan user, bukan fitur). Tidak berubah dari Batch 90-94 - roadmap restyle iOS #38-#41, sisa audit UX #33/#34/#36/#37.
+
+---
+
 ## [Batch 94] Fitur - Pending Queue #45: Prompt Otomatis Izin USE_FULL_SCREEN_INTENT API 34+ (RESOLVED) — 2026-09-01
 
 **Konteks:** Pending Queue #45 sejak Batch 93 - `BatteryMonitorService.canUseFullScreenIntent()`/`AlarmCheckReceiver` sudah fail-safe fallback diam-diam ke notifikasi biasa kalau izin `USE_FULL_SCREEN_INTENT` dicabut user (API 34+, bisa dicabut manual lewat Settings meski sudah dideklarasikan manifest sejak Batch 93 - beda dari API 33 ke bawah yang selalu granted otomatis begitu dideklarasikan). Batch ini menutup gap tsb dgn prompt EKSPLISIT di `MainActivity.kt`, biar user diarahkan ke halaman sistem duluan alih-alih diam-diam fallback tanpa sepengetahuan user.

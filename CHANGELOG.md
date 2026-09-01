@@ -1,6 +1,10 @@
 # CHANGELOG.md
 (Urutan DESCENDING - entri terbaru di paling atas)
 
+## [v1.0.58-batch95] - 2026-09-01
+### Fixed
+- Layar "Akses ke Mode" (Do Not Disturb access) terus muncul tiap buka app di sebagian ROM (Transsion XOS) yang tidak menampilkan VoltCare di daftarnya sama sekali (app pihak ketiga tidak bisa muncul di layar itu, gap OEM). Prompt sekarang HANYA sekali (pola sama prompt Autostart), tidak nag terus-menerus di device yang kena gap ini.
+
 ## [v1.0.57-batch94] - 2026-09-01
 ### Added
 - Pending Queue #45: `MainActivity` sekarang prompt otomatis izin `USE_FULL_SCREEN_INTENT` (API 34+, `Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT`) kalau belum granted - menutup gap yang dicatat di Batch 93. Fallback ke notifikasi biasa (Batch 93) tetap berlaku sebagai jaring pengaman kalau user tolak/cabut izin manual.
